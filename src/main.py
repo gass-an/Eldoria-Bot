@@ -492,7 +492,7 @@ async def manual_save_command(interaction: discord.Interaction):
                 file=discord.File(file, filename=f"Config_roles_REACTION_{datetime.now().strftime('%Y%m%d')}.json")
             )
     else:
-        await channel.send("Fichier Patient introuvable !", ephemeral=True)
+        await channel.send("Fichier config_roles.json introuvable !", ephemeral=True)
 
 
     if os.path.exists("./json/config_secret_roles.json"):
@@ -503,7 +503,7 @@ async def manual_save_command(interaction: discord.Interaction):
                 file=discord.File(file, filename=f"Config_roles_SECRET_{datetime.now().strftime('%Y%m%d')}.json")
             )
     else:
-        await channel.send("Fichier Patient introuvable !", ephemeral=True)
+        await channel.send("Fichier config_secret_roles.json introuvable !", ephemeral=True)
 
     if os.path.exists("./json/temp_channels.json"):
 
@@ -513,7 +513,7 @@ async def manual_save_command(interaction: discord.Interaction):
                 file=discord.File(file, filename=f"temp_channels_{datetime.now().strftime('%Y%m%d')}.json")
             )
     else:
-        await channel.send("Fichier Patient introuvable !", ephemeral=True)
+        await channel.send("Fichier temp_channels.json introuvable !", ephemeral=True)
 
 
     await interaction.response.send_message("Fichiers bien envoyés ! ", ephemeral=True)
