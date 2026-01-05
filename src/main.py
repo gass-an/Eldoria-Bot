@@ -35,7 +35,14 @@ async def on_ready():
         print("\nLes commandes globales ont été synchronisées.")
     except Exception as e:
         print(f"Erreur lors de la synchronisation des commandes : {e}")
+    print("Initialisation de la base de données si nécessaire.")
     gestionDB.init_db()
+    print("Supression en base des channels temporaires inexistant")
+    for guild in bot.guilds:
+        rows = gestionDB.tv_list_active_all(guild.id)
+        for parent_id, channel_id in rows:
+            if guild.get_channel(channel_id) is None:
+                gestionDB.tv_remove_active(guild.id, parent_id, channel_id)
     print(f"{bot.user} est en cours d'exécution !\n")
 
 
@@ -106,41 +113,41 @@ async def on_message(message: discord.Message):
 # ------------------------------------ Gestion des salons vocaux -------------------------------------
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
-
     guild = member.guild
-    # Pour créer les channels (SQLite)
+
+    # 1) DELETE d'abord : si on quitte un salon temporaire et qu'il devient vide
+    if before.channel:
+        parent_id = gestionDB.tv_find_parent_of_active(guild.id, before.channel.id)
+        if parent_id is not None and len(before.channel.members) == 0:
+            await before.channel.delete()
+            gestionDB.tv_remove_active(guild.id, parent_id, before.channel.id)
+
+    # 2) GARDE-FOU : si on arrive déjà dans un salon temporaire, on ne crée rien
     if after.channel:
+        if gestionDB.tv_find_parent_of_active(guild.id, after.channel.id) is not None:
+            return
+
+        # 3) CREATE : uniquement si after.channel est un "parent" configuré
         user_limit = gestionDB.tv_get_parent(guild.id, after.channel.id)
         if user_limit is not None:
-
             category = after.channel.category
             new_channel_name = f"Salon de {member.display_name}"
             overwrites = {
-                member: discord.PermissionOverwrite(view_channel=True, manage_channels=True), 
+                member: discord.PermissionOverwrite(view_channel=True, manage_channels=True),
             }
 
             new_channel = await guild.create_voice_channel(
                 name=new_channel_name,
                 category=category,
                 overwrites=overwrites,
-                bitrate=after.channel.bitrate,  # Copiez la qualité audio du salon cible
-                user_limit=user_limit, 
+                bitrate=after.channel.bitrate,
+                user_limit=user_limit,
             )
 
+            # Important : enregistrer AVANT le move pour que le 2e event (move) soit filtré
+            gestionDB.tv_add_active(guild.id, after.channel.id, new_channel.id)
+
             await member.move_to(new_channel)
-            gestionDB.tv_add_active(guild.id, after.channel.id, new_channel.id)   
-
-    # Pour delete les channels vides (SQLite)
-    if before.channel:
-        # Est-ce que ce salon est un salon temporaire créé par le bot ?
-        parent_id = gestionDB.tv_find_parent_of_active(guild.id, before.channel.id)
-        
-        if parent_id is not None:
-            # Il est bien géré par le système, on peut vérifier s'il est vide
-            if len(before.channel.members) == 0:
-                await before.channel.delete()
-                gestionDB.tv_remove_active(guild.id, parent_id, before.channel.id)
-
 
 
 
@@ -150,12 +157,60 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 @bot.slash_command(name="help", description="Affiche la liste des commandes disponible avec le bot")
 async def help(interaction: discord.Interaction):
     help_infos = gestionJson.load_help_json()
-    list_help_info = list(help_infos.items())
 
-    await interaction.response.defer()
-    paginator = gestionPages.Paginator(items=list_help_info,embed_generator=responses.generate_help_embed, identifiant_for_embed=None, bot=None)
-    embed,files = await paginator.create_embed()
-    await interaction.followup.send(embed=embed, files=files, view=paginator)
+    # Map: "ping" -> cmd object (slash)
+    cmd_map = {c.name: c for c in bot.application_commands}
+
+    member_perms = interaction.user.guild_permissions
+
+    async def is_command_visible(cmd_name: str) -> bool:
+        cmd = cmd_map.get(cmd_name)
+        if cmd is None:
+            # Commande présente dans help.json mais pas chargée sur le bot
+            return False
+
+        # 1) Filtre rapide sur les default_permissions (si présents)
+        dp = getattr(cmd, "default_member_permissions", None)
+        if dp is not None:
+            # il faut que l'user ait tous les bits requis
+            if (member_perms.value & dp.value) != dp.value:
+                return False
+
+        # 2) Filtre sur les checks Python (@commands.has_permissions, etc.)
+        try:
+            can = await cmd.can_run(interaction)
+            if not can:
+                return False
+        except Exception:
+            return False
+
+        return True
+
+    # Filtrer le help.json en gardant l’ordre
+    filtered = {}
+    for name, desc in help_infos.items():
+        if await is_command_visible(name):
+            filtered[name] = desc
+
+    list_help_info = list(filtered.items())
+
+    # Si rien n’est accessible, message clean
+    if not list_help_info:
+        await interaction.response.send_message(
+            "Aucune commande disponible avec vos permissions.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    paginator = gestionPages.Paginator(
+        items=list_help_info,
+        embed_generator=responses.generate_help_embed,
+        identifiant_for_embed=None,
+        bot=None
+    )
+    embed, files = await paginator.create_embed()
+    await interaction.followup.send(embed=embed, files=files, view=paginator, ephemeral=True)
 
 
 # /ping (répond : Pong!) 
@@ -170,6 +225,7 @@ async def ping_command(interaction: discord.Interaction):
 @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
 @discord.option("emoji", str, description="L'émoji de la réaction.")
 @discord.option("role", discord.Role, description="Le rôle attribué.")
+@discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def add_reaction_role(interaction: discord.Interaction, message_link: str, emoji: str, role: discord.Role):  
 
@@ -223,6 +279,7 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
 
 @bot.slash_command(name="remove_all_reactions", description="Retire toutes les réaction d'un message.")
 @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
+@discord.default_permissions(manage_roles=True, manage_messages=True)
 @commands.has_permissions(manage_roles=True, manage_messages=True)
 async def remove_all_reactions(interaction: discord.Interaction, message_link: str):  
     guild_id, channel_id, message_id = fonctions.extract_id_from_link(message_link)    
@@ -249,6 +306,7 @@ async def remove_all_reactions(interaction: discord.Interaction, message_link: s
 @bot.slash_command(name="remove_specific_reaction", description="Retire une réaction spécifique d'un message.")
 @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
 @discord.option("emoji", str, description="L'émoji de la réaction.")
+@discord.default_permissions(manage_roles=True, manage_messages=True)
 @commands.has_permissions(manage_roles=True, manage_messages=True)
 async def remove_specific_reaction(interaction: discord.Interaction, message_link: str, emoji: str):
     guild_id, channel_id, message_id = fonctions.extract_id_from_link(message_link)    
@@ -272,6 +330,7 @@ async def remove_specific_reaction(interaction: discord.Interaction, message_lin
 
 
 @bot.slash_command(name="list_of_reaction_roles", description="Affiche la liste des tous les rôles attribués avec une réaction à un message.")
+@discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def list_reaction_roles(interaction: discord.Interaction):
     
@@ -290,6 +349,7 @@ async def list_reaction_roles(interaction: discord.Interaction):
 @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.")
 @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
 @discord.option("role", discord.Role, description="Le rôle attribué.")
+@discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def add_secret_role(interaction: discord.Interaction, message: str, channel: discord.TextChannel, role: discord.Role):
     await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
@@ -341,6 +401,7 @@ async def message_secret_role_autocomplete(interaction: discord.AutocompleteCont
 @bot.slash_command(name="delete_secret_role", description="Supprime l'attibution d'un secret_role déjà paramétré.")
 @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
 @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.", autocomplete=message_secret_role_autocomplete)
+@discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def delete_secret_role(interaction: discord.Interaction, channel: discord.TextChannel, message: str):
     await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
@@ -362,6 +423,7 @@ async def delete_secret_role(interaction: discord.Interaction, channel: discord.
 
 
 @bot.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
+@discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def list_of_secret_roles(interaction: discord.Interaction):
     
@@ -385,6 +447,8 @@ async def list_of_secret_roles(interaction: discord.Interaction):
 @bot.slash_command(name="init_creation_voice_channel", description="Défini le salon qui permettra à chacun de créer son propre salon vocal temporaire")
 @discord.option("channel", discord.VoiceChannel, description="Le channel cible pour la création d'autres salon vocaux.")
 @discord.option("user_limit", int, description="Le nombre de personnes qui pourront rejoindre les salons créés", min_value=1, max_value=99)
+@discord.default_permissions(manage_channels=True)
+@commands.has_permissions(manage_channels=True)
 async def init_creation_voice_channel(interaction: discord.Interaction, channel: discord.VoiceChannel, user_limit: int):
     await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
     guild_id = interaction.guild.id
@@ -393,6 +457,47 @@ async def init_creation_voice_channel(interaction: discord.Interaction, channel:
 
     await interaction.edit(content=f"Le salon `{channel.name}` est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
 
+
+@bot.slash_command(name="remove_creation_voice_channel",description="Désactive la création automatique de salons vocaux temporaires pour un salon donné")
+@discord.option("channel", discord.VoiceChannel, description="Le salon parent à désactiver")
+@discord.default_permissions(manage_channels=True)
+@commands.has_permissions(manage_channels=True)
+async def remove_creation_voice_channel(interaction: discord.Interaction,channel: discord.VoiceChannel):
+    await interaction.response.send_message("Traitement en cours...", ephemeral=True)
+
+    guild_id = interaction.guild.id
+    channel_id = channel.id
+
+    # Vérifie que le salon est bien un parent configuré
+    if gestionDB.tv_get_parent(guild_id, channel_id) is None:
+        await interaction.edit(
+            content=f"❌ Le salon `{channel.name}` n'est pas configuré comme salon parent."
+        )
+        return
+
+    gestionDB.tv_delete_parent(guild_id, channel_id)
+
+    await interaction.edit(
+        content=f"✅ Le salon `{channel.name}` n'est plus un salon de création automatique."
+    )
+
+
+@bot.slash_command(name="list_creation_voice_channels",description="Affiche la liste des salons parents qui créent des vocaux temporaires.")
+@discord.default_permissions(manage_channels=True)
+@commands.has_permissions(manage_channels=True)
+async def list_creation_voice_channels(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    parents = gestionDB.tv_list_parents(guild_id)
+
+    await interaction.response.defer()
+    paginator = gestionPages.Paginator(
+        items=parents,
+        embed_generator=responses.generate_list_temp_voice_parents_embed,
+        identifiant_for_embed=guild_id,
+        bot=bot
+    )
+    embed, files = await paginator.create_embed()
+    await interaction.followup.send(embed=embed, files=files, view=paginator)
 
 
 
@@ -433,11 +538,7 @@ async def manual_save_command(interaction: discord.Interaction):
 
     await interaction.edit(content="✅ DB bien envoyée !")
 
-@bot.slash_command(
-    name="insert_db",
-    description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)",
-    guild_ids=[SAVE_GUILD_ID]
-)
+@bot.slash_command(name="insert_db",description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)",guild_ids=[SAVE_GUILD_ID])
 @discord.option("message_id", str, description="Id du message contenant le fichier .db")
 async def insert_db_command(interaction: discord.Interaction, message_id: str):
     if interaction.user.id != MY_ID:
@@ -495,22 +596,50 @@ async def insert_db_command(interaction: discord.Interaction, message_id: str):
 
 # ------------------------------------ Gestion des erreurs de permissions  ---------------------------
 
-# @bot.event
-# async def on_application_command_error(interaction: discord.Interaction, error):
-#     if isinstance(error, commands.MissingRole):
-#         await interaction.edit(
-#             content="Vous n'avez pas le rôle requis pour utiliser cette commande."
-#         )
-#     else:
-#         await interaction.edit(
-#             content="Une erreur est survenue lors de l'exécution de la commande."
-#         )
+async def _reply_ephemeral(interaction: discord.Interaction, content: str):
+    # Si déjà répondu (defer/send), on passe par followup
+    if interaction.response.is_done():
+        await interaction.followup.send(content, ephemeral=True)
+    else:
+        await interaction.response.send_message(content, ephemeral=True)
+
+@bot.event
+async def on_application_command_error(interaction: discord.Interaction, error):
+    # Unwrap (pycord/discord.py wrap souvent les erreurs)
+    err = getattr(error, "original", error)
+
+    if isinstance(err, commands.MissingPermissions):
+        missing = ", ".join(err.missing_permissions)
+        await _reply_ephemeral(interaction, f"❌ Permissions manquantes : **{missing}**.")
+        return
+
+    if isinstance(err, commands.BotMissingPermissions):
+        missing = ", ".join(err.missing_permissions)
+        await _reply_ephemeral(interaction, f"❌ Il me manque des permissions : **{missing}**.")
+        return
+
+    if isinstance(err, commands.MissingRole):
+        await _reply_ephemeral(interaction, "❌ Vous n'avez pas le rôle requis pour utiliser cette commande.")
+        return
+
+    if isinstance(err, commands.MissingAnyRole):
+        await _reply_ephemeral(interaction, "❌ Vous n'avez aucun des rôles requis pour utiliser cette commande.")
+        return
+
+    if isinstance(err, commands.CheckFailure):
+        await _reply_ephemeral(interaction, "❌ Vous ne pouvez pas utiliser cette commande.")
+        return
+
+    # Fallback générique (log + message propre)
+    print(f"[CommandError] {type(err).__name__}: {err}")
+    await _reply_ephemeral(interaction, "❌ Une erreur est survenue lors de l'exécution de la commande.")
+
+
+
 
 
 def main():
     bot.run(TOKEN)
 
-
 if __name__ == '__main__':
     main()
-

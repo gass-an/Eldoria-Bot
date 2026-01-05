@@ -253,3 +253,26 @@ def tv_list_active(guild_id: int, parent_channel_id: int):
             WHERE guild_id=? AND parent_channel_id=?
         """, (guild_id, parent_channel_id)).fetchall()
     return [r[0] for r in rows]
+def tv_list_active_all(guild_id: int):
+    with get_conn() as conn:
+        return conn.execute("""
+            SELECT parent_channel_id, channel_id
+            FROM temp_voice_active
+            WHERE guild_id=?
+        """, (guild_id,)).fetchall()
+
+def tv_delete_parent(guild_id: int, parent_channel_id: int):
+    with get_conn() as conn:
+        conn.execute("""
+            DELETE FROM temp_voice_parents
+            WHERE guild_id=? AND parent_channel_id=?
+        """, (guild_id, parent_channel_id))
+
+def tv_list_parents(guild_id: int):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT parent_channel_id, user_limit
+            FROM temp_voice_parents
+            WHERE guild_id=?
+        """, (guild_id,)).fetchall()
+    return rows
