@@ -171,7 +171,12 @@ async def generate_list_temp_voice_parents_embed(items, page: int, total_pages: 
 
 
 async def generate_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: commands.Bot):
-    """items: list[(user_id, xp, level)]"""
+    """Génère l'embed du classement XP.
+
+    `items` peut être au format :
+      - list[(user_id, xp, level)]
+      - list[(user_id, xp, level, lvl_label)]  # si le label est pré-calculé côté commande
+    """
     await asyncio.sleep(0.01)
 
     embed = discord.Embed(
@@ -198,15 +203,60 @@ async def generate_list_xp_embed(items, current_page: int, total_pages: int, gui
     else:
         lines = []
         rank_start = current_page * 10 + 1
-        for idx, (user_id, xp, level) in enumerate(items, start=rank_start):
+        for idx, item in enumerate(items, start=rank_start):
+            # Compat: on accepte les tuples de taille 3 (ancien) ou 4 (avec label)
+            if len(item) == 4:
+                user_id, xp, level, lvl_txt = item
+            else:
+                user_id, xp, level = item
+                lvl_txt = level_label(level)
+
             member = guild.get_member(user_id) if guild else None
             name = member.display_name if member else f"ID {user_id}"
-            lvl_txt = level_label(level)
             lines.append(f"**{idx}.** {name} — {lvl_txt} — **{xp} XP**")
 
         embed.add_field(name="Membres", value="\n".join(lines), inline=False)
 
     embed.set_footer(text=f"Page {current_page + 1}/{total_pages}")
+
+    thumbnail_path = "./images/logo_Bot.png"
+    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
+    embed.set_thumbnail(url="attachment://logo_Bot.png")
+
+    image_path = "./images/banner_Bot.png"
+    image_file = discord.File(image_path, filename="banner_Bot.png")
+    embed.set_image(url="attachment://banner_Bot.png")
+
+    files = [thumbnail_file, image_file]
+    return embed, files
+
+
+async def generate_xp_roles_embed(levels_with_roles, guild_id: int, bot: commands.Bot):
+    """Crée un embed listant les rôles liés aux niveaux et l'XP nécessaire.
+
+    Paramètre attendu:
+      levels_with_roles: list[(level:int, xp_required:int, role_id:int|None)]
+    """
+    await asyncio.sleep(0.01)
+
+    embed = discord.Embed(
+        title="Rôles & Niveaux XP",
+        description="XP requis pour atteindre chaque rôle de niveau.",
+        colour=discord.Color(0x00FFFF),
+    )
+
+    guild = bot.get_guild(guild_id) if guild_id else None
+
+    lines = []
+    for level, xp_required, role_id in levels_with_roles or []:
+        role = guild.get_role(role_id) if (guild and role_id) else None
+        role_txt = role.mention if role else f"lvl{level}"
+        lines.append(f"**Niveau {level}** — {role_txt} — **{xp_required} XP**")
+
+    if not lines:
+        embed.add_field(name="Aucune configuration", value="Aucun niveau n'est configuré pour ce serveur.", inline=False)
+    else:
+        embed.add_field(name="Niveaux", value="\n".join(lines), inline=False)
 
     thumbnail_path = "./images/logo_Bot.png"
     thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")

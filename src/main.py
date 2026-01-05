@@ -313,6 +313,23 @@ async def xp_list(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, files=files, view=paginator)
 
 
+@bot.slash_command(name="xp_roles", description="Affiche les rôles de niveaux et l'XP requis pour les obtenir.")
+async def xp_roles(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    guild = interaction.guild
+    guild_id = guild.id
+
+    # S'assure que la config + niveaux + rôles existent
+    gestionDB.xp_ensure_defaults(guild_id)
+
+    levels_with_roles = gestionDB.xp_get_levels_with_roles(guild_id)
+    embed, files = await responses.generate_xp_roles_embed(levels_with_roles, guild_id, bot)
+    await interaction.response.send_message(embed=embed, files=files, ephemeral=True)
+
+
 @bot.slash_command(name="xp_set_level", description="(Admin) Définit l'XP requis pour un niveau.")
 @discord.option("level", int, description="Niveau (1..5)", min_value=1, max_value=5)
 @discord.option("xp_required", int, description="XP requis pour atteindre ce niveau", min_value=0)
@@ -341,7 +358,6 @@ async def xp_set_level(interaction: discord.Interaction, level: int, xp_required
             await xp_system.sync_member_level_roles(guild, m)
     except Exception:
         pass
-
 
 
 @bot.slash_command(name="xp_set_config", description="(Admin) Configure le gain d'XP par message et le cooldown.")
