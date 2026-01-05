@@ -168,3 +168,53 @@ async def generate_list_temp_voice_parents_embed(items, page: int, total_pages: 
     
     files = [thumbnail_file, image_file]
     return embed, files
+
+
+async def generate_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: commands.Bot):
+    """items: list[(user_id, xp, level)]"""
+    await asyncio.sleep(0.01)
+
+    embed = discord.Embed(
+        title="Classement XP",
+        description="Liste des membres et de leurs XP.",
+        colour=discord.Color(0x00FFFF),
+    )
+
+    guild = bot.get_guild(guild_id)
+
+    # Récupère le mapping {level: role_id} depuis la DB (indépendant du nom)
+    role_ids = gestionDB.xp_get_role_ids(guild_id) if guild_id else {}
+
+    def level_label(level: int) -> str:
+        if guild:
+            rid = role_ids.get(int(level))
+            role = guild.get_role(rid) if rid else None
+            if role:
+                return role.mention
+        return f"lvl{level}"
+
+    if not items:
+        embed.add_field(name="Aucun membre", value="Personne n'a encore gagné d'XP.", inline=False)
+    else:
+        lines = []
+        rank_start = current_page * 10 + 1
+        for idx, (user_id, xp, level) in enumerate(items, start=rank_start):
+            member = guild.get_member(user_id) if guild else None
+            name = member.display_name if member else f"ID {user_id}"
+            lvl_txt = level_label(level)
+            lines.append(f"**{idx}.** {name} — {lvl_txt} — **{xp} XP**")
+
+        embed.add_field(name="Membres", value="\n".join(lines), inline=False)
+
+    embed.set_footer(text=f"Page {current_page + 1}/{total_pages}")
+
+    thumbnail_path = "./images/logo_Bot.png"
+    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
+    embed.set_thumbnail(url="attachment://logo_Bot.png")
+
+    image_path = "./images/banner_Bot.png"
+    image_file = discord.File(image_path, filename="banner_Bot.png")
+    embed.set_image(url="attachment://banner_Bot.png")
+
+    files = [thumbnail_file, image_file]
+    return embed, files

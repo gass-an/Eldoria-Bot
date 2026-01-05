@@ -50,7 +50,36 @@ def init_db():
           channel_id         INTEGER NOT NULL,
           PRIMARY KEY (guild_id, parent_channel_id, channel_id)
         );
+
+        -- -------------------- XP system --------------------
+        CREATE TABLE IF NOT EXISTS xp_config (
+          guild_id           INTEGER NOT NULL PRIMARY KEY,
+          points_per_message INTEGER NOT NULL DEFAULT 5,
+          cooldown_seconds   INTEGER NOT NULL DEFAULT 60,
+          server_tag         TEXT,
+          bonus_percent      INTEGER NOT NULL DEFAULT 50
+        );
+
+        CREATE TABLE IF NOT EXISTS xp_levels (
+        guild_id      INTEGER NOT NULL,
+        level         INTEGER NOT NULL CHECK(level BETWEEN 1 AND 5),
+        xp_required   INTEGER NOT NULL,
+        role_id       INTEGER,              -- NULL tant que le rôle n'est pas créé/lié
+        PRIMARY KEY (guild_id, level)
+        );
+
+        CREATE TABLE IF NOT EXISTS xp_members (
+          guild_id        INTEGER NOT NULL,
+          user_id         INTEGER NOT NULL,
+          xp              INTEGER NOT NULL DEFAULT 0,
+          last_xp_ts      INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (guild_id, user_id)
+        );
         """)
+
+    # NB: les valeurs par défaut pour les niveaux/config XP
+    # sont initialisées côté bot (au démarrage) car on a besoin
+    # de connaître les guilds actives.
 # ----------Helpeurs save replace database
 
 def backup_to_file(dst_path: str):
@@ -88,6 +117,216 @@ def replace_db_file(new_db_path: str):
 
         # Remplacement atomique
         os.replace(new_db_path, DB_PATH)
+
+
+# ---------- XP system ----------
+
+def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None):
+    """Crée la config et les niveaux par défaut si absents."""
+    if default_levels is None:
+        default_levels = {
+            1: 0,
+            2: 300,
+            3: 600,
+            4: 1000,
+            5: 3000,
+        }
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT OR IGNORE INTO xp_config(guild_id) VALUES (?)
+        """, (guild_id,))
+
+        for lvl, xp_req in default_levels.items():
+            conn.execute("""
+                INSERT OR IGNORE INTO xp_levels(guild_id, level, xp_required, role_id)
+                VALUES (?, ?, ?, NULL)
+            """, (guild_id, int(lvl), int(xp_req)))
+
+
+def xp_get_config(guild_id: int) -> dict:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT points_per_message, cooldown_seconds, server_tag, bonus_percent FROM xp_config WHERE guild_id=?",
+            (guild_id,),
+        ).fetchone()
+    if not row:
+        return {
+            "points_per_message": 5,
+            "cooldown_seconds": 60,
+            "server_tag": None,
+            "bonus_percent": 50,
+        }
+    return {
+        "points_per_message": row[0],
+        "cooldown_seconds": row[1],
+        "server_tag": row[2],
+        "bonus_percent": row[3],
+    }
+
+
+_MISSING = object()
+
+
+def xp_set_config(
+    guild_id: int,
+    *,
+    points_per_message: int | None = None,
+    cooldown_seconds: int | None = None,
+    server_tag: str | None | object = _MISSING,
+    bonus_percent: int | None = None,
+):
+    sets = []
+    params = []
+    if points_per_message is not None:
+        sets.append("points_per_message=?")
+        params.append(int(points_per_message))
+    if cooldown_seconds is not None:
+        sets.append("cooldown_seconds=?")
+        params.append(int(cooldown_seconds))
+    # server_tag peut être explicitement mis à NULL
+    if server_tag is not _MISSING:
+        sets.append("server_tag=?")
+        params.append(server_tag if server_tag is not None else None)
+    if bonus_percent is not None:
+        sets.append("bonus_percent=?")
+        params.append(int(bonus_percent))
+
+    if not sets:
+        return
+
+    with get_conn() as conn:
+        conn.execute("INSERT OR IGNORE INTO xp_config(guild_id) VALUES (?)", (guild_id,))
+        conn.execute(
+            f"UPDATE xp_config SET {', '.join(sets)} WHERE guild_id=?",
+            (*params, guild_id),
+        )
+
+
+def xp_get_levels(guild_id: int) -> list[tuple[int, int]]:
+    """Retourne [(level, xp_required), ...] trié."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT level, xp_required FROM xp_levels WHERE guild_id=? ORDER BY level",
+            (guild_id,),
+        ).fetchall()
+    return [(int(l), int(x)) for (l, x) in rows]
+
+def xp_get_levels_with_roles(guild_id: int) -> list[tuple[int, int, int | None]]:
+    """Retourne [(level, xp_required, role_id), ...] trié."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT level, xp_required, role_id FROM xp_levels WHERE guild_id=? ORDER BY level",
+            (guild_id,),
+        ).fetchall()
+    return [(int(l), int(x), (int(r) if r is not None else None)) for (l, x, r) in rows]
+
+
+def xp_set_level_threshold(guild_id: int, level: int, xp_required: int):
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO xp_levels(guild_id, level, xp_required, role_id)
+            VALUES (?, ?, ?, NULL)
+            ON CONFLICT(guild_id, level) DO UPDATE SET xp_required=excluded.xp_required
+            """,
+            (guild_id, int(level), int(xp_required)),
+        )
+
+
+def xp_upsert_role_id(guild_id: int, level: int, role_id: int):
+    """
+    Lie (ou met à jour) le role_id pour un niveau.
+    Si la ligne du niveau n'existe pas encore, on la crée avec xp_required=0 (à ajuster ensuite).
+    """
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO xp_levels(guild_id, level, xp_required, role_id)
+            VALUES (?, ?, 0, ?)
+            ON CONFLICT(guild_id, level) DO UPDATE SET role_id=excluded.role_id
+            """,
+            (guild_id, int(level), int(role_id)),
+        )
+
+def xp_get_role_ids(guild_id: int) -> dict[int, int]:
+    """Retourne {level: role_id} pour les niveaux qui ont un role_id non NULL."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT level, role_id FROM xp_levels WHERE guild_id=? AND role_id IS NOT NULL",
+            (guild_id,),
+        ).fetchall()
+    return {int(level): int(role_id) for (level, role_id) in rows}
+
+
+def xp_get_member(guild_id: int, user_id: int) -> tuple[int, int]:
+    """Retourne (xp, last_xp_ts)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT xp, last_xp_ts FROM xp_members WHERE guild_id=? AND user_id=?",
+            (guild_id, user_id),
+        ).fetchone()
+    return (int(row[0]), int(row[1])) if row else (0, 0)
+
+
+def xp_set_member(guild_id: int, user_id: int, *, xp: int | None = None, last_xp_ts: int | None = None):
+    sets = []
+    params = []
+    if xp is not None:
+        sets.append("xp=?")
+        params.append(int(xp))
+    if last_xp_ts is not None:
+        sets.append("last_xp_ts=?")
+        params.append(int(last_xp_ts))
+    if not sets:
+        return
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO xp_members(guild_id, user_id) VALUES (?, ?)",
+            (guild_id, user_id),
+        )
+        conn.execute(
+            f"UPDATE xp_members SET {', '.join(sets)} WHERE guild_id=? AND user_id=?",
+            (*params, guild_id, user_id),
+        )
+
+
+def xp_add_xp(guild_id: int, user_id: int, delta: int, *, set_last_xp_ts: int | None = None) -> int:
+    """Ajoute delta et retourne le nouvel XP."""
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO xp_members(guild_id, user_id) VALUES (?, ?)",
+            (guild_id, user_id),
+        )
+        conn.execute(
+            "UPDATE xp_members SET xp = MAX(xp + ?, 0) WHERE guild_id=? AND user_id=?",
+            (int(delta), guild_id, user_id),
+        )
+        if set_last_xp_ts is not None:
+            conn.execute(
+                "UPDATE xp_members SET last_xp_ts=? WHERE guild_id=? AND user_id=?",
+                (int(set_last_xp_ts), guild_id, user_id),
+            )
+        row = conn.execute(
+            "SELECT xp FROM xp_members WHERE guild_id=? AND user_id=?",
+            (guild_id, user_id),
+        ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def xp_list_members(guild_id: int, limit: int = 100, offset: int = 0) -> list[tuple[int, int]]:
+    """Retourne [(user_id, xp), ...] trié décroissant."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT user_id, xp
+            FROM xp_members
+            WHERE guild_id=?
+            ORDER BY xp DESC, user_id ASC
+            LIMIT ? OFFSET ?
+            """,
+            (guild_id, int(limit), int(offset)),
+        ).fetchall()
+    return [(int(uid), int(xp)) for (uid, xp) in rows]
 
 
 # ---------- Reaction roles ----------

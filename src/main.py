@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os, discord
 from discord.ext import commands, tasks
 from datetime import datetime, time, timezone
-import fonctions, gestionDB, gestionJson, gestionPages, responses
+import fonctions, gestionDB, gestionJson, gestionPages, responses, xp_system
 from utils.db_validation import is_valid_sqlite_db
 
 
@@ -37,7 +37,15 @@ async def on_ready():
         print(f"Erreur lors de la synchronisation des commandes : {e}")
     print("Initialisation de la base de données si nécessaire.")
     gestionDB.init_db()
-    print("Supression en base des channels temporaires inexistant")
+
+    print("Création des roles pour le système d'xp.")
+    for guild in bot.guilds:
+        try:
+            await xp_system.ensure_guild_xp_setup(guild)
+        except Exception as e:
+            print(f"[XP] Erreur setup guild {guild.id}: {e}")
+    
+    print("Suppression en base des channels temporaires inexistant")
     for guild in bot.guilds:
         rows = gestionDB.tv_list_active_all(guild.id)
         for parent_id, channel_id in rows:
@@ -86,10 +94,19 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 async def on_message(message: discord.Message):
     if message.author == bot.user:
         return
-    user_message = message.content
-    
-    if not user_message:
+
+    # Ignore les MP
+    if message.guild is None:
         return
+
+    user_message = message.content or ""
+
+    # XP: on compte aussi les messages avec pièces jointes (même sans texte)
+    try:
+        if user_message or message.attachments:
+            await xp_system.handle_message_xp(message)
+    except Exception as e:
+        print(f"[XP] Erreur handle message: {e}")
     
     guild_id = message.guild.id
     channel_id = message.channel.id
@@ -101,12 +118,11 @@ async def on_message(message: discord.Message):
         )
     
     
-    if not secret_role:
-        return
-    await message.delete()
-    guild = bot.get_guild(guild_id)
-    role = guild.get_role(role_id)
-    await message.author.add_roles(role)
+    if secret_role:
+        await message.delete()
+        guild = bot.get_guild(guild_id)
+        role = guild.get_role(role_id)
+        await message.author.add_roles(role)
 
 
 
@@ -217,6 +233,189 @@ async def help(interaction: discord.Interaction):
 @bot.slash_command(name="ping",description="Ping-pong (pour vérifier que le bot est bien UP !)")
 async def ping_command(interaction: discord.Interaction):
     await interaction.response.send_message("Pong !")
+
+
+# ---------- XP system ----------
+def _level_label(guild: discord.Guild, role_ids: dict[int, int], level: int) -> str:
+    """Retourne un label humain pour un niveau: mention du rôle si possible, sinon 'lvlX'."""
+    rid = role_ids.get(level)
+    role = guild.get_role(rid) if rid else None
+    return role.mention if role else f"lvl{level}"
+
+@bot.slash_command(name="xp", description="Affiche ton XP et ton niveau.")
+async def xp_me(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    guild = interaction.guild
+    guild_id = guild.id
+    user_id = interaction.user.id
+
+    gestionDB.xp_ensure_defaults(guild_id)
+
+    xp, _ = gestionDB.xp_get_member(guild_id, user_id)
+    levels = gestionDB.xp_get_levels(guild_id)
+    lvl = xp_system.compute_level(xp, levels)
+
+    role_ids = gestionDB.xp_get_role_ids(guild_id)
+    lvl_label = _level_label(guild, role_ids, lvl)
+
+    # Prochain seuil
+    next_req = None
+    for level, req in levels:
+        if level == lvl + 1:
+            next_req = req
+            break
+
+    if next_req is None:
+        msg = f"Tu es **{lvl_label}** avec **{xp} XP**. (Niveau max 🎉)"
+    else:
+        next_label = _level_label(guild, role_ids, lvl + 1)
+        msg = (
+            f"Tu es **{lvl_label}** avec **{xp} XP**.\n"
+            f"Prochain niveau (**{next_label}**) à **{next_req} XP**."
+        )
+
+    await interaction.response.send_message(msg, ephemeral=True)
+
+
+@bot.slash_command(name="xp_list", description="Liste les XP des membres (classement).")
+@discord.default_permissions(manage_guild=True)
+@commands.has_permissions(manage_guild=True)
+async def xp_list(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    guild = interaction.guild
+    guild_id = guild.id
+    gestionDB.xp_ensure_defaults(guild_id)
+
+    rows = gestionDB.xp_list_members(guild_id, limit=200, offset=0)
+    levels = gestionDB.xp_get_levels(guild_id)
+    role_ids = gestionDB.xp_get_role_ids(guild_id)
+
+    items = []
+    for (uid, xp) in rows:
+        lvl = xp_system.compute_level(xp, levels)
+        lvl_label = _level_label(guild, role_ids, lvl)
+        items.append((uid, xp, lvl, lvl_label))  # <- on ajoute label
+
+    await interaction.response.defer()
+    paginator = gestionPages.Paginator(
+        items=items,
+        embed_generator=responses.generate_list_xp_embed,  # à adapter pour lire lvl_label
+        identifiant_for_embed=guild_id,
+        bot=bot,
+    )
+    embed, files = await paginator.create_embed()
+    await interaction.followup.send(embed=embed, files=files, view=paginator)
+
+
+@bot.slash_command(name="xp_set_level", description="(Admin) Définit l'XP requis pour un niveau.")
+@discord.option("level", int, description="Niveau (1..5)", min_value=1, max_value=5)
+@discord.option("xp_required", int, description="XP requis pour atteindre ce niveau", min_value=0)
+@discord.default_permissions(manage_guild=True)
+@commands.has_permissions(manage_guild=True)
+async def xp_set_level(interaction: discord.Interaction, level: int, xp_required: int):
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    gestionDB.xp_ensure_defaults(guild.id)
+    gestionDB.xp_set_level_threshold(guild.id, level, xp_required)
+
+    role_ids = gestionDB.xp_get_role_ids(guild.id)
+    lvl_label = _level_label(guild, role_ids, level)
+
+    await interaction.response.send_message(
+        f"✅ Seuil mis à jour : **{lvl_label}** = **{xp_required} XP**.",
+        ephemeral=True,
+    )
+
+    # Resync roles (best effort)
+    try:
+        for m in guild.members:
+            await xp_system.sync_member_level_roles(guild, m)
+    except Exception:
+        pass
+
+
+
+@bot.slash_command(name="xp_set_config", description="(Admin) Configure le gain d'XP par message et le cooldown.")
+@discord.option("points_per_message", int, description="XP gagné par message (>=0)", min_value=0, max_value=1000)
+@discord.option("cooldown_seconds", int, description="Cooldown en secondes entre 2 gains", min_value=0, max_value=3600)
+@discord.default_permissions(manage_guild=True)
+@commands.has_permissions(manage_guild=True)
+async def xp_set_config(interaction: discord.Interaction, points_per_message: int, cooldown_seconds: int):
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    gestionDB.xp_ensure_defaults(guild.id)
+    gestionDB.xp_set_config(guild.id, points_per_message=points_per_message, cooldown_seconds=cooldown_seconds)
+    await interaction.response.send_message(
+        f"✅ Config XP mise à jour : **{points_per_message} XP**/message, cooldown **{cooldown_seconds}s**.",
+        ephemeral=True,
+    )
+
+
+@bot.slash_command(name="xp_set_tag", description="(Admin) Définit le tag (dans le pseudo) donnant un bonus d'XP.")
+@discord.option("server_tag", str, description="Ex: [ELD] (vide pour désactiver)")
+@discord.option("bonus_percent", int, description="Bonus en % (ex: 50)", min_value=0, max_value=300)
+@discord.default_permissions(manage_guild=True)
+@commands.has_permissions(manage_guild=True)
+async def xp_set_tag(interaction: discord.Interaction, server_tag: str, bonus_percent: int):
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    gestionDB.xp_ensure_defaults(guild.id)
+
+    tag = server_tag.strip()
+    if tag == "":
+        # désactive
+        gestionDB.xp_set_config(guild.id, server_tag=None, bonus_percent=bonus_percent)
+        await interaction.response.send_message("✅ Bonus de tag désactivé.", ephemeral=True)
+        return
+
+    gestionDB.xp_set_config(guild.id, server_tag=tag, bonus_percent=bonus_percent)
+    await interaction.response.send_message(f"✅ Bonus activé : tag **{tag}** -> +{bonus_percent}% XP.", ephemeral=True)
+
+
+@bot.slash_command(name="xp_modify", description="(Admin) Ajoute/retire des XP à un membre.")
+@discord.option("member", discord.Member, description="Membre à modifier")
+@discord.option("delta", int, description="Nombre d'XP à ajouter (négatif = retirer)")
+@discord.default_permissions(manage_guild=True)
+@commands.has_permissions(manage_guild=True)
+async def xp_modify(interaction: discord.Interaction, member: discord.Member, delta: int):
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+    if member.bot:
+        await interaction.response.send_message("❌ Impossible de modifier l'XP d'un bot.", ephemeral=True)
+        return
+
+    gestionDB.xp_ensure_defaults(guild.id)
+    new_xp = gestionDB.xp_add_xp(guild.id, member.id, delta)
+    levels = gestionDB.xp_get_levels(guild.id)
+    lvl = xp_system.compute_level(new_xp, levels)
+
+    await xp_system.sync_member_level_roles(guild, member, xp=new_xp)
+
+    role_ids = gestionDB.xp_get_role_ids(guild.id)
+    lvl_label = _level_label(guild, role_ids, lvl)
+
+    await interaction.response.send_message(
+        f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lvl_label}**).",
+        ephemeral=True,
+    )
+
 
 
 # ---------- Reactions Roles ----------
