@@ -1,9 +1,12 @@
+import asyncio
+import sqlite3
 from typing import Final
 from dotenv import load_dotenv
-import os, discord, json
+import os, discord
 from discord.ext import commands, tasks
 from datetime import datetime, time, timezone
-import fonctions, gestionJson, gestionPages, responses
+import fonctions, gestionDB, gestionJson, gestionPages, responses
+from utils.db_validation import is_valid_sqlite_db
 
 
 # --------------------------- Récupération des infos dans le .env  (Token / ids) ---------------------
@@ -32,7 +35,7 @@ async def on_ready():
         print("\nLes commandes globales ont été synchronisées.")
     except Exception as e:
         print(f"Erreur lors de la synchronisation des commandes : {e}")
-    fonctions.json_init()
+    gestionDB.init_db()
     print(f"{bot.user} est en cours d'exécution !\n")
 
 
@@ -45,28 +48,26 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         return
     
     role = False 
-    role_config = gestionJson.load_json("config_roles")
-    role_config_guild = role_config[str(payload.guild_id)]
-
-    if str(payload.message_id) in role_config_guild and payload.emoji.name in role_config_guild[str(payload.message_id)]:
-        role_id = role_config_guild[str(payload.message_id)][payload.emoji.name]
-        role = guild.get_role(role_id)
+    role_id = gestionDB.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+    if role_id is None:
+        return
+    role = guild.get_role(role_id)
 
     if role and member:
-            await member.add_roles(role)
+        await member.add_roles(role)
 
 
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     role = False
-    role_config = gestionJson.load_json("config_roles")
-    role_config_guild = role_config[str(payload.guild_id)]
-
-    if str(payload.message_id) in role_config_guild and payload.emoji.name in role_config_guild[str(payload.message_id)]:
-        guild = bot.get_guild(payload.guild_id)
-        role_id = role_config_guild[str(payload.message_id)][payload.emoji.name]
-        role = guild.get_role(role_id)
-        member = guild.get_member(payload.user_id)
+    guild = bot.get_guild(payload.guild_id)
+    role_id = gestionDB.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+    
+    if role_id is None:
+        return
+    
+    role = guild.get_role(role_id)
+    member = guild.get_member(payload.user_id)
 
     if role and member:
         await member.remove_roles(role)
@@ -107,63 +108,39 @@ async def on_message(message: discord.Message):
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
 
     guild = member.guild
-    temp_channels = gestionJson.load_json("temp_channels")
-    
- 
-    if str(guild.id) not in temp_channels:
+    # Pour créer les channels (SQLite)
+    if after.channel:
+        user_limit = gestionDB.tv_get_parent(guild.id, after.channel.id)
+        if user_limit is not None:
 
-        return
-    temp_channels_guild = temp_channels[str(guild.id)]
-    
-    # Pour créer les channels
-    if after.channel and (str(after.channel.id) in temp_channels_guild):
+            category = after.channel.category
+            new_channel_name = f"Salon de {member.display_name}"
+            overwrites = {
+                member: discord.PermissionOverwrite(view_channel=True, manage_channels=True), 
+            }
 
-        temp_channels_channel = temp_channels_guild[str(after.channel.id)]
-        user_limit = temp_channels_channel["user_limit"]
+            new_channel = await guild.create_voice_channel(
+                name=new_channel_name,
+                category=category,
+                overwrites=overwrites,
+                bitrate=after.channel.bitrate,  # Copiez la qualité audio du salon cible
+                user_limit=user_limit, 
+            )
 
-        category = after.channel.category
-        new_channel_name = f"Salon de {member.display_name}"
-        overwrites = {
-            member: discord.PermissionOverwrite(view_channel=True, manage_channels=True), 
-        }
+            await member.move_to(new_channel)
+            gestionDB.tv_add_active(guild.id, after.channel.id, new_channel.id)   
 
-        new_channel = await guild.create_voice_channel(
-            name=new_channel_name,
-            category=category,
-            overwrites=overwrites,
-            bitrate=after.channel.bitrate,  # Copiez la qualité audio du salon cible
-            user_limit=user_limit, 
-        )
-
-        await member.move_to(new_channel)
-        temp_channels_channel["active_channel"].append(new_channel.id)
-        gestionJson.save_json("temp_channels",temp_channels)    
-
-    
-
-    # Pour delete les channels vides
-
-    all_parents_channel = []
-    for channel_id, channel_info in temp_channels_guild.items():
-        active_channels = channel_info.get("active_channel", [])
-
-        for i in range(len(active_channels)):
-            all_parents_channel.append(channel_id)
-
-    
+    # Pour delete les channels vides (SQLite)
     if before.channel:
-        if before.channel.id in active_channels:
-            before_parent_channel_index = active_channels.index(before.channel.id)
-            before_parent_channel = all_parents_channel[before_parent_channel_index]
-
-            temp_channels_channel = temp_channels_guild[str(before_parent_channel)]
-
+        # Est-ce que ce salon est un salon temporaire créé par le bot ?
+        parent_id = gestionDB.tv_find_parent_of_active(guild.id, before.channel.id)
+        
+        if parent_id is not None:
+            # Il est bien géré par le système, on peut vérifier s'il est vide
             if len(before.channel.members) == 0:
                 await before.channel.delete()
+                gestionDB.tv_remove_active(guild.id, parent_id, before.channel.id)
 
-                if before.channel.id in temp_channels_channel["active_channel"]:
-                    temp_channels_channel["active_channel"].remove(before.channel.id)
-                    gestionJson.save_json("temp_channels",temp_channels)
 
 
 
@@ -172,7 +149,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 
 @bot.slash_command(name="help", description="Affiche la liste des commandes disponible avec le bot")
 async def help(interaction: discord.Interaction):
-    help_infos = gestionJson.load_json("help")
+    help_infos = gestionJson.load_help_json()
     list_help_info = list(help_infos.items())
 
     await interaction.response.defer()
@@ -212,18 +189,9 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
         await interaction.edit(content=f"Je ne peux pas attribuer le rôle `{role.name}` car il est au-dessus de mes permissions.")
         return
 
-    role_config = gestionJson.load_json("config_roles")
+    existing = gestionDB.rr_list_by_message(guild_id, message_id)  # dict: {emoji: role_id}
 
-    if str(guild_id) not in role_config:
-        role_config[str(guild_id)] = {}
-    
-    role_config_guild = role_config[str(guild_id)]
-    
-    if str(message_id) not in role_config_guild:
-        role_config_guild[str(message_id)] = {}
-    
-
-    for existing_emoji, existing_role_id in role_config_guild[str(message_id)].items():
+    for existing_emoji, existing_role_id in existing.items():
         if existing_role_id == role.id and existing_emoji != emoji:
             await interaction.edit(content=f"Le rôle `{role.name}` est déjà associé à l'emoji {existing_emoji} sur le même message.")
             return
@@ -231,9 +199,6 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
             existing_role = guild.get_role(existing_role_id)
             await interaction.edit(content=f"L'emoji {existing_emoji} est déjà associé au rôle `{existing_role}` sur le même message.")
             return
-    
-    role_config_guild[str(message_id)][emoji] = role.id
-
 
     try:
         bot_member = guild.get_member(bot.user.id)
@@ -251,7 +216,7 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
             ))
         return
 
-    gestionJson.save_json("config_roles",role_config)
+    gestionDB.rr_upsert(guild_id, message_id, emoji, role.id)
 
     await interaction.edit(content=f"## La réaction {emoji} est bien associée au rôle `{role.name}` sur le message sélectionné ! \n**Message :**\n {message.content}")
 
@@ -271,14 +236,8 @@ async def remove_all_reactions(interaction: discord.Interaction, message_link: s
     channel = await bot.fetch_channel(channel_id)
     message = await channel.fetch_message(message_id)
     
-    role_config = gestionJson.load_json("config_roles")
-    role_config_guild = role_config[str(guild_id)]
-    
-    if str(message_id) in role_config_guild:
-        del role_config_guild[str(message_id)]
-    
-    gestionJson.save_json("config_roles", role_config)
-    
+    gestionDB.rr_delete_message(guild_id, message_id)
+
     try :
         await message.clear_reactions()
     except discord.Forbidden:
@@ -302,14 +261,7 @@ async def remove_specific_reaction(interaction: discord.Interaction, message_lin
     channel = await bot.fetch_channel(channel_id)
     message = await channel.fetch_message(message_id)
 
-    role_config = gestionJson.load_json("config_roles")
-    role_config_guild = role_config[str(guild_id)]
-
-    if str(message_id) in role_config_guild:
-        if emoji in role_config_guild[str(message_id)]:
-            del role_config_guild[str(message_id)][emoji]
-            gestionJson.save_json("config_roles", role_config)
-    
+    gestionDB.rr_delete(guild_id, message_id, emoji)
 
     try:
         await message.clear_reaction(emoji)
@@ -324,12 +276,7 @@ async def remove_specific_reaction(interaction: discord.Interaction, message_lin
 async def list_reaction_roles(interaction: discord.Interaction):
     
     guild_id = interaction.guild.id
-    role_config = gestionJson.load_json("config_roles")
-    if str(guild_id) in role_config:
-        role_config_guild = role_config[str(guild_id)]
-        role_config_guild_list = list(role_config_guild.items())
-    else :
-        role_config_guild_list = []
+    role_config_guild_list = gestionDB.rr_list_by_guild_grouped(guild_id)
     
     await interaction.response.defer()
     paginator = gestionPages.Paginator(items=role_config_guild_list,embed_generator=responses.generate_list_roles_embed, identifiant_for_embed=guild_id, bot=bot)
@@ -355,22 +302,15 @@ async def add_secret_role(interaction: discord.Interaction, message: str, channe
 
     guild_id = guild.id
     channel_id = channel.id
-    secret_roles = gestionJson.load_json("config_secret_roles")
+    message_str = str(message)
 
-    if str(guild_id) not in secret_roles:
-        secret_roles[str(guild_id)] = {}
-    secret_roles_guild = secret_roles[str(guild_id)]
-
-    if str(channel_id) not in secret_roles_guild:
-        secret_roles_guild[str(channel_id)] = {}
-    secret_roles_channel = secret_roles_guild[str(channel_id)]
-
-    for existing_message, existing_role_id in secret_roles_channel.items():
-        if existing_role_id != role.id and existing_message == str(message):
-            await interaction.edit(content=f"Le message {message} est déjà associé au rôle `{role.name}` dans le même channel.")
-            return
-
-    secret_roles_channel[str(message)] = role.id
+    existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
+    if existing_role_id is not None and existing_role_id != role.id:
+        existing_role = guild.get_role(existing_role_id)
+        await interaction.edit(
+            content=f"Le message `{message_str}` est déjà associé au rôle `{existing_role}` dans le même channel."
+        )
+        return
 
     try:
         bot_member = guild.get_member(bot.user.id)
@@ -385,7 +325,7 @@ async def add_secret_role(interaction: discord.Interaction, message: str, channe
             ))
         return
     
-    gestionJson.save_json("config_secret_roles", secret_roles)
+    gestionDB.sr_upsert(guild_id, channel_id, message_str, role.id)
 
     await interaction.edit(content=f"Le rôle `{role.name}` est bien associée au message suivant : `{message}`")
 
@@ -394,7 +334,7 @@ async def message_secret_role_autocomplete(interaction: discord.AutocompleteCont
     user_input = interaction.value.lower()
     guild_id = interaction.interaction.guild.id
     channel_id = interaction.options.get("channel")
-    all_messages=gestionJson.get_messages_secret_role(guild_id=guild_id, channel_id=channel_id)
+    all_messages = gestionDB.sr_list_messages(guild_id=guild_id, channel_id=channel_id)
     return [message for message in all_messages if user_input in message.lower()][:25]
 
 
@@ -404,41 +344,38 @@ async def message_secret_role_autocomplete(interaction: discord.AutocompleteCont
 @commands.has_permissions(manage_roles=True)
 async def delete_secret_role(interaction: discord.Interaction, channel: discord.TextChannel, message: str):
     await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+
     guild_id = interaction.guild.id
     channel_id = channel.id
-    secret_roles = gestionJson.load_json("config_secret_roles")
+    message_str = str(message)
 
-    if str(guild_id) not in secret_roles:
+    # Vérifier si ça existe
+    existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
+    if existing_role_id is None:
+        await interaction.edit(content=f"Aucune attribution trouvée pour le message `{message_str}` dans ce channel.")
         return
-    secret_roles_guild = secret_roles[str(guild_id)]
 
-    if str(channel_id) not in secret_roles_guild:
-        return
-    secret_roles_channel = secret_roles_guild[str(channel_id)]
+    # Supprimer en DB
+    gestionDB.sr_delete(guild_id, channel_id, message_str)
 
-    if message not in secret_roles_channel:
-        return 
-    del secret_roles_channel[message]
-
-    gestionJson.save_json("config_secret_roles", secret_roles)
-
-    await interaction.edit(content=f"Le message `{message}` n'attribue plus de rôle")
+    await interaction.edit(content=f"Le message `{message_str}` n'attribue plus de rôle")
 
 
 @bot.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
 @commands.has_permissions(manage_roles=True)
-async def list_reaction_roles(interaction: discord.Interaction):
+async def list_of_secret_roles(interaction: discord.Interaction):
     
     guild_id = interaction.guild.id
-    secret_roles = gestionJson.load_json("config_secret_roles")
-    if str(guild_id) in secret_roles:
-        secret_roles_guild = secret_roles[str(guild_id)]
-        secret_roles_guild_list = list(secret_roles_guild.items())
-    else :
-        secret_roles_guild_list = []
+    secret_roles_guild_list = gestionDB.sr_list_by_guild_grouped(guild_id)
+
     
     await interaction.response.defer()
-    paginator = gestionPages.Paginator(items=secret_roles_guild_list,embed_generator=responses.generate_list_secret_roles_embed, identifiant_for_embed=guild_id, bot=bot)
+    paginator = gestionPages.Paginator(
+        items=secret_roles_guild_list,
+        embed_generator=responses.generate_list_secret_roles_embed,
+        identifiant_for_embed=guild_id,
+        bot=bot
+        )
     embed,files = await paginator.create_embed()
     await interaction.followup.send(embed=embed, files=files, view=paginator)
 
@@ -452,21 +389,7 @@ async def init_creation_voice_channel(interaction: discord.Interaction, channel:
     await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
     guild_id = interaction.guild.id
     channel_id = channel.id
-    temp_channels = gestionJson.load_json("temp_channels")
-    
-    if str(guild_id) not in temp_channels:
-        temp_channels[str(guild_id)] = {}
-    temp_channels_guild = temp_channels[str(guild_id)]
-
-    if str(channel_id) not in temp_channels_guild: 
-        temp_channels_guild[str(channel_id)] = {
-            "user_limit" : user_limit,
-            "active_channel" : []
-        }
-    else : 
-        temp_channels_guild[str(channel_id)]["user_limit"] = user_limit
-
-    gestionJson.save_json("temp_channels", temp_channels)
+    gestionDB.tv_upsert_parent(guild_id, channel_id, user_limit)
 
     await interaction.edit(content=f"Le salon `{channel.name}` est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
 
@@ -475,129 +398,98 @@ async def init_creation_voice_channel(interaction: discord.Interaction, channel:
 
 # -------------- Saves ----------------
 
-@bot.slash_command(name="manual_save", description="Envoie les json dans un channel précis", guild_ids=[SAVE_GUILD_ID])
+@bot.slash_command(name="manual_save", description="Envoie la base SQLite (.db) dans un channel précis", guild_ids=[SAVE_GUILD_ID])
 async def manual_save_command(interaction: discord.Interaction):
     if interaction.user.id != MY_ID:
         await interaction.response.send_message("Vous ne pouvez pas faire cela", ephemeral=True)
         return
 
+    await interaction.response.send_message("Sauvegarde en cours...", ephemeral=True)
+
     guild = bot.get_guild(SAVE_GUILD_ID)
     channel = guild.get_channel(SAVE_CHANNEL_ID)
 
-    if os.path.exists("./json/config_roles.json"):
+    if not os.path.exists(gestionDB.DB_PATH):
+        await channel.send("Fichier DB introuvable !")
+        await interaction.edit(content="❌ DB introuvable.")
+        return
 
-        with open("./json/config_roles.json", "rb") as file:
-            await channel.send(
-                content="Sauvegarde du fichier config_roles.json suite à une demande.",
-                file=discord.File(file, filename=f"Config_roles_REACTION_{datetime.now().strftime('%Y%m%d')}.json")
-            )
-    else:
-        await channel.send("Fichier config_roles.json introuvable !", ephemeral=True)
+    tmp_backup = "./temp_eldoria_backup.db"
 
+    # Backup cohérent sous lock (aucun accès DB pendant)
+    await asyncio.to_thread(gestionDB.backup_to_file, tmp_backup)
 
-    if os.path.exists("./json/config_secret_roles.json"):
+    filename = f"Eldoria_{datetime.now().strftime('%Y%m%d')}.db"
+    with open(tmp_backup, "rb") as f:
+        await channel.send(
+            content="Sauvegarde du fichier SQLite suite à une demande.",
+            file=discord.File(f, filename=filename)
+        )
 
-        with open("./json/config_secret_roles.json", "rb") as file:
-            await channel.send(
-                content="Sauvegarde du fichier config_secret_roles.json suite à une demande.",
-                file=discord.File(file, filename=f"Config_roles_SECRET_{datetime.now().strftime('%Y%m%d')}.json")
-            )
-    else:
-        await channel.send("Fichier config_secret_roles.json introuvable !", ephemeral=True)
+    try:
+        os.remove(tmp_backup)
+    except OSError:
+        pass
 
-    if os.path.exists("./json/temp_channels.json"):
+    await interaction.edit(content="✅ DB bien envoyée !")
 
-        with open("./json/temp_channels.json", "rb") as file:
-            await channel.send(
-                content="Sauvegarde du fichier temp_channels.json suite à une demande.",
-                file=discord.File(file, filename=f"temp_channels_{datetime.now().strftime('%Y%m%d')}.json")
-            )
-    else:
-        await channel.send("Fichier temp_channels.json introuvable !", ephemeral=True)
-
-
-    await interaction.response.send_message("Fichiers bien envoyés ! ", ephemeral=True)
-
-
-
-@bot.slash_command(name="insert_config_roles_reaction", description="Remplace le config_roles.json par celui fourni",guild_ids=[SAVE_GUILD_ID])
-@discord.option("message_id", str, description= "Id du message contenant le json")
-async def insert_json_reaction_command(interaction: discord.Interaction, message_id: str ):
+@bot.slash_command(
+    name="insert_db",
+    description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)",
+    guild_ids=[SAVE_GUILD_ID]
+)
+@discord.option("message_id", str, description="Id du message contenant le fichier .db")
+async def insert_db_command(interaction: discord.Interaction, message_id: str):
     if interaction.user.id != MY_ID:
         await interaction.response.send_message("Vous ne pouvez pas faire cela", ephemeral=True)
-    else:
-        guild = bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID)
-        message = await channel.fetch_message(message_id)
-        attachment = message.attachments[0]
-        
-        file_path = f"./json/temp_{attachment.filename}"
-        await attachment.save(file_path)
+        return
 
+    await interaction.response.send_message("Restauration en cours...", ephemeral=True)
 
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-        file.close()
+    guild = bot.get_guild(SAVE_GUILD_ID)
+    channel = guild.get_channel(SAVE_CHANNEL_ID)
 
+    # Récupère le message et son attachment
+    try:
+        message = await channel.fetch_message(int(message_id))
+    except Exception:
+        await interaction.edit(content="❌ Message introuvable (vérifie l'ID).")
+        return
 
-        with open('./json/config_roles.json', mode='w') as fichier:
-            json.dump(data, fichier, indent=4)
+    if not message.attachments:
+        await interaction.edit(content="❌ Aucun fichier attaché sur ce message.")
+        return
 
-        os.remove(file_path)
-        await interaction.response.send_message("Le config_roles.json à bien été remplacé", ephemeral=True)
+    attachment = message.attachments[0]
 
+    # 🔒 Vérification réelle SQLite (extension + ouverture DB)
+    if not await is_valid_sqlite_db(attachment):
+        await interaction.edit(
+            content="❌ Le fichier fourni n'est pas une base de données SQLite valide (.db)."
+        )
+        return
 
-@bot.slash_command(name="insert_config_roles_secret", description="Remplace le config_secret_roles.json par celui fourni",guild_ids=[SAVE_GUILD_ID])
-@discord.option("message_id", str, description= "Id du message contenant le json")
-async def insert_json_secret_command(interaction: discord.Interaction, message_id: str ):
-    if interaction.user.id != MY_ID:
-        await interaction.response.send_message("Vous ne pouvez pas faire cela", ephemeral=True)
-    else:
-        guild = bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID)
-        message = await channel.fetch_message(message_id)
-        attachment = message.attachments[0]
-        
-        file_path = f"./json/temp_{attachment.filename}"
-        await attachment.save(file_path)
+    tmp_new = f"./temp_{attachment.filename}"
+    await attachment.save(tmp_new)
 
+    # Remplace la DB sous lock (aucun accès DB pendant)
+    try:
+        await asyncio.to_thread(gestionDB.replace_db_file, tmp_new)
+        # Optionnel : assure les tables si DB ancienne/vide
+        gestionDB.init_db()
+    except Exception as e:
+        # Si replace échoue avant os.replace, on supprime le fichier temporaire
+        try:
+            if os.path.exists(tmp_new):
+                os.remove(tmp_new)
+        except OSError:
+            pass
+        await interaction.edit(content=f"❌ Erreur pendant la restauration : {e}")
+        return
 
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-        file.close()
+    # Si replace a réussi, tmp_new a été déplacé par os.replace -> rien à delete
+    await interaction.edit(content="✅ Base de données remplacée avec succès.")
 
-
-        with open('./json/config_secret_roles.json', mode='w') as fichier:
-            json.dump(data, fichier, indent=4)
-
-        os.remove(file_path)
-        await interaction.response.send_message("Le config_secret_roles.json à bien été remplacé", ephemeral=True)
-    
-@bot.slash_command(name="insert_temp_channels", description="Remplace le temp_channels.json par celui fourni",guild_ids=[SAVE_GUILD_ID])
-@discord.option("message_id", str, description= "Id du message contenant le json")
-async def insert_json_secret_command(interaction: discord.Interaction, message_id: str ):
-    if interaction.user.id != MY_ID:
-        await interaction.response.send_message("Vous ne pouvez pas faire cela", ephemeral=True)
-    else:
-        guild = bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID)
-        message = await channel.fetch_message(message_id)
-        attachment = message.attachments[0]
-        
-        file_path = f"./json/temp_{attachment.filename}"
-        await attachment.save(file_path)
-
-
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-        file.close()
-
-
-        with open('./json/temp_channels.json', mode='w') as fichier:
-            json.dump(data, fichier, indent=4)
-
-        os.remove(file_path)
-        await interaction.response.send_message("Le temp_channels.json à bien été remplacé", ephemeral=True)
 
 
 
