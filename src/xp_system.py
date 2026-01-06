@@ -13,7 +13,6 @@ import gestionDB
 class XpConfig:
     points_per_message: int = 5
     cooldown_seconds: int = 60
-    server_tag: str | None = None
     bonus_percent: int = 50
 
 
@@ -28,6 +27,37 @@ DEFAULT_LEVELS: dict[int, int] = {
 
 def _now_ts() -> int:
     return int(datetime.now(timezone.utc).timestamp())
+
+
+def _has_active_server_tag_for_guild(member: discord.abc.User, guild: discord.Guild) -> bool:
+    """True si le membre affiche l'identité (Server Tag) de CETTE guilde sur son profil.
+
+    Compatibilité: si la lib ne fournit pas ces champs, retourne False (pas de bonus plutôt que planter).
+    """
+    # Selon les versions/forks, primary_guild peut être sur User ou accessible via member._user
+    user_obj = member
+    pg = getattr(user_obj, "primary_guild", None)
+    if pg is None:
+        pg = getattr(getattr(member, "_user", None), "primary_guild", None)
+
+    if pg is None:
+        return False
+
+    identity_enabled = bool(getattr(pg, "identity_enabled", False))
+    if not identity_enabled:
+        return False
+
+    identity_guild_id = getattr(pg, "identity_guild_id", None)
+    if identity_guild_id != guild.id:
+        return False
+
+    # Si la lib expose le tag côté guilde, on vérifie aussi l'égalité des tags
+    guild_tag = getattr(guild, "tag", None)
+    user_tag = getattr(pg, "tag", None)
+    if guild_tag and user_tag:
+        return str(user_tag).upper() == str(guild_tag).upper()
+
+    return True
 
 
 def compute_level(xp: int, levels: Iterable[tuple[int, int]]) -> int:
@@ -136,11 +166,11 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int] | None:
     if gained == 0:
         return None
 
-    # Bonus si le tag du serveur est présent dans le pseudo (configurable)
-    if config.server_tag:
-        name = (member.nick or member.display_name or "")
-        if config.server_tag in name:
-            gained = int(round(gained * (1 + config.bonus_percent / 100)))
+
+    # Bonus: si le membre affiche le Server Tag de cette guilde sur son profil.
+    # Si bonus_percent == 0, cela désactive de fait le bonus.
+    if config.bonus_percent > 0 and _has_active_server_tag_for_guild(member, guild):
+        gained = int(round(gained * (1 + config.bonus_percent / 100)))
 
     new_xp = gestionDB.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
     levels = gestionDB.xp_get_levels(guild.id)

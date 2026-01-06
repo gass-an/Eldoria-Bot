@@ -56,7 +56,6 @@ def init_db():
           guild_id           INTEGER NOT NULL PRIMARY KEY,
           points_per_message INTEGER NOT NULL DEFAULT 5,
           cooldown_seconds   INTEGER NOT NULL DEFAULT 60,
-          server_tag         TEXT,
           bonus_percent      INTEGER NOT NULL DEFAULT 50
         );
 
@@ -146,22 +145,20 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT points_per_message, cooldown_seconds, server_tag, bonus_percent FROM xp_config WHERE guild_id=?",
+            "SELECT points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
     if not row:
         return {
             "points_per_message": 5,
             "cooldown_seconds": 60,
-            "server_tag": None,
             "bonus_percent": 50,
         }
     return {
         "points_per_message": row[0],
         "cooldown_seconds": row[1],
-        "server_tag": row[2],
-        "bonus_percent": row[3],
-    }
+        "bonus_percent": row[2],
+}
 
 
 _MISSING = object()
@@ -172,7 +169,6 @@ def xp_set_config(
     *,
     points_per_message: int | None = None,
     cooldown_seconds: int | None = None,
-    server_tag: str | None | object = _MISSING,
     bonus_percent: int | None = None,
 ):
     sets = []
@@ -183,10 +179,6 @@ def xp_set_config(
     if cooldown_seconds is not None:
         sets.append("cooldown_seconds=?")
         params.append(int(cooldown_seconds))
-    # server_tag peut être explicitement mis à NULL
-    if server_tag is not _MISSING:
-        sets.append("server_tag=?")
-        params.append(server_tag if server_tag is not None else None)
     if bonus_percent is not None:
         sets.append("bonus_percent=?")
         params.append(int(bonus_percent))

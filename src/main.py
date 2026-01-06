@@ -280,9 +280,24 @@ async def xp_me(interaction: discord.Interaction):
     await interaction.response.send_message(msg, ephemeral=True)
 
 
+@bot.slash_command(name="xp_roles", description="Affiche les rôles des niveaux et l'XP requis pour les obtenir.")
+async def xp_roles(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
+        return
+
+    guild = interaction.guild
+    guild_id = guild.id
+
+    # S'assure que la config + niveaux + rôles existent
+    gestionDB.xp_ensure_defaults(guild_id)
+
+    levels_with_roles = gestionDB.xp_get_levels_with_roles(guild_id)
+    embed, files = await responses.generate_xp_roles_embed(levels_with_roles, guild_id, bot)
+    await interaction.response.send_message(embed=embed, files=files, ephemeral=True)
+
+
 @bot.slash_command(name="xp_list", description="Liste les XP des membres (classement).")
-@discord.default_permissions(manage_guild=True)
-@commands.has_permissions(manage_guild=True)
 async def xp_list(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
@@ -311,23 +326,6 @@ async def xp_list(interaction: discord.Interaction):
     )
     embed, files = await paginator.create_embed()
     await interaction.followup.send(embed=embed, files=files, view=paginator)
-
-
-@bot.slash_command(name="xp_roles", description="Affiche les rôles de niveaux et l'XP requis pour les obtenir.")
-async def xp_roles(interaction: discord.Interaction):
-    if interaction.guild is None:
-        await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
-        return
-
-    guild = interaction.guild
-    guild_id = guild.id
-
-    # S'assure que la config + niveaux + rôles existent
-    gestionDB.xp_ensure_defaults(guild_id)
-
-    levels_with_roles = gestionDB.xp_get_levels_with_roles(guild_id)
-    embed, files = await responses.generate_xp_roles_embed(levels_with_roles, guild_id, bot)
-    await interaction.response.send_message(embed=embed, files=files, ephemeral=True)
 
 
 @bot.slash_command(name="xp_set_level", description="(Admin) Définit l'XP requis pour un niveau.")
@@ -379,29 +377,23 @@ async def xp_set_config(interaction: discord.Interaction, points_per_message: in
     )
 
 
-@bot.slash_command(name="xp_set_tag", description="(Admin) Définit le tag (dans le pseudo) donnant un bonus d'XP.")
-@discord.option("server_tag", str, description="Ex: [ELD] (vide pour désactiver)")
-@discord.option("bonus_percent", int, description="Bonus en % (ex: 50)", min_value=0, max_value=300)
+@bot.slash_command(name="xp_set_bonus", description="(Admin) Définit le bonus d'XP appliqué si le membre affiche le tag du serveur sur son profil.")
+@discord.option("bonus_percent", int, description="Bonus en % (0 pour désactiver)", min_value=0, max_value=300)
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
-async def xp_set_tag(interaction: discord.Interaction, server_tag: str, bonus_percent: int):
+async def xp_set_bonus(interaction: discord.Interaction, bonus_percent: int):
     guild = interaction.guild
     if guild is None:
         await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
+    gestionDB.xp_set_config(guild.id, bonus_percent=bonus_percent)
 
-    tag = server_tag.strip()
-    if tag == "":
-        # désactive
-        gestionDB.xp_set_config(guild.id, server_tag=None, bonus_percent=bonus_percent)
-        await interaction.response.send_message("✅ Bonus de tag désactivé.", ephemeral=True)
-        return
-
-    gestionDB.xp_set_config(guild.id, server_tag=tag, bonus_percent=bonus_percent)
-    await interaction.response.send_message(f"✅ Bonus activé : tag **{tag}** -> +{bonus_percent}% XP.", ephemeral=True)
-
+    await interaction.response.send_message(
+        f"✅ Bonus XP lié au tag du serveur mis à **{bonus_percent}%**.",
+        ephemeral=True,
+    )
 
 @bot.slash_command(name="xp_modify", description="(Admin) Ajoute/retire des XP à un membre.")
 @discord.option("member", discord.Member, description="Membre à modifier")
