@@ -172,6 +172,13 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int] | None:
     if config.bonus_percent > 0 and _has_active_server_tag_for_guild(member, guild):
         gained = int(round(gained * (1 + config.bonus_percent / 100)))
 
+    # Malus "anti-karuta" : les messages très courts qui commencent par "k"/"K" ne donnent
+    # que 30% de l'XP qu'ils auraient dû rapporter.
+    # Exemple typique : k, kd, kcd, kt burn, ...
+    content = (message.content or "").strip()
+    if content and content[0] in ("k", "K") and len(content) <= 10:
+        gained = int(round(gained * 0.30))
+
     new_xp = gestionDB.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
     levels = gestionDB.xp_get_levels(guild.id)
     new_lvl = compute_level(new_xp, levels)
