@@ -54,9 +54,9 @@ def init_db():
         -- -------------------- XP system --------------------
         CREATE TABLE IF NOT EXISTS xp_config (
           guild_id           INTEGER NOT NULL PRIMARY KEY,
-          points_per_message INTEGER NOT NULL DEFAULT 5,
-          cooldown_seconds   INTEGER NOT NULL DEFAULT 60,
-          bonus_percent      INTEGER NOT NULL DEFAULT 50
+          points_per_message INTEGER NOT NULL DEFAULT 8,
+          cooldown_seconds   INTEGER NOT NULL DEFAULT 90,
+          bonus_percent      INTEGER NOT NULL DEFAULT 20
         );
 
         CREATE TABLE IF NOT EXISTS xp_levels (
@@ -125,10 +125,10 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
     if default_levels is None:
         default_levels = {
             1: 0,
-            2: 300,
-            3: 600,
-            4: 1000,
-            5: 3000,
+            2: 600,
+            3: 1800,
+            4: 3800,
+            5: 7200,
         }
     with get_conn() as conn:
         conn.execute("""
@@ -150,9 +150,9 @@ def xp_get_config(guild_id: int) -> dict:
         ).fetchone()
     if not row:
         return {
-            "points_per_message": 5,
-            "cooldown_seconds": 60,
-            "bonus_percent": 50,
+            "points_per_message": 8,
+            "cooldown_seconds": 90,
+            "bonus_percent": 20,
         }
     return {
         "points_per_message": row[0],

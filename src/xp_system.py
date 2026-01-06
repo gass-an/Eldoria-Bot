@@ -11,18 +11,18 @@ import gestionDB
 
 @dataclass(frozen=True)
 class XpConfig:
-    points_per_message: int = 5
-    cooldown_seconds: int = 60
-    bonus_percent: int = 50
+    points_per_message: int = 8
+    cooldown_seconds: int = 90
+    bonus_percent: int = 20
 
 
 DEFAULT_LEVELS: dict[int, int] = {
-            1: 0,
-            2: 300,
-            3: 600,
-            4: 1000,
-            5: 3000,
-        }
+    1: 0,
+    2: 600,
+    3: 1800,
+    4: 3800,
+    5: 7200,
+}
 
 
 def _now_ts() -> int:
