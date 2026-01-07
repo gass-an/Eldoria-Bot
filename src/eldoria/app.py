@@ -47,13 +47,6 @@ async def on_ready():
         print(f"Erreur lors de la synchronisation des commandes : {e}")
     print("Initialisation de la base de données si nécessaire.")
     gestionDB.init_db()
-
-    print("Création des roles pour le système d'xp.")
-    for guild in bot.guilds:
-        try:
-            await xp_system.ensure_guild_xp_setup(guild)
-        except Exception as e:
-            print(f"[XP] Erreur setup guild {guild.id}: {e}")
     
     print("Suppression en base des channels temporaires inexistant")
     for guild in bot.guilds:
@@ -242,8 +235,8 @@ async def help(interaction: discord.Interaction):
 # /ping (répond : Pong!) 
 @bot.slash_command(name="ping",description="Ping-pong (pour vérifier que le bot est bien UP !)")
 async def ping_command(interaction: discord.Interaction):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=False)
-    await interaction.edit(content="Pong !")
+    await interaction.response.defer(ephemeral=True)
+    await interaction.followup.send(content="Pong !")
 
 
 # ---------- XP system ----------
@@ -257,34 +250,33 @@ def _level_label(guild: discord.Guild, role_ids: dict[int, int], level: int) -> 
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_enable(interaction: discord.Interaction):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
     
-
+    await xp_system.ensure_guild_xp_setup(guild)
     # Crée config + niveaux si besoin, puis active
-    gestionDB.xp_ensure_defaults(guild.id)
     gestionDB.xp_set_config(guild.id, enabled=True)
 
-    await interaction.edit(content="✅ Système d'XP **activé** sur ce serveur.", ephemeral=True)
+    await interaction.followup.send(content="✅ Système d'XP **activé** sur ce serveur.")
 
 
 @bot.slash_command(name="xp_disable", description="(Admin) Désactive le système d'XP sur ce serveur.")
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_disable(interaction: discord.Interaction):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
     gestionDB.xp_set_config(guild.id, enabled=False)
 
-    await interaction.edit(content="⛔ Système d'XP **désactivé** sur ce serveur.", ephemeral=True)
+    await interaction.followup.send(content="⛔ Système d'XP **désactivé** sur ce serveur.")
 
 
 @bot.slash_command(name="xp_status", description="Affiche l'état du système d'XP sur ce serveur.")
@@ -306,14 +298,20 @@ async def xp_status(interaction: discord.Interaction):
 
 @bot.slash_command(name="xp", description="Affiche ton XP et ton niveau.")
 async def xp_me(interaction: discord.Interaction):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     if interaction.guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
 
     guild = interaction.guild
     guild_id = guild.id
-    user_id = interaction.user.id
+    user = interaction.user
+    user_id = user.id
+
+    if not gestionDB.xp_is_enabled(guild_id):
+        embed, files = await embedGenerator.generate_xp_disable_embed(guild_id, bot)
+        await interaction.followup.send(embed=embed, files=files, ephemeral=True)
+        return
 
     gestionDB.xp_ensure_defaults(guild_id)
 
@@ -326,21 +324,25 @@ async def xp_me(interaction: discord.Interaction):
 
     # Prochain seuil
     next_req = None
+    next_label = None
     for level, req in levels:
         if level == lvl + 1:
             next_req = req
+            next_label = _level_label(guild, role_ids, lvl + 1)
             break
 
-    if next_req is None:
-        msg = f"Tu es **{lvl_label}** avec **{xp} XP**. (Niveau max 🎉)"
-    else:
-        next_label = _level_label(guild, role_ids, lvl + 1)
-        msg = (
-            f"Tu es **{lvl_label}** avec **{xp} XP**.\n"
-            f"Prochain niveau (**{next_label}**) à **{next_req} XP**."
-        )
+    embed, files = await embedGenerator.generate_xp_profile_embed(
+        guild_id=guild_id,
+        user=user,
+        xp=xp,
+        level=lvl,
+        level_label=lvl_label,
+        next_level_label=next_label,
+        next_xp_required=next_req,
+        bot=bot,
+    )
 
-    await interaction.edit(content=msg, ephemeral=True)
+    await interaction.followup.send(embed=embed, files=files, ephemeral=True)
 
 
 @bot.slash_command(name="xp_roles", description="Affiche les rôles des niveaux et l'XP requis pour les obtenir.")
@@ -352,6 +354,11 @@ async def xp_roles(interaction: discord.Interaction):
 
     guild = interaction.guild
     guild_id = guild.id
+
+    if not gestionDB.xp_is_enabled(guild_id):
+        embed, files = await embedGenerator.generate_xp_disable_embed(guild_id, bot)
+        await interaction.followup.send(embed=embed, files=files, ephemeral=True)
+        return
 
     # S'assure que la config + niveaux + rôles existent
     gestionDB.xp_ensure_defaults(guild_id)
@@ -366,10 +373,17 @@ async def xp_list(interaction: discord.Interaction):
     if interaction.guild is None:
         await interaction.response.send_message("Commande uniquement disponible sur un serveur.", ephemeral=True)
         return
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
 
     guild = interaction.guild
     guild_id = guild.id
+
+    if not gestionDB.xp_is_enabled(guild_id):
+        embed, files = await embedGenerator.generate_xp_disable_embed(guild_id, bot)
+        await interaction.followup.send(embed=embed, files=files, ephemeral=True)
+        return
+
+    
     gestionDB.xp_ensure_defaults(guild_id)
 
     rows = gestionDB.xp_list_members(guild_id, limit=200, offset=0)
@@ -398,10 +412,10 @@ async def xp_list(interaction: discord.Interaction):
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_set_level(interaction: discord.Interaction, level: int, xp_required: int):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
@@ -410,10 +424,7 @@ async def xp_set_level(interaction: discord.Interaction, level: int, xp_required
     role_ids = gestionDB.xp_get_role_ids(guild.id)
     lvl_label = _level_label(guild, role_ids, level)
 
-    await interaction.edit(content=
-        f"✅ Seuil mis à jour : **{lvl_label}** = **{xp_required} XP**.",
-        ephemeral=True,
-    )
+    await interaction.followup.send(content=f"✅ Seuil mis à jour : **{lvl_label}** = **{xp_required} XP**.")
 
     # Resync roles (best effort)
     try:
@@ -429,17 +440,16 @@ async def xp_set_level(interaction: discord.Interaction, level: int, xp_required
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_set_config(interaction: discord.Interaction, points_per_message: int, cooldown_seconds: int):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
     gestionDB.xp_set_config(guild.id, points_per_message=points_per_message, cooldown_seconds=cooldown_seconds)
-    await interaction.edit(content=
-        f"✅ Config XP mise à jour : **{points_per_message} XP**/message, cooldown **{cooldown_seconds}s**.",
-        ephemeral=True,
+    await interaction.followup.send(content=
+        f"✅ Config XP mise à jour : **{points_per_message} XP**/message, cooldown **{cooldown_seconds}s**."
     )
 
 
@@ -448,18 +458,17 @@ async def xp_set_config(interaction: discord.Interaction, points_per_message: in
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_set_bonus(interaction: discord.Interaction, bonus_percent: int):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
     gestionDB.xp_set_config(guild.id, bonus_percent=bonus_percent)
 
-    await interaction.edit(content=
-        f"✅ Bonus XP lié au tag du serveur mis à **{bonus_percent}%**.",
-        ephemeral=True,
+    await interaction.followup.send(content=
+        f"✅ Bonus XP lié au tag du serveur mis à **{bonus_percent}%**."
     )
 
 @bot.slash_command(name="xp_modify", description="(Admin) Ajoute/retire des XP à un membre.")
@@ -468,13 +477,13 @@ async def xp_set_bonus(interaction: discord.Interaction, bonus_percent: int):
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
 async def xp_modify(interaction: discord.Interaction, member: discord.Member, delta: int):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     if guild is None:
-        await interaction.edit(content="Commande uniquement disponible sur un serveur.", ephemeral=True)
+        await interaction.followup.send(content="Commande uniquement disponible sur un serveur.")
         return
     if member.bot:
-        await interaction.edit(content="❌ Impossible de modifier l'XP d'un bot.", ephemeral=True)
+        await interaction.followup.send(content="❌ Impossible de modifier l'XP d'un bot.")
         return
 
     gestionDB.xp_ensure_defaults(guild.id)
@@ -487,9 +496,8 @@ async def xp_modify(interaction: discord.Interaction, member: discord.Member, de
     role_ids = gestionDB.xp_get_role_ids(guild.id)
     lvl_label = _level_label(guild, role_ids, lvl)
 
-    await interaction.edit(content=
-        f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lvl_label}**).",
-        ephemeral=True,
+    await interaction.followup.send(content=
+        f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lvl_label}**)."
     )
 
 
@@ -504,11 +512,11 @@ async def xp_modify(interaction: discord.Interaction, member: discord.Member, de
 @commands.has_permissions(manage_roles=True)
 async def add_reaction_role(interaction: discord.Interaction, message_link: str, emoji: str, role: discord.Role):  
 
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild_id, channel_id, message_id = discord_utils.extract_id_from_link(message_link)    
 
     if guild_id != interaction.guild.id:
-        await interaction.edit(content=f"Le lien que vous m'avez fourni provient d'un autre serveur.")
+        await interaction.followup.send(content=f"Le lien que vous m'avez fourni provient d'un autre serveur.")
         return
 
     guild = interaction.guild
@@ -517,18 +525,18 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
 
     bot_highest_role = max(guild.me.roles, key=lambda r: r.position)
     if role.position >= bot_highest_role.position:
-        await interaction.edit(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
+        await interaction.followup.send(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
         return
 
     existing = gestionDB.rr_list_by_message(guild_id, message_id)  # dict: {emoji: role_id}
 
     for existing_emoji, existing_role_id in existing.items():
         if existing_role_id == role.id and existing_emoji != emoji:
-            await interaction.edit(content=f"Le rôle <@&{role.id}> est déjà associé à l'emoji {existing_emoji} sur le même message.")
+            await interaction.followup.send(content=f"Le rôle <@&{role.id}> est déjà associé à l'emoji {existing_emoji} sur le même message.")
             return
         if existing_role_id != role.id and existing_emoji == emoji:
             existing_role = guild.get_role(existing_role_id)
-            await interaction.edit(content=f"L'emoji {existing_emoji} est déjà associé au rôle `{existing_role}` sur le même message.")
+            await interaction.followup.send(content=f"L'emoji {existing_emoji} est déjà associé au rôle `{existing_role}` sur le même message.")
             return
 
     try:
@@ -537,10 +545,10 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
         await bot_member.remove_roles(role)
         await message.add_reaction(emoji)
     except discord.NotFound:
-        await interaction.edit(content="Message ou canal introuvable.")
+        await interaction.followup.send(content="Message ou canal introuvable.")
         return
     except discord.Forbidden:
-        await interaction.edit(content=(
+        await interaction.followup.send(content=(
             "## Un problème est survenu : \n"
             "- Soit je n'ai pas le droit de rajouter une réaction sur ce message.\n"
             "- Soit je n'ai pas le droit de gérer ce rôle."
@@ -549,7 +557,7 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
 
     gestionDB.rr_upsert(guild_id, message_id, emoji, role.id)
 
-    await interaction.edit(content=f"## La réaction {emoji} est bien associée au rôle <@&{role.id}> sur le message sélectionné ! \n**Message :**\n {message.content}")
+    await interaction.followup.send(content=f"## La réaction {emoji} est bien associée au rôle <@&{role.id}> sur le message sélectionné ! \n**Message :**\n {message.content}")
 
 
 @bot.slash_command(name="remove_all_reactions", description="Retire toutes les réaction d'un message.")
@@ -557,12 +565,11 @@ async def add_reaction_role(interaction: discord.Interaction, message_link: str,
 @discord.default_permissions(manage_roles=True, manage_messages=True)
 @commands.has_permissions(manage_roles=True, manage_messages=True)
 async def remove_all_reactions(interaction: discord.Interaction, message_link: str):  
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild_id, channel_id, message_id = discord_utils.extract_id_from_link(message_link)    
     if guild_id != interaction.guild.id:
-        await interaction.edit(content=
-            f"Le lien que vous m'avez fourni provient d'un autre serveur.", 
-            ephemeral=True
+        await interaction.followup.send(content=
+            f"Le lien que vous m'avez fourni provient d'un autre serveur."
             )
         return
 
@@ -574,9 +581,9 @@ async def remove_all_reactions(interaction: discord.Interaction, message_link: s
     try :
         await message.clear_reactions()
     except discord.Forbidden:
-        await interaction.edit(content="Je n'ai pas la permission de supprimer les réactions.", ephemeral=True)
+        await interaction.followup.send(content="Je n'ai pas la permission de supprimer les réactions.")
         return
-    await interaction.edit(content=f"## Toutes les réactions ont été supprimées du message sélectionné.\n**Message** : \n{message.content}", ephemeral=True)
+    await interaction.followup.send(content=f"## Toutes les réactions ont été supprimées du message sélectionné.\n**Message** : \n{message.content}")
 
 
 @bot.slash_command(name="remove_specific_reaction", description="Retire une réaction spécifique d'un message.")
@@ -585,12 +592,11 @@ async def remove_all_reactions(interaction: discord.Interaction, message_link: s
 @discord.default_permissions(manage_roles=True, manage_messages=True)
 @commands.has_permissions(manage_roles=True, manage_messages=True)
 async def remove_specific_reaction(interaction: discord.Interaction, message_link: str, emoji: str):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild_id, channel_id, message_id = discord_utils.extract_id_from_link(message_link)    
     if guild_id != interaction.guild.id:
-        await interaction.edit(content=
-            f"Le lien que vous m'avez fourni provient d'un autre serveur.", 
-            ephemeral=True
+        await interaction.followup.send(content=
+            f"Le lien que vous m'avez fourni provient d'un autre serveur."
             )
         return
     channel = await bot.fetch_channel(channel_id)
@@ -601,9 +607,9 @@ async def remove_specific_reaction(interaction: discord.Interaction, message_lin
     try:
         await message.clear_reaction(emoji)
     except discord.Forbidden:
-        await interaction.edit(content="Je n'ai pas la permission de supprimer les réactions.", ephemeral=True)
+        await interaction.followup.send(content="Je n'ai pas la permission de supprimer les réactions.")
         return
-    await interaction.edit(content=f"## L'emoji {emoji} a bien été retiré du message.\n**Message** : \n{message.content}", ephemeral=True)
+    await interaction.followup.send(content=f"## L'emoji {emoji} a bien été retiré du message.\n**Message** : \n{message.content}")
 
 
 @bot.slash_command(name="list_of_reaction_roles", description="Affiche la liste des tous les rôles attribués avec une réaction à un message.")
@@ -614,7 +620,7 @@ async def list_reaction_roles(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     role_config_guild_list = gestionDB.rr_list_by_guild_grouped(guild_id)
     
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     paginator = gestionPages.Paginator(items=role_config_guild_list,embed_generator=embedGenerator.generate_list_roles_embed, identifiant_for_embed=guild_id, bot=bot)
     embed,files = await paginator.create_embed()
     await interaction.followup.send(embed=embed, files=files, view=paginator)
@@ -629,12 +635,12 @@ async def list_reaction_roles(interaction: discord.Interaction):
 @discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def add_secret_role(interaction: discord.Interaction, message: str, channel: discord.TextChannel, role: discord.Role):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
 
     guild = interaction.guild
     bot_highest_role = max(guild.me.roles, key=lambda r: r.position)
     if role.position >= bot_highest_role.position:
-        await interaction.edit(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
+        await interaction.followup.send(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
         return
 
     guild_id = guild.id
@@ -643,7 +649,7 @@ async def add_secret_role(interaction: discord.Interaction, message: str, channe
 
     existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
     if existing_role_id is not None and existing_role_id != role.id:
-        await interaction.edit(
+        await interaction.followup.send(
             content=f"Le message `{message_str}` est déjà associé au rôle <@&{existing_role_id}> dans le même channel."
         )
         return
@@ -653,17 +659,17 @@ async def add_secret_role(interaction: discord.Interaction, message: str, channe
         await bot_member.add_roles(role)
         await bot_member.remove_roles(role)
     except discord.NotFound:
-        await interaction.edit(content="Message ou canal introuvable.")
+        await interaction.followup.send(content="Message ou canal introuvable.")
         return
     except discord.Forbidden:
-        await interaction.edit(content=(
+        await interaction.followup.send(content=(
             "Je n'ai pas le droit de gérer ce rôle."
             ))
         return
     
     gestionDB.sr_upsert(guild_id, channel_id, message_str, role.id)
 
-    await interaction.edit(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
+    await interaction.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
 
 
 async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
@@ -680,7 +686,7 @@ async def message_secret_role_autocomplete(interaction: discord.AutocompleteCont
 @discord.default_permissions(manage_roles=True)
 @commands.has_permissions(manage_roles=True)
 async def delete_secret_role(interaction: discord.Interaction, channel: discord.TextChannel, message: str):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
 
     guild_id = interaction.guild.id
     channel_id = channel.id
@@ -689,13 +695,13 @@ async def delete_secret_role(interaction: discord.Interaction, channel: discord.
     # Vérifier si ça existe
     existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
     if existing_role_id is None:
-        await interaction.edit(content=f"Aucune attribution trouvée pour le message `{message_str}` dans ce channel.")
+        await interaction.followup.send(content=f"Aucune attribution trouvée pour le message `{message_str}` dans ce channel.")
         return
 
     # Supprimer en DB
     gestionDB.sr_delete(guild_id, channel_id, message_str)
 
-    await interaction.edit(content=f"Le message `{message_str}` n'attribue plus de rôle")
+    await interaction.followup.send(content=f"Le message `{message_str}` n'attribue plus de rôle")
 
 
 @bot.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
@@ -707,7 +713,7 @@ async def list_of_secret_roles(interaction: discord.Interaction):
     secret_roles_guild_list = gestionDB.sr_list_by_guild_grouped(guild_id)
 
     
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     paginator = gestionPages.Paginator(
         items=secret_roles_guild_list,
         embed_generator=embedGenerator.generate_list_secret_roles_embed,
@@ -726,12 +732,12 @@ async def list_of_secret_roles(interaction: discord.Interaction):
 @discord.default_permissions(manage_channels=True)
 @commands.has_permissions(manage_channels=True)
 async def init_creation_voice_channel(interaction: discord.Interaction, channel: discord.VoiceChannel, user_limit: int):
-    await interaction.response.send_message("Votre demande est en cours de traitement...", ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
     guild_id = interaction.guild.id
     channel_id = channel.id
     gestionDB.tv_upsert_parent(guild_id, channel_id, user_limit)
 
-    await interaction.edit(content=f"Le salon `{channel.name}` est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
+    await interaction.followup.send(content=f"Le salon `{channel.name}` est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
 
 
 @bot.slash_command(name="remove_creation_voice_channel",description="Désactive la création automatique de salons vocaux temporaires pour un salon donné")
@@ -746,14 +752,14 @@ async def remove_creation_voice_channel(interaction: discord.Interaction,channel
 
     # Vérifie que le salon est bien un parent configuré
     if gestionDB.tv_get_parent(guild_id, channel_id) is None:
-        await interaction.edit(
+        await interaction.followup.send(
             content=f"❌ Le salon `{channel.name}` n'est pas configuré comme salon parent."
         )
         return
 
     gestionDB.tv_delete_parent(guild_id, channel_id)
 
-    await interaction.edit(
+    await interaction.followup.send(
         content=f"✅ Le salon `{channel.name}` n'est plus un salon de création automatique."
     )
 
@@ -765,7 +771,7 @@ async def list_creation_voice_channels(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     parents = gestionDB.tv_list_parents(guild_id)
 
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     paginator = gestionPages.Paginator(
         items=parents,
         embed_generator=embedGenerator.generate_list_temp_voice_parents_embed,
@@ -792,7 +798,7 @@ async def manual_save_command(interaction: discord.Interaction):
 
     if not os.path.exists(gestionDB.DB_PATH):
         await channel.send("Fichier DB introuvable !")
-        await interaction.edit(content="❌ DB introuvable.")
+        await interaction.followup.send(content="❌ DB introuvable.")
         return
 
     tmp_backup = "./temp_eldoria_backup.db"
@@ -812,7 +818,7 @@ async def manual_save_command(interaction: discord.Interaction):
     except OSError:
         pass
 
-    await interaction.edit(content="✅ DB bien envoyée !")
+    await interaction.followup.send(content="✅ DB bien envoyée !")
 
 @bot.slash_command(name="insert_db",description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)",guild_ids=[SAVE_GUILD_ID])
 @discord.option("message_id", str, description="Id du message contenant le fichier .db")
@@ -830,18 +836,18 @@ async def insert_db_command(interaction: discord.Interaction, message_id: str):
     try:
         message = await channel.fetch_message(int(message_id))
     except Exception:
-        await interaction.edit(content="❌ Message introuvable (vérifie l'ID).")
+        await interaction.followup.send(content="❌ Message introuvable (vérifie l'ID).")
         return
 
     if not message.attachments:
-        await interaction.edit(content="❌ Aucun fichier attaché sur ce message.")
+        await interaction.followup.send(content="❌ Aucun fichier attaché sur ce message.")
         return
 
     attachment = message.attachments[0]
 
     # 🔒 Vérification réelle SQLite (extension + ouverture DB)
     if not await is_valid_sqlite_db(attachment):
-        await interaction.edit(
+        await interaction.followup.send(
             content="❌ Le fichier fourni n'est pas une base de données SQLite valide (.db)."
         )
         return
@@ -861,11 +867,11 @@ async def insert_db_command(interaction: discord.Interaction, message_id: str):
                 os.remove(tmp_new)
         except OSError:
             pass
-        await interaction.edit(content=f"❌ Erreur pendant la restauration : {e}")
+        await interaction.followup.send(content=f"❌ Erreur pendant la restauration : {e}")
         return
 
     # Si replace a réussi, tmp_new a été déplacé par os.replace -> rien à delete
-    await interaction.edit(content="✅ Base de données remplacée avec succès.")
+    await interaction.followup.send(content="✅ Base de données remplacée avec succès.")
 
 
 

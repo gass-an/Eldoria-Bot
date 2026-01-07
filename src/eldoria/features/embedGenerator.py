@@ -214,7 +214,7 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
         name="Information",
         value="Demandez à un administrateur d'utiliser `/xp_enable` pour activer le système.",
         inline=False
-    )
+        )
 
     embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
 
@@ -230,6 +230,39 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
     files = [thumbnail_file, image_file]
     return embed, files
 
+async def generate_xp_disable_embed(guild_id: int, bot: commands.Bot):
+    
+    guild = bot.get_guild(guild_id)
+    embed = discord.Embed(
+        title="Statut du système XP",
+        description="Configuration actuelle du système d'expérience sur ce serveur.",
+        colour=discord.Color.blurple()
+    )
+
+    embed.add_field(
+            name="État",
+            value="⛔ Désactivé",
+            inline=True
+    )
+    embed.add_field(
+        name="Information",
+        value="Demandez à un administrateur d'utiliser `/xp_enable` pour activer le système.",
+        inline=False
+    )
+
+    embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
+
+    # Images (même pattern que les autres embeds)
+    thumbnail_path = "./images/logo_Bot.png"
+    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
+    embed.set_thumbnail(url="attachment://logo_Bot.png")
+
+    image_path = "./images/banner_Bot.png"
+    image_file = discord.File(image_path, filename="banner_Bot.png")
+    embed.set_image(url="attachment://banner_Bot.png")
+
+    files = [thumbnail_file, image_file]
+    return embed, files
 
 async def generate_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: commands.Bot):
     """Génère l'embed du classement XP.
@@ -291,6 +324,74 @@ async def generate_list_xp_embed(items, current_page: int, total_pages: int, gui
     files = [thumbnail_file, image_file]
     return embed, files
 
+
+async def generate_xp_profile_embed(
+    *,
+    guild_id: int,
+    user: discord.User | discord.Member,
+    xp: int,
+    level: int,
+    level_label: str,
+    next_level_label: str | None,
+    next_xp_required: int | None,
+    bot: commands.Bot,
+):
+    await asyncio.sleep(0.01)
+    guild = bot.get_guild(guild_id)
+
+    embed = discord.Embed(
+        title="📊 Ton profil XP",
+        colour=discord.Color.blurple()
+    )
+
+    embed.set_author(
+        name=str(user),
+        icon_url=user.display_avatar.url if user.display_avatar else None
+    )
+
+    embed.add_field(
+        name="Niveau actuel",
+        value=f"**{level_label}** (niveau {level})",
+        inline=True
+    )
+
+    embed.add_field(
+        name="XP total",
+        value=f"**{xp} XP**",
+        inline=True
+    )
+
+    if next_xp_required is None:
+        embed.add_field(
+            name="Progression",
+            value="🏆 **Niveau maximum atteint !**",
+            inline=False
+        )
+    else:
+        remaining = max(next_xp_required - xp, 0)
+        embed.add_field(
+            name="Prochain niveau",
+            value=(
+                f"**{next_level_label}**\n"
+                f"Seuil : **{next_xp_required} XP**\n"
+                f"XP restante : **{remaining} XP**"
+            ),
+            inline=False
+        )
+
+    embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
+
+    # Images (même pattern que les autres embeds)
+    thumbnail_path = "./images/logo_Bot.png"
+    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
+    embed.set_thumbnail(url="attachment://logo_Bot.png")
+
+    image_path = "./images/banner_Bot.png"
+    image_file = discord.File(image_path, filename="banner_Bot.png")
+    embed.set_image(url="attachment://banner_Bot.png")
+
+    files = [thumbnail_file, image_file]
+    return embed, files
 
 async def generate_xp_roles_embed(levels_with_roles, guild_id: int, bot: commands.Bot):
     """Crée un embed listant les rôles liés aux niveaux et l'XP nécessaire.
