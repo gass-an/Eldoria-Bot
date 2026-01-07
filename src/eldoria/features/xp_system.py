@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, Optional
 
 import discord
 
@@ -142,10 +142,10 @@ async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, 
         return
 
 
-async def handle_message_xp(message: discord.Message) -> tuple[int, int] | None:
+async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int, int]]:
     """Attribue l'XP d'un message si le cooldown est passé.
 
-    Retourne (new_xp, new_level) si XP ajouté, sinon None.
+    Retourne (new_xp, new_level, old_level) si XP ajouté, sinon None.
     """
     if message.guild is None:
         return None
@@ -185,8 +185,11 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int] | None:
         gained = int(round(gained * 0.30))
 
     new_xp = gestionDB.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
+
     levels = gestionDB.xp_get_levels(guild.id)
+    old_lvl = compute_level(old_xp, levels)
     new_lvl = compute_level(new_xp, levels)
 
     await sync_member_level_roles(guild, member, xp=new_xp)
-    return new_xp, new_lvl
+
+    return new_xp, new_lvl, old_lvl

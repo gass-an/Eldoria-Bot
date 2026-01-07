@@ -57,6 +57,15 @@ async def on_ready():
     print(f"{bot.user} est en cours d'exécution !\n")
 
 
+# ------------------------------------ Fonctions Intermédiaires  --------------------------------------
+def level_mention(guild: discord.Guild, level: int) -> str:
+    role_ids = gestionDB.xp_get_role_ids(guild.id)  # dict: {level: role_id}
+    rid = role_ids.get(level) if role_ids else None
+    role = guild.get_role(rid) if rid else None
+    return role.mention if role else f"level{level}"
+
+
+
 # ------------------------------------ Gestion des rôles  --------------------------------------------
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
@@ -107,7 +116,22 @@ async def on_message(message: discord.Message):
     # XP: on compte aussi les messages avec pièces jointes (même sans texte)
     try:
         if user_message or message.attachments:
-            await xp_system.handle_message_xp(message)
+            res = await xp_system.handle_message_xp(message)
+
+            # Si XP ajouté et level up → réponse au message
+            if res is not None:
+                new_xp, new_lvl, old_lvl = res
+                if new_lvl > old_lvl:
+                    lvl_txt = level_mention(message.guild, new_lvl)
+
+                    await message.reply(
+                        f"🎉 Félicitations {message.author.mention}, tu passes {lvl_txt} !",
+                        allowed_mentions=discord.AllowedMentions(
+                            users=True,
+                            roles=False,
+                            replied_user=True
+                        )
+                    )
     except Exception as e:
         print(f"[XP] Erreur handle message: {e}")
     
