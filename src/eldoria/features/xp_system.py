@@ -6,7 +6,7 @@ from typing import Iterable
 
 import discord
 
-import gestionDB
+from ..db import gestionDB
 
 
 @dataclass(frozen=True)

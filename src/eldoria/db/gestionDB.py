@@ -121,7 +121,13 @@ def replace_db_file(new_db_path: str):
 # ---------- XP system ----------
 
 def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None):
-    """Crée la config et les niveaux par défaut si absents."""
+    """Crée la config et les niveaux par défaut si absents.
+
+    Migration douce:
+    - si la guilde est encore sur les anciens *defaults* (5 XP / 60s / 50% et paliers 0/300/600/1000/3000),
+      on bascule automatiquement sur les nouveaux defaults.
+    - si l'admin a déjà personnalisé la config, on ne touche pas.
+    """
     if default_levels is None:
         default_levels = {
             1: 0,
@@ -130,17 +136,59 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
             4: 3800,
             5: 7200,
         }
+
+    old_default_config = (5, 60, 50)
+    new_default_config = (8, 90, 20)
+
+    old_default_levels = {
+        1: 0,
+        2: 300,
+        3: 600,
+        4: 1000,
+        5: 3000,
+    }
+
     with get_conn() as conn:
+        # Crée une ligne de config si absente
         conn.execute("""
             INSERT OR IGNORE INTO xp_config(guild_id) VALUES (?)
         """, (guild_id,))
 
+        # Crée les niveaux si absents
         for lvl, xp_req in default_levels.items():
             conn.execute("""
                 INSERT OR IGNORE INTO xp_levels(guild_id, level, xp_required, role_id)
                 VALUES (?, ?, ?, NULL)
             """, (guild_id, int(lvl), int(xp_req)))
 
+        # --- Migration douce des anciens defaults (si non modifié) ---
+        row = conn.execute(
+            "SELECT points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
+            (guild_id,),
+        ).fetchone()
+
+        if row and (int(row[0]), int(row[1]), int(row[2])) == old_default_config:
+            conn.execute(
+                "UPDATE xp_config SET points_per_message=?, cooldown_seconds=?, bonus_percent=? WHERE guild_id=?",
+                (*new_default_config, guild_id),
+            )
+
+        lvl_rows = conn.execute(
+            "SELECT level, xp_required FROM xp_levels WHERE guild_id=? ORDER BY level",
+            (guild_id,),
+        ).fetchall()
+
+        current_levels = {int(lvl): int(req) for (lvl, req) in lvl_rows}
+
+        # On migre seulement si les 5 niveaux existent ET correspondent aux anciens defaults
+        if all(l in current_levels for l in range(1, 6)) and all(
+            current_levels.get(l) == old_default_levels[l] for l in old_default_levels
+        ):
+            for lvl, xp_req in default_levels.items():
+                conn.execute(
+                    "UPDATE xp_levels SET xp_required=? WHERE guild_id=? AND level=?",
+                    (int(xp_req), guild_id, int(lvl)),
+                )
 
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:

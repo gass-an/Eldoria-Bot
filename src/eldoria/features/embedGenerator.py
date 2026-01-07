@@ -1,5 +1,8 @@
 import discord
-import gestionDB, fonctions, asyncio
+import asyncio
+
+from ..db import gestionDB
+from ..utils import discord_utils
 from discord.ext import commands
 
 async def generate_help_embed(list_of_tuple_title_description, current_page, total_pages, id, bot: commands.Bot):
@@ -48,13 +51,12 @@ async def generate_list_roles_embed(roles, current_page, total_pages, guild_id, 
 
     for message_id in roles:
         # message_id = (message_id_str, {emoji: role_id})
-        channel_id = await fonctions.find_channel_id(bot=bot, message_id=message_id[0], guild_id=guild_id)
+        channel_id = await discord_utils.find_channel_id(bot=bot, message_id=message_id[0], guild_id=guild_id)
         nb_roles += len(message_id[1])
 
         list_roles = ""
         for existing_emoji, existing_role_id in message_id[1].items():
-            role_obj = guild.get_role(existing_role_id)
-            list_roles += f"{existing_emoji}  **->** `{role_obj}`\n"
+            list_roles += f"{existing_emoji}  **->** <@&{existing_role_id}>\n"
 
         if list_roles != "":
             embed.add_field(name='', value='', inline=False)
@@ -96,8 +98,7 @@ async def generate_list_secret_roles_embed(roles, current_page, total_pages, gui
 
         list_roles = ""
         for existing_message, existing_role_id in channel_id[1].items():
-            role_obj = guild.get_role(existing_role_id)
-            list_roles += f" Message: `{existing_message}`  **->** `{role_obj}`\n"
+            list_roles += f" Message: `{existing_message}`  **->** <@&{existing_role_id}>\n"
 
         if list_roles != "":
             embed.add_field(name='', value='', inline=False)
