@@ -170,6 +170,66 @@ async def generate_list_temp_voice_parents_embed(items, page: int, total_pages: 
     files = [thumbnail_file, image_file]
     return embed, files
 
+async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
+    await asyncio.sleep(0.01)
+    guild = bot.get_guild(guild_id)
+
+    enabled = bool(cfg.get("enabled", False))
+
+    embed = discord.Embed(
+        title="Statut du système XP",
+        description="Configuration actuelle du système d'expérience sur ce serveur.",
+        colour=discord.Color.blurple()
+    )
+
+    if enabled :
+        embed.add_field(
+            name="État",
+            value="✅ Activé",
+            inline=False
+        )
+        embed.add_field(
+            name="XP / message",
+            value=str(cfg.get("points_per_message", 8)),
+            inline=True
+        )
+        embed.add_field(
+            name="Cooldown",
+            value=f"{cfg.get('cooldown_seconds', 90)} secondes",
+            inline=True
+        )
+        embed.add_field(
+            name="Bonus Server Tag",
+            value=f"+{cfg.get('bonus_percent', 20)}%",
+            inline=True
+        )
+    
+    else :
+        embed.add_field(
+            name="État",
+            value="⛔ Désactivé",
+            inline=True
+        )
+        embed.add_field(
+        name="Information",
+        value="Demandez à un administrateur d'utiliser `/xp_enable` pour activer le système.",
+        inline=False
+    )
+
+    embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
+
+    # Images (même pattern que les autres embeds)
+    thumbnail_path = "./images/logo_Bot.png"
+    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
+    embed.set_thumbnail(url="attachment://logo_Bot.png")
+
+    image_path = "./images/banner_Bot.png"
+    image_file = discord.File(image_path, filename="banner_Bot.png")
+    embed.set_image(url="attachment://banner_Bot.png")
+
+    files = [thumbnail_file, image_file]
+    return embed, files
+
 
 async def generate_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: commands.Bot):
     """Génère l'embed du classement XP.

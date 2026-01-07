@@ -11,6 +11,7 @@ from ..db import gestionDB
 
 @dataclass(frozen=True)
 class XpConfig:
+    enabled: bool = False
     points_per_message: int = 8
     cooldown_seconds: int = 90
     bonus_percent: int = 20
@@ -156,6 +157,10 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int] | None:
 
     config_raw = gestionDB.xp_get_config(guild.id)
     config = XpConfig(**config_raw)
+
+    # XP global switch (par guilde)
+    if not config.enabled:
+        return None
 
     now = _now_ts()
     old_xp, last_ts = gestionDB.xp_get_member(guild.id, member.id)

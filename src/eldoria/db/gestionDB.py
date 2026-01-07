@@ -54,6 +54,7 @@ def init_db():
         -- -------------------- XP system --------------------
         CREATE TABLE IF NOT EXISTS xp_config (
           guild_id           INTEGER NOT NULL PRIMARY KEY,
+          enabled            INTEGER NOT NULL DEFAULT 0,
           points_per_message INTEGER NOT NULL DEFAULT 8,
           cooldown_seconds   INTEGER NOT NULL DEFAULT 90,
           bonus_percent      INTEGER NOT NULL DEFAULT 20
@@ -163,11 +164,11 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 
         # --- Migration douce des anciens defaults (si non modifié) ---
         row = conn.execute(
-            "SELECT points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
+            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
 
-        if row and (int(row[0]), int(row[1]), int(row[2])) == old_default_config:
+        if row and (int(row[1]), int(row[2]), int(row[3])) == old_default_config:
             conn.execute(
                 "UPDATE xp_config SET points_per_message=?, cooldown_seconds=?, bonus_percent=? WHERE guild_id=?",
                 (*new_default_config, guild_id),
@@ -193,20 +194,22 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
+            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
     if not row:
         return {
+            "enabled": False,
             "points_per_message": 8,
             "cooldown_seconds": 90,
             "bonus_percent": 20,
         }
     return {
-        "points_per_message": row[0],
-        "cooldown_seconds": row[1],
-        "bonus_percent": row[2],
-}
+        "enabled": bool(row[0]),
+        "points_per_message": int(row[1]),
+        "cooldown_seconds": int(row[2]),
+        "bonus_percent": int(row[3]),
+    }
 
 
 _MISSING = object()
@@ -215,12 +218,16 @@ _MISSING = object()
 def xp_set_config(
     guild_id: int,
     *,
+    enabled: bool | None = None,
     points_per_message: int | None = None,
     cooldown_seconds: int | None = None,
     bonus_percent: int | None = None,
 ):
     sets = []
     params = []
+    if enabled is not None:
+        sets.append("enabled=?")
+        params.append(1 if bool(enabled) else 0)
     if points_per_message is not None:
         sets.append("points_per_message=?")
         params.append(int(points_per_message))
