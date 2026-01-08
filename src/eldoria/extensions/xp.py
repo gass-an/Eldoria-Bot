@@ -124,7 +124,7 @@ class Xp(commands.Cog):
         embed, files = await embedGenerator.generate_xp_roles_embed(levels_with_roles, guild_id, self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
-    @commands.slash_command(name="xp_list", description="Liste les XP des membres (classement).")
+    @commands.slash_command(name="xp_classement", description="Affiche le classement des joueurs en fonction de leurs XP.")
     async def xp_list(self, ctx: discord.ApplicationContext):
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
@@ -186,12 +186,15 @@ class Xp(commands.Cog):
         except Exception:
             pass
 
-    @commands.slash_command(name="xp_set_config", description="(Admin) Configure le gain d'XP par message et le cooldown.")
-    @discord.option("points_per_message", int, description="XP gagné par message (>=0)", min_value=0, max_value=1000)
-    @discord.option("cooldown_seconds", int, description="Cooldown en secondes entre 2 gains", min_value=0, max_value=3600)
+    @commands.slash_command(name="xp_set_config", description="(Admin) Configure les paramètres du système XP (champs vides = inchangés).")
+    @discord.option("points_per_message", int, description="XP gagné par message (>=0)", min_value=0, max_value=1000, required=False)
+    @discord.option("cooldown_seconds", int, description="Cooldown en secondes entre 2 gains", min_value=0, max_value=3600, required=False)
+    @discord.option("bonus_percent", int, description="Bonus en % si le membre affiche le tag du serveur (0 = désactiver)", min_value=0, max_value=300, required=False)
+    @discord.option("karuta_k_small_percent", int, description="% d'XP accordé pour les petits messages Karuta (k<=10) (ex: 30)", min_value=0, max_value=100, required=False)
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_set_config(self, ctx: discord.ApplicationContext, points_per_message: int, cooldown_seconds: int):
+    async def xp_set_config(self, ctx: discord.ApplicationContext, points_per_message: int | None = None, cooldown_seconds: int | None = None, 
+                            bonus_percent: int | None = None, karuta_k_small_percent: int | None = None):
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -199,19 +202,42 @@ class Xp(commands.Cog):
             return
 
         gestionDB.xp_ensure_defaults(guild.id)
-        gestionDB.xp_set_config(guild.id, points_per_message=points_per_message, cooldown_seconds=cooldown_seconds)
-        await ctx.followup.send(
-            content=f"✅ Config XP mise à jour : **{points_per_message} XP**/message, cooldown **{cooldown_seconds}s**."
+        if all(v is None for v in (points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent)):
+            await ctx.followup.send(content="Aucun champ fourni : aucune modification appliquée.")
+            return
+
+        gestionDB.xp_set_config(
+            guild.id,
+            points_per_message=points_per_message,
+            cooldown_seconds=cooldown_seconds,
+            bonus_percent=bonus_percent,
+            karuta_k_small_percent=karuta_k_small_percent,
         )
 
-    @commands.slash_command(
-        name="xp_set_bonus",
-        description="(Admin) Définit le bonus d'XP appliqué si le membre affiche le tag du serveur sur son profil.",
-    )
-    @discord.option("bonus_percent", int, description="Bonus en % (0 pour désactiver)", min_value=0, max_value=300)
+        # Message récap uniquement des champs modifiés
+        parts = []
+        if points_per_message is not None:
+            parts.append(f"**{points_per_message} XP**/message")
+        if cooldown_seconds is not None:
+            parts.append(f"cooldown **{cooldown_seconds}s**")
+        if bonus_percent is not None:
+            parts.append(f"bonus tag **{bonus_percent}%**")
+        if karuta_k_small_percent is not None:
+            parts.append(f"karuta k<=10 **{karuta_k_small_percent}%**")
+
+        await ctx.followup.send(content="✅ Config XP mise à jour : " + ", ".join(parts) + ".")
+
+    @commands.slash_command(name="xp_role_setup", description="(Admin) Associe un rôle existant à un niveau XP (remplace l'ancien rôle en base).")
+    @discord.option("from_role", discord.Role, description="Rôle actuellement utilisé par un niveau (ex: @level1)",)
+    @discord.option("to_role", discord.Role, description="Nouveau rôle à utiliser à la place (ex: @dep)",)
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_set_bonus(self, ctx: discord.ApplicationContext, bonus_percent: int):
+    async def xp_role_setup(self, ctx: discord.ApplicationContext, from_role: discord.Role, to_role: discord.Role):
+        """Permet de remplacer un rôle lvlX par un rôle existant.
+
+        Exemple: /xp_role_setup @level1 @dep
+        -> met à jour en DB le role_id du niveau 1 pour pointer vers @dep.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -219,10 +245,49 @@ class Xp(commands.Cog):
             return
 
         gestionDB.xp_ensure_defaults(guild.id)
-        gestionDB.xp_set_config(guild.id, bonus_percent=bonus_percent)
 
-        await ctx.followup.send(content=f"✅ Bonus XP lié au tag du serveur mis à **{bonus_percent}%**.")
+        # Déterminer le niveau correspondant à from_role.
+        role_ids = gestionDB.xp_get_role_ids(guild.id)
+        level: int | None = None
 
+        for lvl, rid in role_ids.items():
+            if rid == from_role.id:
+                level = int(lvl)
+                break
+
+        # Fallback: si la DB ne connaît pas encore le rôle, tenter via le nom "levelX".
+        if level is None:
+            name = (from_role.name or "").lower().strip()
+            if name.startswith("level"):
+                try:
+                    parsed = int(name.replace("level", "", 1))
+                    if 1 <= parsed <= 5:
+                        level = parsed
+                except ValueError:
+                    level = None
+
+        if level is None:
+            await ctx.followup.send(
+                content=(
+                    "❌ Je n'arrive pas à déterminer quel niveau correspond à ce rôle. "
+                    "Assure-toi de sélectionner un rôle du système XP : `/xp_roles`."
+                )
+            )
+            return
+
+        # Écrire le nouveau role_id en base
+        gestionDB.xp_upsert_role_id(guild.id, level, to_role.id)
+
+        # Resynchroniser les membres (best-effort)
+        try:
+            for m in guild.members:
+                await xp_system.sync_member_level_roles(guild, m)
+        except Exception:
+            pass
+
+        await ctx.followup.send(
+            content=f"✅ Rôle de niveau **{level}** mis à jour : {from_role.mention} → {to_role.mention}."
+        )
     @commands.slash_command(name="xp_modify", description="(Admin) Ajoute/retire des XP à un membre.")
     @discord.option("member", discord.Member, description="Membre à modifier")
     @discord.option("delta", int, description="Nombre d'XP à ajouter (négatif = retirer)")

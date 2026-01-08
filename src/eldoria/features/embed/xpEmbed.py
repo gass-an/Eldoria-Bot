@@ -34,6 +34,11 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
             value=f"+{cfg.get('bonus_percent', 20)}%",
             inline=True
         )
+        embed.add_field(
+            name="Malus Karuta (k<=10)",
+            value=f"{cfg.get('karuta_k_small_percent', 30)}%",
+            inline=True
+        )
     
     else :
         embed.add_field(

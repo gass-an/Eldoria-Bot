@@ -15,6 +15,10 @@ class XpConfig:
     points_per_message: int = 8
     cooldown_seconds: int = 90
     bonus_percent: int = 20
+    # Pour les petits messages (<=10) qui commencent par "k" (commandes Karuta)
+    # on n'attribue qu'un certain pourcentage de l'XP.
+    # Ex: 30 => 30% de l'XP normal.
+    karuta_k_small_percent: int = 30
 
 
 DEFAULT_LEVELS: dict[int, int] = {
@@ -178,11 +182,12 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
         gained = int(round(gained * (1 + config.bonus_percent / 100)))
 
     # Malus "anti-karuta" : les messages très courts qui commencent par "k"/"K" ne donnent
-    # que 30% de l'XP qu'ils auraient dû rapporter.
+    # qu'un % de l'XP qu'ils auraient dû rapporter (configurable).
     # Exemple typique : k, kd, kcd, kt burn, ...
     content = (message.content or "").strip()
     if content and content[0] in ("k", "K") and len(content) <= 10:
-        gained = int(round(gained * 0.30))
+        pct = max(int(getattr(config, "karuta_k_small_percent", 30)), 0)
+        gained = int(round(gained * (pct / 100)))
 
     new_xp = gestionDB.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
 

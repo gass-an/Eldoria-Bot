@@ -39,7 +39,8 @@ def init_db():
           enabled            INTEGER NOT NULL DEFAULT 0,
           points_per_message INTEGER NOT NULL DEFAULT 8,
           cooldown_seconds   INTEGER NOT NULL DEFAULT 90,
-          bonus_percent      INTEGER NOT NULL DEFAULT 20
+          bonus_percent      INTEGER NOT NULL DEFAULT 20,
+          karuta_k_small_percent INTEGER NOT NULL DEFAULT 30
         );
 
         CREATE TABLE IF NOT EXISTS xp_levels (

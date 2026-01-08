@@ -44,11 +44,13 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 
         # --- Migration douce des anciens defaults (si non modifié) ---
         row = conn.execute(
-            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
+            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent FROM xp_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
 
-        if row and (int(row[1]), int(row[2]), int(row[3])) == old_default_config:
+        # On migre uniquement si l'admin n'a pas personnalisé (ancienne config par défaut)
+        # et que le nouveau champ est encore à sa valeur par défaut.
+        if row and (int(row[1]), int(row[2]), int(row[3])) == old_default_config and int(row[4]) == 30:
             conn.execute(
                 "UPDATE xp_config SET points_per_message=?, cooldown_seconds=?, bonus_percent=? WHERE guild_id=?",
                 (*new_default_config, guild_id),
@@ -74,7 +76,7 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent FROM xp_config WHERE guild_id=?",
+            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent FROM xp_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
     if not row:
@@ -83,12 +85,14 @@ def xp_get_config(guild_id: int) -> dict:
             "points_per_message": 8,
             "cooldown_seconds": 90,
             "bonus_percent": 20,
+            "karuta_k_small_percent": 30,
         }
     return {
         "enabled": bool(row[0]),
         "points_per_message": int(row[1]),
         "cooldown_seconds": int(row[2]),
         "bonus_percent": int(row[3]),
+        "karuta_k_small_percent": int(row[4]),
     }
 
 
@@ -102,6 +106,7 @@ def xp_set_config(
     points_per_message: int | None = None,
     cooldown_seconds: int | None = None,
     bonus_percent: int | None = None,
+    karuta_k_small_percent: int | None = None,
 ):
     sets = []
     params = []
@@ -117,6 +122,9 @@ def xp_set_config(
     if bonus_percent is not None:
         sets.append("bonus_percent=?")
         params.append(int(bonus_percent))
+    if karuta_k_small_percent is not None:
+        sets.append("karuta_k_small_percent=?")
+        params.append(int(karuta_k_small_percent))
 
     if not sets:
         return
