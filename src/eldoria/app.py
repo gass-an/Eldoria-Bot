@@ -64,7 +64,24 @@ def level_mention(guild: discord.Guild, level: int) -> str:
     role = guild.get_role(rid) if rid else None
     return role.mention if role else f"level{level}"
 
+def _secret_role(user_message: str, guild_id: int, channel_id: int):
+    role_id = gestionDB.sr_match(guild_id, channel_id, str(user_message))
+    if role_id is None:
+        return False, None
+    return True, role_id
 
+def _level_label(guild: discord.Guild, role_ids: dict[int, int], level: int) -> str:
+    """Retourne un label humain pour un niveau: mention du rôle si possible, sinon 'lvlX'."""
+    rid = role_ids.get(level)
+    role = guild.get_role(rid) if rid else None
+    return role.mention if role else f"lvl{level}"
+
+async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
+    user_input = interaction.value.lower()
+    guild_id = interaction.interaction.guild.id
+    channel_id = interaction.options.get("channel")
+    all_messages = gestionDB.sr_list_messages(guild_id=guild_id, channel_id=channel_id)
+    return [message for message in all_messages if user_input in message.lower()][:25]
 
 # ------------------------------------ Gestion des rôles  --------------------------------------------
 @bot.event
@@ -138,7 +155,7 @@ async def on_message(message: discord.Message):
     guild_id = message.guild.id
     channel_id = message.channel.id
     
-    secret_role, role_id = embedGenerator.secret_role(
+    secret_role, role_id = _secret_role(
         user_message=user_message,
         guild_id=guild_id, 
         channel_id=channel_id
@@ -264,12 +281,6 @@ async def ping_command(interaction: discord.Interaction):
 
 
 # ---------- XP system ----------
-def _level_label(guild: discord.Guild, role_ids: dict[int, int], level: int) -> str:
-    """Retourne un label humain pour un niveau: mention du rôle si possible, sinon 'lvlX'."""
-    rid = role_ids.get(level)
-    role = guild.get_role(rid) if rid else None
-    return role.mention if role else f"lvl{level}"
-
 @bot.slash_command(name="xp_enable", description="(Admin) Active le système d'XP sur ce serveur.")
 @discord.default_permissions(manage_guild=True)
 @commands.has_permissions(manage_guild=True)
@@ -696,14 +707,6 @@ async def add_secret_role(interaction: discord.Interaction, message: str, channe
     await interaction.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
 
 
-async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
-    user_input = interaction.value.lower()
-    guild_id = interaction.interaction.guild.id
-    channel_id = interaction.options.get("channel")
-    all_messages = gestionDB.sr_list_messages(guild_id=guild_id, channel_id=channel_id)
-    return [message for message in all_messages if user_input in message.lower()][:25]
-
-
 @bot.slash_command(name="delete_secret_role", description="Supprime l'attibution d'un secret_role déjà paramétré.")
 @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
 @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.", autocomplete=message_secret_role_autocomplete)
@@ -843,6 +846,7 @@ async def manual_save_command(interaction: discord.Interaction):
         pass
 
     await interaction.followup.send(content="✅ DB bien envoyée !")
+
 
 @bot.slash_command(name="insert_db",description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)",guild_ids=[SAVE_GUILD_ID])
 @discord.option("message_id", str, description="Id du message contenant le fichier .db")
