@@ -172,7 +172,10 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="❌ Le fichier fourni n'est pas une base de données SQLite valide (.db).")
             return
 
-        tmp_new = f"./temp_{attachment.filename}"
+        data_dir = os.path.dirname(gestionDB.DB_PATH)  # "./data"
+        os.makedirs(data_dir, exist_ok=True)
+
+        tmp_new = os.path.join(data_dir, f"temp_{attachment.filename}")
         await attachment.save(tmp_new)
 
         try:

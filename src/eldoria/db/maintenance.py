@@ -1,5 +1,5 @@
 # src/eldoria/db/maintenance.py
-import os, sqlite3
+import os, sqlite3,  shutil, errno
 from .connection import DB_PATH, _DB_LOCK
 
 def backup_to_file(dst_path: str):
@@ -23,17 +23,28 @@ def backup_to_file(dst_path: str):
             conn.close()
 
 def replace_db_file(new_db_path: str):
-    """
-    Remplace DB_PATH par new_db_path de façon atomique.
-    Le verrou garantit que personne n'utilise la DB pendant le swap.
-    """
     with _DB_LOCK:
-        # petite vérif que c'est bien une sqlite
         test = sqlite3.connect(new_db_path)
         try:
             test.execute("PRAGMA schema_version;").fetchone()
         finally:
             test.close()
 
-        # Remplacement atomique
-        os.replace(new_db_path, DB_PATH)
+        try:
+            os.replace(new_db_path, DB_PATH)
+        except OSError as e:
+            # Cross-device link (EXDEV/errno 18 selon plateformes)
+            if e.errno in (errno.EXDEV, 18):
+                dst_dir = os.path.dirname(DB_PATH) or "."
+                os.makedirs(dst_dir, exist_ok=True)
+
+                tmp_in_dst = os.path.join(dst_dir, ".incoming_eldoria.db")
+                shutil.copy2(new_db_path, tmp_in_dst)
+                os.replace(tmp_in_dst, DB_PATH)  # atomique dans le même FS
+
+                try:
+                    os.remove(new_db_path)
+                except OSError:
+                    pass
+            else:
+                raise

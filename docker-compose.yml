@@ -1,0 +1,14 @@
+services:
+  eldoria:
+    build:
+      context: .
+    container_name: eldoria-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persiste la DB SQLite (./data/eldoria.db) et tout ce qui est écrit dans /app/data
+      - ./data:/app/data
+      # Fichiers JSON du projet (lecture seule)
+      - ./json:/app/json:ro
+    command: ["python", "src/main.py"]
