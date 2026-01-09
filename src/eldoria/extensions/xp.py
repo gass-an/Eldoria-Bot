@@ -1,3 +1,4 @@
+import re
 import discord
 from discord.ext import commands
 
@@ -5,6 +6,33 @@ from ..db import gestionDB
 from ..features import xp_system, embedGenerator
 from ..utils.mentions import level_label
 
+
+LEVEL_RE = re.compile(r"^level\s*(\d+)\b", re.IGNORECASE)
+
+# -------------------- Fonctions pour l'autocompletion --------------------
+async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext):
+    user_input = (interaction.value or "").lower()
+    guild = interaction.interaction.guild
+    if guild is None:
+        return []
+
+    guild_id = guild.id
+    role_ids = gestionDB.xp_get_role_ids(guild_id)  # dict[level]=role_id
+    if not role_ids:
+        return []
+
+    results = []
+    for level, rid in sorted(role_ids.items()):
+        role = guild.get_role(rid)
+        if role is None:
+            continue
+        label = f"Level {level} — {role.name}"
+        if user_input and user_input not in label.lower():
+            continue
+        results.append(label)
+        if len(results) >= 25:
+            break
+    return results
 
 class Xp(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -203,7 +231,7 @@ class Xp(commands.Cog):
 
         gestionDB.xp_ensure_defaults(guild.id)
         if all(v is None for v in (points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent)):
-            await ctx.followup.send(content="Aucun champ fourni : aucune modification appliquée.")
+            await ctx.followup.send(content="INFO: Aucun champ fourni : aucune modification appliquée.")
             return
 
         gestionDB.xp_set_config(
@@ -227,67 +255,91 @@ class Xp(commands.Cog):
 
         await ctx.followup.send(content="✅ Config XP mise à jour : " + ", ".join(parts) + ".")
 
-    @commands.slash_command(name="xp_role_setup", description="(Admin) Associe un rôle existant à un niveau XP (remplace l'ancien rôle en base).")
-    @discord.option("from_role", discord.Role, description="Rôle actuellement utilisé par un niveau (ex: @level1)",)
-    @discord.option("to_role", discord.Role, description="Nouveau rôle à utiliser à la place (ex: @dep)",)
+    @commands.slash_command(name="xp_set_role", description="(Admin) Associe un rôle existant à un niveau XP (remplace l'ancien rôle en base).")
+    @discord.option("from_role", str, description="Rôle XP existant (choisir dans la liste).", autocomplete=xp_level_role_autocomplete)
+    @discord.option("to_role", discord.Role, description="Nouveau rôle à utiliser à la place (ex: @dep)")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_role_setup(self, ctx: discord.ApplicationContext, from_role: discord.Role, to_role: discord.Role):
+    async def xp_role_setup(self, ctx: discord.ApplicationContext, from_role: str, to_role: discord.Role):
         """Permet de remplacer un rôle lvlX par un rôle existant.
 
         Exemple: /xp_role_setup @level1 @dep
         -> met à jour en DB le role_id du niveau 1 pour pointer vers @dep.
         """
         await ctx.defer(ephemeral=True)
+
         guild = ctx.guild
         if guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
         gestionDB.xp_ensure_defaults(guild.id)
+        
+        m = LEVEL_RE.search(from_role.strip())
+        if not m:
+            await ctx.followup.send(content="❌ Sélection invalide. Choisis un rôle dans l'autocomplete.")
+            return
+        
+        level = int(m.group(1))
 
-        # Déterminer le niveau correspondant à from_role.
-        role_ids = gestionDB.xp_get_role_ids(guild.id)
-        level: int | None = None
+        role_ids = gestionDB.xp_get_role_ids(guild.id)  # dict[level] = role_id
+        if not role_ids:
+            await ctx.followup.send(content="❌ Aucun rôle XP enregistré en base.")
+            return
+        
+        # Valider que le level existe en base
+        from_role_id = role_ids.get(level)
+        if not from_role_id:
+            await ctx.followup.send(content=f"❌ Aucun role XP en base pour le niveau {level}.")
+            return
 
-        for lvl, rid in role_ids.items():
-            if rid == from_role.id:
-                level = int(lvl)
-                break
 
-        # Fallback: si la DB ne connaît pas encore le rôle, tenter via le nom "levelX".
-        if level is None:
-            name = (from_role.name or "").lower().strip()
-            if name.startswith("level"):
-                try:
-                    parsed = int(name.replace("level", "", 1))
-                    if 1 <= parsed <= 5:
-                        level = parsed
-                except ValueError:
-                    level = None
+        from_role_obj = guild.get_role(from_role_id)
+        if from_role_obj is None:
+            await ctx.followup.send(content="❌ Le rôle source n'existe plus sur le serveur.")
+            return
+        
+        # Empêcher d'utiliser un rôle déjà associé à un autre niveau XP
+        # (sinon 2 niveaux partageraient le même role_id -> incohérences)
+        existing_level = next((lvl for (lvl, rid) in role_ids.items() if rid == to_role.id), None)
 
-        if level is None:
+        if existing_level is not None and existing_level != level:
             await ctx.followup.send(
                 content=(
-                    "❌ Je n'arrive pas à déterminer quel niveau correspond à ce rôle. "
-                    "Assure-toi de sélectionner un rôle du système XP : `/xp_roles`."
+                    f"❌ Le rôle {to_role.mention} est déjà associé au niveau {existing_level}. "
+                    "Choisis un autre rôle ou remappe d'abord ce niveau."
                 )
             )
             return
 
-        # Écrire le nouveau role_id en base
+        if from_role_obj.id == to_role.id:
+            await ctx.followup.send(content="⚠️ `from_role` et `to_role` sont identiques, aucune modification.")
+            return
+
+        # 3) Update DB (il te faut une fonction qui set le role_id d'un level)
         gestionDB.xp_upsert_role_id(guild.id, level, to_role.id)
 
-        # Resynchroniser les membres (best-effort)
-        try:
-            for m in guild.members:
-                await xp_system.sync_member_level_roles(guild, m)
-        except Exception:
-            pass
+        # 4) Migration: uniquement les membres qui avaient l'ancien rôle
+        affected = [mem for mem in guild.members if (not mem.bot and from_role_obj in mem.roles)]
+
+        failed = 0
+        for mem in affected:
+            try:
+                await mem.remove_roles(from_role_obj, reason="XP role setup: replace role mapping")
+                await xp_system.sync_member_level_roles(guild, mem)
+            except discord.Forbidden:
+                failed += 1
+            except Exception:
+                failed += 1
 
         await ctx.followup.send(
-            content=f"✅ Rôle de niveau **{level}** mis à jour : {from_role.mention} → {to_role.mention}."
+            content=(
+                f"✅ Rôle de niveau {level} mis à jour: {from_role_obj.mention} -> {to_role.mention}\n"
+                + (f"\n ⚠️: échecs: {failed} (permissions/hiérarchie)." if failed else "")
+            )
         )
+
+
     @commands.slash_command(name="xp_modify", description="(Admin) Ajoute/retire des XP à un membre.")
     @discord.option("member", discord.Member, description="Membre à modifier")
     @discord.option("delta", int, description="Nombre d'XP à ajouter (négatif = retirer)")

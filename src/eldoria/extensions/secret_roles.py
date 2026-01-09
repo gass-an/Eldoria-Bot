@@ -5,7 +5,7 @@ from ..db import gestionDB
 from ..pages import gestionPages
 from ..features import embedGenerator
 
-
+# -------------------- Fonctions pour l'autocompletion --------------------
 async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
     user_input = (interaction.value or "").lower()
     guild_id = interaction.interaction.guild.id
@@ -62,17 +62,9 @@ class SecretRoles(commands.Cog):
         gestionDB.sr_upsert(guild_id, channel_id, message_str, role.id)
         await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
 
-    @commands.slash_command(
-        name="delete_secret_role",
-        description="Supprime l'attibution d'un secret_role déjà paramétré.",
-    )
+    @commands.slash_command(name="delete_secret_role", description="Supprime l'attibution d'un secret_role déjà paramétré.")
     @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
-    @discord.option(
-        "message",
-        str,
-        description="Le message exact pour que le rôle soit attribué.",
-        autocomplete=message_secret_role_autocomplete,
-    )
+    @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.", autocomplete=message_secret_role_autocomplete)
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
     async def delete_secret_role(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message: str):

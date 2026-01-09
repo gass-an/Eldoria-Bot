@@ -17,7 +17,7 @@
     "xp_list": "Cette commande liste les XP des membres (classement).",
     "xp_roles": "Cette commande affiche la liste des rôles de niveaux et l'XP requis pour atteindre chacun d'eux.",
     "xp_set_level": "Cette commande permet de définir l'XP requis pour un niveau.",
-    "xp_set_config": "Cette commande permet de configurer le gain d'XP par message et le cooldown.",
-    "xp_set_bonus": "Cette commande permet de définir le bonus d'XP appliqué si le membre affiche le tag du serveur sur son profil.",
+    "xp_set_config": "Cette commande permet de configurer le gain d'XP par message, le cooldown, le bonus TAG et le malus karuta.",
+    "xp_set_role": "Cette commande permet d'associer un rôle existant à un niveau XP (remplace l'ancien rôle en base).",
     "xp_modify": "Cette commande ajoute/retire des XP à un membre."
 }
