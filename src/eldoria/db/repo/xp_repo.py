@@ -1,77 +1,51 @@
 from ..connection import get_conn
+from ...defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
 # ------------ XP system -----------
 def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None):
     """Crée la config et les niveaux par défaut si absents.
 
-    Migration douce:
-    - si la guilde est encore sur les anciens *defaults* (5 XP / 60s / 50% et paliers 0/300/600/1000/3000),
-      on bascule automatiquement sur les nouveaux defaults.
-    - si l'admin a déjà personnalisé la config, on ne touche pas.
+    ⚠️ Aucune migration automatique n'est effectuée ici.
+    Si tu supprimes la DB, elle sera recréée au lancement avec le schéma + defaults actuels.
     """
     if default_levels is None:
-        default_levels = {
-            1: 0,
-            2: 600,
-            3: 1800,
-            4: 3800,
-            5: 7200,
-        }
-
-    old_default_config = (5, 60, 50)
-    new_default_config = (8, 90, 20)
-
-    old_default_levels = {
-        1: 0,
-        2: 300,
-        3: 600,
-        4: 1000,
-        5: 3000,
-    }
+        default_levels = dict(XP_LEVELS_DEFAULTS)
 
     with get_conn() as conn:
-        # Crée une ligne de config si absente
-        conn.execute("""
-            INSERT OR IGNORE INTO xp_config(guild_id) VALUES (?)
-        """, (guild_id,))
+        # Crée une ligne de config si absente.
+        # On insère explicitement les valeurs de defaults.py pour ne pas dépendre des DEFAULT SQL.
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO xp_config(
+              guild_id,
+              enabled,
+              points_per_message,
+              cooldown_seconds,
+              bonus_percent,
+              karuta_k_small_percent
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                guild_id,
+                1 if bool(XP_CONFIG_DEFAULTS["enabled"]) else 0,
+                int(XP_CONFIG_DEFAULTS["points_per_message"]),
+                int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
+                int(XP_CONFIG_DEFAULTS["bonus_percent"]),
+                int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+            ),
+        )
 
         # Crée les niveaux si absents
         for lvl, xp_req in default_levels.items():
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR IGNORE INTO xp_levels(guild_id, level, xp_required, role_id)
                 VALUES (?, ?, ?, NULL)
-            """, (guild_id, int(lvl), int(xp_req)))
-
-        # --- Migration douce des anciens defaults (si non modifié) ---
-        row = conn.execute(
-            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent FROM xp_config WHERE guild_id=?",
-            (guild_id,),
-        ).fetchone()
-
-        # On migre uniquement si l'admin n'a pas personnalisé (ancienne config par défaut)
-        # et que le nouveau champ est encore à sa valeur par défaut.
-        if row and (int(row[1]), int(row[2]), int(row[3])) == old_default_config and int(row[4]) == 30:
-            conn.execute(
-                "UPDATE xp_config SET points_per_message=?, cooldown_seconds=?, bonus_percent=? WHERE guild_id=?",
-                (*new_default_config, guild_id),
+                """,
+                (guild_id, int(lvl), int(xp_req)),
             )
 
-        lvl_rows = conn.execute(
-            "SELECT level, xp_required FROM xp_levels WHERE guild_id=? ORDER BY level",
-            (guild_id,),
-        ).fetchall()
-
-        current_levels = {int(lvl): int(req) for (lvl, req) in lvl_rows}
-
-        # On migre seulement si les 5 niveaux existent ET correspondent aux anciens defaults
-        if all(l in current_levels for l in range(1, 6)) and all(
-            current_levels.get(l) == old_default_levels[l] for l in old_default_levels
-        ):
-            for lvl, xp_req in default_levels.items():
-                conn.execute(
-                    "UPDATE xp_levels SET xp_required=? WHERE guild_id=? AND level=?",
-                    (int(xp_req), guild_id, int(lvl)),
-                )
 
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:
@@ -80,13 +54,31 @@ def xp_get_config(guild_id: int) -> dict:
             (guild_id,),
         ).fetchone()
     if not row:
-        return {
-            "enabled": False,
-            "points_per_message": 8,
-            "cooldown_seconds": 90,
-            "bonus_percent": 20,
-            "karuta_k_small_percent": 30,
-        }
+        # Si la ligne n'existe pas, on la crée pour bénéficier des DEFAULT du schéma,
+        # mais on renvoie aussi des valeurs cohérentes côté code.
+        with get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO xp_config(
+                  guild_id,
+                  enabled,
+                  points_per_message,
+                  cooldown_seconds,
+                  bonus_percent,
+                  karuta_k_small_percent
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    guild_id,
+                    1 if bool(XP_CONFIG_DEFAULTS["enabled"]) else 0,
+                    int(XP_CONFIG_DEFAULTS["points_per_message"]),
+                    int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
+                    int(XP_CONFIG_DEFAULTS["bonus_percent"]),
+                    int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+                ),
+            )
+        return dict(XP_CONFIG_DEFAULTS)
     return {
         "enabled": bool(row[0]),
         "points_per_message": int(row[1]),
@@ -94,9 +86,6 @@ def xp_get_config(guild_id: int) -> dict:
         "bonus_percent": int(row[3]),
         "karuta_k_small_percent": int(row[4]),
     }
-
-
-_MISSING = object()
 
 
 def xp_set_config(
@@ -130,7 +119,27 @@ def xp_set_config(
         return
 
     with get_conn() as conn:
-        conn.execute("INSERT OR IGNORE INTO xp_config(guild_id) VALUES (?)", (guild_id,))
+        conn.execute(
+                """
+                INSERT OR IGNORE INTO xp_config(
+                  guild_id,
+                  enabled,
+                  points_per_message,
+                  cooldown_seconds,
+                  bonus_percent,
+                  karuta_k_small_percent
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    guild_id,
+                    1 if bool(XP_CONFIG_DEFAULTS["enabled"]) else 0,
+                    int(XP_CONFIG_DEFAULTS["points_per_message"]),
+                    int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
+                    int(XP_CONFIG_DEFAULTS["bonus_percent"]),
+                    int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+                ),
+            )
         conn.execute(
             f"UPDATE xp_config SET {', '.join(sets)} WHERE guild_id=?",
             (*params, guild_id),

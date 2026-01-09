@@ -7,27 +7,19 @@ from typing import Iterable, Optional
 import discord
 
 from ..db import gestionDB
+from ..defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
 
 @dataclass(frozen=True)
 class XpConfig:
-    enabled: bool = False
-    points_per_message: int = 8
-    cooldown_seconds: int = 90
-    bonus_percent: int = 20
+    enabled: bool = bool(XP_CONFIG_DEFAULTS["enabled"])
+    points_per_message: int = int(XP_CONFIG_DEFAULTS["points_per_message"])
+    cooldown_seconds: int = int(XP_CONFIG_DEFAULTS["cooldown_seconds"])
+    bonus_percent: int = int(XP_CONFIG_DEFAULTS["bonus_percent"])
     # Pour les petits messages (<=10) qui commencent par "k" (commandes Karuta)
     # on n'attribue qu'un certain pourcentage de l'XP.
     # Ex: 30 => 30% de l'XP normal.
-    karuta_k_small_percent: int = 30
-
-
-DEFAULT_LEVELS: dict[int, int] = {
-    1: 0,
-    2: 600,
-    3: 1800,
-    4: 3800,
-    5: 7200,
-}
+    karuta_k_small_percent: int = int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"])
 
 
 def _now_ts() -> int:
@@ -78,7 +70,7 @@ async def ensure_guild_xp_setup(guild: discord.Guild):
     """Crée la config + niveaux par défaut + rôles level5..level1 (si absents),
     sans jamais toucher aux positions (création uniquement).
     """
-    gestionDB.xp_ensure_defaults(guild.id, DEFAULT_LEVELS)
+    gestionDB.xp_ensure_defaults(guild.id, XP_LEVELS_DEFAULTS)
 
     role_ids = gestionDB.xp_get_role_ids(guild.id)
     roles_by_id = {r.id: r for r in guild.roles}
@@ -122,7 +114,7 @@ async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, 
     levels = gestionDB.xp_get_levels(guild.id)
     if not levels:
         # fallback (normalement impossible si ensure_guild_xp_setup est appelé)
-        levels = list(DEFAULT_LEVELS.items())
+        levels = list(XP_LEVELS_DEFAULTS.items())
 
     current_lvl = compute_level(xp, levels)
     role_ids = gestionDB.xp_get_role_ids(guild.id)
