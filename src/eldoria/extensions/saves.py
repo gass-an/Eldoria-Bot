@@ -187,6 +187,13 @@ class Saves(commands.Cog):
             await ctx.followup.send(content=f"❌ Erreur pendant la restauration : {e}")
             return
 
+        # Suppression en base des channels temporaires inexistant
+        for guild in self.bot.guilds:
+                    rows = gestionDB.tv_list_active_all(guild.id)
+                    for parent_id, channel_id in rows:
+                        if guild.get_channel(channel_id) is None:
+                            gestionDB.tv_remove_active(guild.id, parent_id, channel_id)
+        
         await ctx.followup.send(content="✅ Base de données remplacée avec succès.")
 
 
