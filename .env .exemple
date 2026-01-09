@@ -1,0 +1,12 @@
+# === Discord ===
+DISCORD_TOKEN=
+
+# === Backup system  ===
+GUILD_FOR_SAVE=
+CHANNEL_FOR_SAVE=
+ADMIN_USER_ID=
+
+# === Automatic backup  ===
+# Format: HH:MM (24h)
+AUTO_SAVE_TIME=03:00
+AUTO_SAVE_TZ=UTC
