@@ -33,6 +33,25 @@ def init_db():
           PRIMARY KEY (guild_id, parent_channel_id, channel_id)
         );
 
+        -- -------------------- Welcome message system --------------------          
+        CREATE TABLE IF NOT EXISTS welcome_config (
+          guild_id           INTEGER NOT NULL PRIMARY KEY,
+          enabled            INTEGER NOT NULL DEFAULT 0,
+          channel_id		 INTEGER NOT NULL
+        );
+
+        -- Historique des messages de bienvenue tirés (anti-répétition)
+        -- On stocke la clé du JSON (ex: w01) avec un timestamp Unix.
+        CREATE TABLE IF NOT EXISTS welcome_message_history (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          guild_id   INTEGER NOT NULL,
+          message_key TEXT   NOT NULL,
+          used_at    INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_welcome_message_history_guild_time
+          ON welcome_message_history(guild_id, used_at);
+
         -- -------------------- XP system --------------------
         CREATE TABLE IF NOT EXISTS xp_config (
           guild_id           INTEGER NOT NULL PRIMARY KEY,

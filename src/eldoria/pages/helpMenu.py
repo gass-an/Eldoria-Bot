@@ -1,7 +1,7 @@
 import discord
 
 from ..features.embed import helpEmbed
-from ..json_tools import gestionJson
+from ..json_tools import helpJson
 
 
 class HelpMenuView(discord.ui.View):
@@ -193,7 +193,7 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot):
     member_perms = ctx.user.guild_permissions
 
     # Help config (normalisée) via json_tools/gestionJson.py
-    help_infos, categories, cat_descriptions = gestionJson.load_help_config()
+    help_infos, categories, cat_descriptions = helpJson.load_help_config()
 
     # Commandes internes / techniques qu'on ne veut pas exposer dans le /help
     excluded_cmds = {"manual_save", "insert_db"}

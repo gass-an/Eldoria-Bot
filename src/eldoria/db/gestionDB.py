@@ -5,3 +5,4 @@ from .repo.xp_repo import *
 from .repo.rr_repo import *
 from .repo.sr_repo import *
 from .repo.tv_repo import *
+from .repo.wm_repo import *

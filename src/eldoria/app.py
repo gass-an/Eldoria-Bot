@@ -20,6 +20,7 @@ def create_bot() -> commands.Bot:
     bot.load_extension("eldoria.extensions.secret_roles")
     bot.load_extension("eldoria.extensions.temp_voice")
     bot.load_extension("eldoria.extensions.saves")
+    bot.load_extension("eldoria.extensions.welcome_message")
 
     return bot
 

@@ -12,7 +12,7 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
     embed = discord.Embed(
         title="Statut du système XP",
         description="Configuration actuelle du système d'expérience sur ce serveur.",
-        colour=discord.Color.blurple()
+        colour=EMBED_COLOUR_PRIMARY
     )
 
     if enabled :
@@ -67,7 +67,7 @@ async def generate_xp_disable_embed(guild_id: int, bot: commands.Bot):
     embed = discord.Embed(
         title="Statut du système XP",
         description="Configuration actuelle du système d'expérience sur ce serveur.",
-        colour=discord.Color.blurple()
+        colour=EMBED_COLOUR_PRIMARY
     )
 
     embed.add_field(
@@ -158,7 +158,7 @@ async def generate_xp_profile_embed(
 
     embed = discord.Embed(
         title="📊 Ton profil XP",
-        colour=discord.Color.blurple()
+        colour=EMBED_COLOUR_PRIMARY
     )
 
     embed.set_author(

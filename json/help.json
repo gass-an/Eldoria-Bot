@@ -32,6 +32,14 @@
                 "list_of_secret_roles": "Affiche la liste des rôles secrets configurés sur le serveur."
             }
         },
+        "Message d'arrivée": {
+            "description": "Gestion des messages d'arrivée.",
+            "commands": {
+                "welcome_setup": "Définit le salon des messages d'arrivée et active la fonctionnalité.",
+                "welcome_enable": "Active les messages d'arrivée.",
+                "welcome_disable": "Désactive les messages d'arrivée."
+            }
+        },
         "Système XP": {
             "description": "Système d'expérience basé sur l'activité, avec niveaux, rôles et classement.",
             "commands": {
