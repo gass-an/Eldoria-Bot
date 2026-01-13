@@ -1,35 +1,7 @@
 import discord
 
-def common_files(thumb_url: str | None, banner_url: str | None):
-    """Return attachment files for help embeds.
-
-    To keep navigation snappy, images are only attached on the first message.
-    If CDN URLs are already known, return an empty list.
-    """
-    if thumb_url and banner_url:
-        return []
-
-    thumbnail_path = "./images/logo_Bot.png"
-    banner_path = "./images/banner_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    banner_file = discord.File(banner_path, filename="banner_Bot.png")
-    return [thumbnail_file, banner_file]
-
-
-def decorate(embed: discord.Embed, thumb_url: str | None, banner_url: str | None) -> discord.Embed:
-    """Apply thumbnail/banner to the embed.
-
-    - If URLs are known (after first send), reuse CDN URLs.
-    - Else reference message attachments.
-    """
-    if thumb_url and banner_url:
-        embed.set_thumbnail(url=thumb_url)
-        embed.set_image(url=banner_url)
-    else:
-        embed.set_thumbnail(url="attachment://logo_Bot.png")
-        embed.set_image(url="attachment://banner_Bot.png")
-    return embed
-
+from .common.embedImages import common_files, decorate
+from .common.embedColors import EMBED_COLOUR_PRIMARY
 
 def build_home_embed(
     visible_by_cat: dict[str, list[str]],
@@ -41,7 +13,7 @@ def build_home_embed(
     embed = discord.Embed(
         title="Centre d'aide",
         description="Choisis une fonctionnalité ci-dessous pour voir les détails.\n",
-        colour=discord.Color(0x00FFFF),
+        colour=EMBED_COLOUR_PRIMARY,
     )
 
     for cat, _cmds in visible_by_cat.items():
@@ -65,7 +37,7 @@ def build_category_embed(
     embed = discord.Embed(
         title=f"Aide • {cat}",
         description="Commandes disponibles :",
-        colour=discord.Color(0x00FFFF),
+        colour=EMBED_COLOUR_PRIMARY,
     )
 
     for cmd_name in cmds:

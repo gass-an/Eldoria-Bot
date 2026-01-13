@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 
 from ...db import gestionDB
+from .common.embedImages import common_files, decorate
+from .common.embedColors import EMBED_COLOUR_PRIMARY
 
 async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
     guild = bot.get_guild(guild_id)
@@ -54,16 +56,9 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
 
     embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
 
-    # Images (même pattern que les autres embeds)
-    thumbnail_path = "./images/logo_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    embed.set_thumbnail(url="attachment://logo_Bot.png")
-
-    image_path = "./images/banner_Bot.png"
-    image_file = discord.File(image_path, filename="banner_Bot.png")
-    embed.set_image(url="attachment://banner_Bot.png")
-
-    files = [thumbnail_file, image_file]
+    # Images centralisées (thumbnail + banner)
+    decorate(embed, None, None)
+    files = common_files(None, None)
     return embed, files
 
 
@@ -88,16 +83,9 @@ async def generate_xp_disable_embed(guild_id: int, bot: commands.Bot):
 
     embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
 
-    # Images (même pattern que les autres embeds)
-    thumbnail_path = "./images/logo_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    embed.set_thumbnail(url="attachment://logo_Bot.png")
-
-    image_path = "./images/banner_Bot.png"
-    image_file = discord.File(image_path, filename="banner_Bot.png")
-    embed.set_image(url="attachment://banner_Bot.png")
-
-    files = [thumbnail_file, image_file]
+    # Images centralisées (thumbnail + banner)
+    decorate(embed, None, None)
+    files = common_files(None, None)
     return embed, files
 
 
@@ -112,7 +100,7 @@ async def generate_list_xp_embed(items, current_page: int, total_pages: int, gui
     embed = discord.Embed(
         title="Classement XP",
         description="Liste des membres et de leurs XP.",
-        colour=discord.Color(0x00FFFF),
+        colour=EMBED_COLOUR_PRIMARY,
     )
 
     guild = bot.get_guild(guild_id)
@@ -149,15 +137,9 @@ async def generate_list_xp_embed(items, current_page: int, total_pages: int, gui
 
     embed.set_footer(text=f"Page {current_page + 1}/{total_pages}")
 
-    thumbnail_path = "./images/logo_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    embed.set_thumbnail(url="attachment://logo_Bot.png")
-
-    image_path = "./images/banner_Bot.png"
-    image_file = discord.File(image_path, filename="banner_Bot.png")
-    embed.set_image(url="attachment://banner_Bot.png")
-
-    files = [thumbnail_file, image_file]
+    # Images centralisées (thumbnail + banner)
+    decorate(embed, None, None)
+    files = common_files(None, None)
     return embed, files
 
 async def generate_xp_profile_embed(
@@ -180,7 +162,7 @@ async def generate_xp_profile_embed(
     )
 
     embed.set_author(
-        name=str(user),
+        name=user.display_name,
         icon_url=user.display_avatar.url if user.display_avatar else None
     )
 
@@ -216,16 +198,9 @@ async def generate_xp_profile_embed(
 
     embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
 
-    # Images (même pattern que les autres embeds)
-    thumbnail_path = "./images/logo_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    embed.set_thumbnail(url="attachment://logo_Bot.png")
-
-    image_path = "./images/banner_Bot.png"
-    image_file = discord.File(image_path, filename="banner_Bot.png")
-    embed.set_image(url="attachment://banner_Bot.png")
-
-    files = [thumbnail_file, image_file]
+    # Images centralisées (thumbnail + banner)
+    decorate(embed, None, None)
+    files = common_files(None, None)
     return embed, files
 
 
@@ -238,7 +213,7 @@ async def generate_xp_roles_embed(levels_with_roles, guild_id: int, bot: command
     embed = discord.Embed(
         title="Rôles & Niveaux XP",
         description="XP requis pour atteindre chaque rôle de niveau.",
-        colour=discord.Color(0x00FFFF),
+        colour=EMBED_COLOUR_PRIMARY,
     )
 
     guild = bot.get_guild(guild_id) if guild_id else None
@@ -254,13 +229,7 @@ async def generate_xp_roles_embed(levels_with_roles, guild_id: int, bot: command
     else:
         embed.add_field(name="Niveaux", value="\n".join(lines), inline=False)
 
-    thumbnail_path = "./images/logo_Bot.png"
-    thumbnail_file = discord.File(thumbnail_path, filename="logo_Bot.png")
-    embed.set_thumbnail(url="attachment://logo_Bot.png")
-
-    image_path = "./images/banner_Bot.png"
-    image_file = discord.File(image_path, filename="banner_Bot.png")
-    embed.set_image(url="attachment://banner_Bot.png")
-
-    files = [thumbnail_file, image_file]
+    # Images centralisées (thumbnail + banner)
+    decorate(embed, None, None)
+    files = common_files(None, None)
     return embed, files

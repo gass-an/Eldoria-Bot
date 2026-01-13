@@ -112,39 +112,12 @@ python src/main.py
 ```
 
 
-
-
-
-## 🗂 Structure du projet
-
-```
-eldoria/
-├─ src/
-│  ├─ main.py
-│  └─ eldoria/
-│     └─ app.py
-├─ requirements.txt
-├─ Dockerfile
-├─ .env.exemple
-└─ .gitignore
-```
-
-
 ## 🛠 Technologies
 
 - **Python 3.11**
 - **py-cord 2.7.0**
 - **python-dotenv**
 - **Docker**
-
-
-## 📌 Roadmap (idées)
-
-- [ ] Système de commandes avancées
-- [ ] Base de données (scores, profils, etc.)
-- [ ] Système de permissions
-- [ ] Dashboard web (optionnel)
-
 
 
 ## 📄 Licence
