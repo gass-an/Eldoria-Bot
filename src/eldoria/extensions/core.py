@@ -3,9 +3,7 @@ from discord.ext import commands
 
 from ..db import gestionDB
 from ..features import xp_system
-from ..json_tools import gestionJson
-from ..pages import gestionPages
-from ..features import embedGenerator
+from ..pages.helpMenu import send_help_menu
 from ..utils.mentions import level_mention
 from ..utils.interactions import reply_ephemeral
 
@@ -92,52 +90,7 @@ class Core(commands.Cog):
     # -------------------- Basic commands --------------------
     @commands.slash_command(name="help", description="Affiche la liste des commandes disponible avec le bot")
     async def help(self, ctx: discord.ApplicationContext):
-        help_infos = gestionJson.load_help_json()
-
-        cmd_map = {c.name: c for c in self.bot.application_commands}
-        member_perms = ctx.user.guild_permissions
-
-        async def is_command_visible(cmd_name: str) -> bool:
-            cmd = cmd_map.get(cmd_name)
-            if cmd is None:
-                return False
-
-            dp = getattr(cmd, "default_member_permissions", None)
-            if dp is not None:
-                if (member_perms.value & dp.value) != dp.value:
-                    return False
-
-            try:
-                can = await cmd.can_run(ctx)
-                if not can:
-                    return False
-            except Exception:
-                return False
-
-            return True
-
-        filtered = {}
-        for name, desc in help_infos.items():
-            if await is_command_visible(name):
-                filtered[name] = desc
-
-        list_help_info = list(filtered.items())
-        if not list_help_info:
-            await ctx.respond(
-                "Aucune commande disponible avec vos permissions.",
-                ephemeral=True,
-            )
-            return
-
-        await ctx.defer(ephemeral=True)
-        paginator = gestionPages.Paginator(
-            items=list_help_info,
-            embed_generator=embedGenerator.generate_help_embed,
-            identifiant_for_embed=None,
-            bot=None,
-        )
-        embed, files = await paginator.create_embed()
-        await ctx.followup.send(embed=embed, files=files, view=paginator, ephemeral=True)
+        await send_help_menu(ctx, self.bot)
 
     @commands.slash_command(name="ping", description="Ping-pong (pour vérifier que le bot est bien UP !)")
     async def ping_command(self, ctx: discord.ApplicationContext):

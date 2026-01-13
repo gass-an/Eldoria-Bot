@@ -1,23 +1,55 @@
 {
-    "ping" : "Cette commande permet de vérifier que le bot est bien en état de marche.",
-    "add_reaction_role" : "Cette commande permet d'associer une réaction sur un message défini à un rôle.",
-    "remove_specific_reaction" : "Cette commande permet de retirer une réaction spécifique d'un message, et donc l'attribution d'un rôle.",
-    "remove_all_reactions" : "Cette commande permet de retirer toutes les réaction d'un message, et donc l'attribution de roles liés aux réactions supprimées.",
-    "list_of_reaction_roles" : "Cette commande permet de lister des tous les rôles attribués avec une réaction à un message.",
-    "add_secret_role" : "Cette commande permet d'attribuer un role défini si l'utilisateur entre le bon message dans le bon channel.",
-    "delete_secret_role" : "Cette commande permet de supprimer l'attibution d'un secret_role déjà paramétré.",
-    "list_of_secret_roles" : "Cette commande permet de lister des tous les rôles attribués avec un message secret.",
-    "init_creation_voice_channel" : "Cette commande permet de définir le salon qui permettra à chacun de créer son propre salon vocal temporaire.",
-    "remove_creation_voice_channel": "Cette commande désactive la création automatique de salons vocaux temporaires pour un salon donné.",
-    "list_creation_voice_channels": "Cette commande affiche la liste des salons parents qui créent des vocaux temporaires.",
-    "xp_enable": "Cette commande active le système d'XP sur ce serveur.",
-    "xp_disable": "Cette commande désactive le système d'XP sur ce serveur.",
-    "xp_status": "Cette commande affiche l'état du système d'XP sur ce serveur.",
-    "xp": "Cette commande affiche ton XP et ton niveau.",
-    "xp_list": "Cette commande liste les XP des membres (classement).",
-    "xp_roles": "Cette commande affiche la liste des rôles de niveaux et l'XP requis pour atteindre chacun d'eux.",
-    "xp_set_level": "Cette commande permet de définir l'XP requis pour un niveau.",
-    "xp_set_config": "Cette commande permet de configurer le gain d'XP par message, le cooldown, le bonus TAG et le malus karuta.",
-    "xp_set_role": "Cette commande permet d'associer un rôle existant à un niveau XP (remplace l'ancien rôle en base).",
-    "xp_modify": "Cette commande ajoute/retire des XP à un membre."
+    "categories": {
+        "Général": {
+            "description": "Commandes de base pour vérifier l'état du bot et accéder rapidement à l'aide.",
+            "commands": {
+                "ping": "Vérifie si le bot est en ligne et répond correctement.",
+                "help": "Affiche le menu d'aide interactif et la liste des commandes disponibles."
+            }
+        },
+        "Vocaux temporaires": {
+            "description": "Gestion des salons vocaux temporaires créés automatiquement lorsque les membres rejoignent un salon.",
+            "commands": {
+                "init_creation_voice_channel": "Définit un salon vocal servant de point de création pour les salons vocaux temporaires.",
+                "remove_creation_voice_channel": "Désactive la création automatique de salons vocaux pour un salon donné.",
+                "list_creation_voice_channels": "Affiche la liste des salons utilisés pour créer des vocaux temporaires."
+            }
+        },
+        "Reaction roles": {
+            "description": "Attribution automatique de rôles via des réactions sur des messages.",
+            "commands": {
+                "add_reaction_role": "Associe une réaction sur un message à un rôle.",
+                "remove_specific_reaction": "Supprime une réaction spécifique et le rôle associé sur un message.",
+                "remove_all_reactions": "Supprime toutes les réactions d'un message et les rôles associés.",
+                "list_of_reaction_roles": "Affiche la liste des rôles attribués par réaction sur un message."
+            }
+        },
+        "Secret roles": {
+            "description": "Gestion de rôles cachés attribués via des messages secrets.",
+            "commands": {
+                "add_secret_role": "Configure un rôle attribué lorsqu'un utilisateur envoie un message secret dans un salon précis.",
+                "delete_secret_role": "Supprime une configuration de rôle secret existante.",
+                "list_of_secret_roles": "Affiche la liste des rôles secrets configurés sur le serveur."
+            }
+        },
+        "Système XP": {
+            "description": "Système d'expérience basé sur l'activité, avec niveaux, rôles et classement.",
+            "commands": {
+                "xp_enable": "Active le système d'XP sur le serveur.",
+                "xp_disable": "Désactive le système d'XP sur le serveur.",
+                "xp_status": "Affiche l'état actuel du système d'XP.",
+                "xp": "Affiche ton niveau et ton expérience actuelle.",
+                "xp_roles": "Affiche les rôles de niveau et l'XP nécessaire pour les obtenir.",
+                "xp_classement": "Affiche le classement des membres selon leur XP.",
+                "xp_set_level": "Définit l'XP requise pour atteindre un niveau spécifique.",
+                "xp_set_config": "Configure les gains d'XP, le cooldown, les bonus et les malus.",
+                "xp_set_role": "Associe un rôle à un niveau XP (remplace l'ancien rôle lié).",
+                "xp_modify": "Ajoute ou retire de l'XP à un membre."
+            }
+        },
+        "Autres": {
+            "description": "Commandes diverses ne correspondant pas à une catégorie spécifique.",
+            "commands": {}
+        }
+    }
 }
