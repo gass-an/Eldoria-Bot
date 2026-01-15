@@ -42,6 +42,10 @@ Sauvegarde manuelle de la base SQLite dans un salon dédié et restauration via 
 - **🧭 Commandes de base** :  
 /help pour lister les commandes et /ping pour vérifier l’état du bot.
 
+- **👋 Message d’arrivée** :  
+Envoi automatique d’un message d’accueil aléatoire lors de l’arrivée d’un nouvel utilisateur.
+
+
 ## 🧱 Prérequis
 
 - Python **3.11+**
