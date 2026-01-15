@@ -1,51 +1,92 @@
 {
-    "messages": {
-        "w01": "🌬️ Un souffle traverse le serveur. {user} est arrivé.",
-        "w02": "🚪 Les portes de **{server}** viennent de s'ouvrir.",
-        "w03": "🌗 Quelque chose a changé. {user} est désormais parmi nous.",
-        "w04": "👁️ Une nouvelle présence se fait sentir sur **{server}**.",
-        "w05": "🌅 Le serveur s'éveille à l'arrivée de {user}.",
-
-        "w06": "📜 Le registre s'actualise. {user} rejoint **{server}**.",
-        "w07": "🕯️ Une flamme s'allume. {user} entre dans **{server}**.",
-        "w08": "🌒 Le destin s'entrelace. {user} a trouvé sa place ici.",
-        "w09": "⚔️ Un nom de plus s'inscrit dans la légende : {user}.",
-        "w10": "🔮 Les augures sont clairs. {user} était attendu.",
-
-        "w11": "😶 On n'avait pas prévu ça… mais {user} est là.",
-        "w12": "⏳ Trop tard pour faire demi-tour. {user} est arrivé.",
-        "w13": "🚶 Quelqu'un a laissé la porte ouverte. {user} est entré.",
-        "w14": "🪶 C'est officiel. {user} fait partie du décor.",
-        "w15": "📖 Une histoire commence à s'écrire avec {user}.",
-
-        "w16": "👀 Les regards se tournent. {user} est ici.",
-        "w17": "📖 Une nouvelle ligne s'ajoute aux chroniques. {user} rejoint **{server}**.",
-        "w18": "🕯️ Les veilleuses s'allument. {user} franchit le seuil.",
-        "w19": "🌑 Les ombres murmurent un nom. {user}.",
-        "w20": "⚔️ Une place se libère dans les récits. {user} l'occupe désormais.",
-
-        "w21": "🔮 Les signes ne trompent pas. {user} est arrivé.",
-        "w22": "📜 Les archives s'enrichissent d'un nouveau nom : {user}.",
-        "w23": "🔥 Une étincelle apparaît. {user} rejoint la scène.",
-        "w24": "🗡️ Une présence de plus se grave dans l'histoire : {user}.",
-        "w25": "🧿 Les anciens savaient. {user} devait venir.",
-
-        "w26": "📚 Les pages tournent lentement. {user} est désormais inscrit.",
-        "w27": "🕯️ Une lueur perce l'obscurité. {user} avance.",
-        "w28": "🌘 Le cycle s'accomplit. {user} rejoint **{server}**.",
-        "w29": "⚔️ Un nouveau nom s'ajoute au serment : {user}.",
-        "w30": "🧿 Les anciens acquiescent. {user} est là.", 
-
-        "w31": "🌫️ L'air semble différent. {user} est arrivé.",
-        "w32": "🌬️ Un léger frisson parcourt le serveur.",
-        "w33": "👁️ Quelque chose attire l'attention. {user}.",
-        "w34": "🌗 L'équilibre change. {user} est là.",
-        "w35": "🌊 Une vague discrète traverse **{server}**.",
-
-        "w36": "🕊️ Le silence se modifie à l'arrivée de {user}.",
-        "w37": "🌘 Une présence s'installe. {user}.",
-        "w38": "🌅 Une nouvelle lumière apparaît sur **{server}**.",
-        "w39": "🌬️ Le vent tourne. {user} vient d'entrer.",
-        "w40": "👣 Des pas résonnent doucement. {user} est ici."
-    }
+  	"packs": [
+		{
+			"title": "🚪 Les portes s'ouvrent",
+			"messages": {
+				"w01": "Les gonds grincent doucement : {user} franchit les portes de **{server}**.",
+				"w02": "Les lourdes portes s'écartent et laissent entrer {user} dans **{server}**.",
+				"w03": "Une porte vient de s'ouvrir sur **{server}** : {user} fait son entrée.",
+				"w04": "Le seuil est franchi, les portes se referment derrière {user} sur **{server}**.",
+				"w05": "Une nouvelle porte s'ouvre dans l'histoire de **{server}** avec l'arrivée de {user}."
+			},
+			"emojis" : ["🚪", "🔓", "🚶", "👋", "🛎️"]
+		},
+		{
+			"title": "📜 Les chroniques s'écrivent",
+			"messages": {
+				"w06": "Une plume trace un nouveau nom dans les chroniques : {user} rejoint **{server}**.",
+				"w07": "Le registre s'ouvre et inscrit l'arrivée de {user} sur **{server}**.",
+				"w08": "Une nouvelle page se tourne : {user} entre dans l'histoire de **{server}**.",
+				"w09": "Les archives de **{server}** s'enrichissent d'une nouvelle entrée : {user}.",
+				"w10": "L'encre sèche à peine : {user} est désormais inscrit dans les chroniques de **{server}**."
+			},
+			"emojis" : ["📜", "📖", "✍️", "🖋️", "📝"]
+		},
+		{
+			"title": "👁️ Un imprévu maîtrisé",
+			"messages": {
+				"w11": "Personne ne l'avait vu venir, mais {user} est désormais sur **{server}**.",
+				"w12": "Surprise générale : {user} vient d'apparaître dans **{server}**.",
+				"w13": "Un imprévu s'invite dans **{server}** avec l'arrivée de {user}.",
+				"w14": "Contre toute attente, {user} a trouvé sa place sur **{server}**.",
+				"w15": "L'inattendu s'est produit : {user} rejoint **{server}**."
+			},
+			"emojis" : ["👀", "😲", "⚡", "❓", "🫢"]
+		},
+		{
+			"title": "🕯️ Ombres et lueurs",
+			"messages": {
+				"w16": "Une lueur perce les ombres lorsque {user} entre dans **{server}**.",
+				"w17": "Les flammes vacillent, révélant l'arrivée de {user} sur **{server}**.",
+				"w18": "Entre ombre et lumière, {user} trouve sa place dans **{server}**.",
+				"w19": "Les ombres murmurent tandis qu'une lueur nouvelle accueille {user} sur **{server}**.",
+				"w20": "Une flamme s'élève doucement pour saluer l'arrivée de {user} sur **{server}**."
+			},
+			"emojis" : ["🕯️", "✨", "🌙", "🔥", "🔦"]
+		},
+		{
+			"title": "🔮 Les signes du destin",
+			"messages": {
+				"w21": "Les augures s'accomplissent : {user} rejoint enfin **{server}**.",
+				"w22": "Les étoiles l'avaient annoncé, {user} est arrivé sur **{server}**.",
+				"w23": "Un signe se manifeste : {user} entre dans **{server}**.",
+				"w24": "Le destin trace son chemin et conduit {user} jusqu'à **{server}**.",
+				"w25": "Les présages ne mentent pas : {user} fait désormais partie de **{server}**."
+			},
+			"emojis" : ["🔮", "🌌", "☄️", "🧿", "🌠", "♾️"]
+		},
+		{
+			"title": "⚔️ Serments et légendes",
+			"messages": {
+				"w26": "Un nouveau nom rejoint les légendes de **{server}** : {user}.",
+				"w27": "Le serment s'agrandit avec l'arrivée de {user} sur **{server}**.",
+				"w28": "Une épopée débute : {user} entre dans les rangs de **{server}**.",
+				"w29": "Les légendes s'enrichissent d'un nouveau chapitre : {user} arrive sur **{server}**.",
+				"w30": "Un nouveau combattant rejoint les rangs de **{server}** : bienvenue à {user}."
+			},
+			"emojis" : ["⚔️", "🛡️", "🗡️", "🏹", "👑"]
+		},
+			{
+			"title": "🌫️ L'air et l'équilibre",
+			"messages": {
+				"w31": "L'air frémit dans **{server}** depuis l'arrivée de {user}.",
+				"w32": "Un souffle nouveau traverse **{server}** avec l'entrée de {user}.",
+				"w33": "L'atmosphère de **{server}** semble changer depuis l'arrivée de {user}.",
+				"w34": "L'équilibre s'ajuste doucement à l'arrivée de {user} sur **{server}**.",
+				"w35": "Une brise discrète annonce la présence de {user} dans **{server}**."
+			},
+			"emojis" : ["🌬️", "🍃", "🌫️", "🌀", "☁️", "💨"]
+		},
+		{
+			"title": "🌅 Une place trouvée",
+			"messages": {
+				"w36": "Après quelques pas, {user} trouve naturellement sa place dans **{server}**.",
+				"w37": "Un nouvel espace s'ouvre pour {user} au sein de **{server}**.",
+				"w38": "Une lumière douce accueille {user}, désormais installé sur **{server}**.",
+				"w39": "Un sentiment de calme s'installe : {user} a trouvé sa place dans **{server}**.",
+				"w40": "Les pas cessent de résonner, {user} est désormais chez lui sur **{server}**."
+			},
+			"emojis" : ["🌅", "🏡", "☀️", "😊", "🤝"]
+		}
+	]
 }

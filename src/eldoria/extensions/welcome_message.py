@@ -1,8 +1,9 @@
 import discord
 from discord.ext import commands
 
+from ..features import embedGenerator
+
 from ..db import gestionDB
-from ..json_tools.welcomeJson import getWelcomeMessage
 
 
 class WelcomeMessage(commands.Cog):
@@ -31,14 +32,17 @@ class WelcomeMessage(commands.Cog):
             if not isinstance(channel, (discord.TextChannel, discord.Thread)):
                 return
 
-            msg = getWelcomeMessage(
-                guild_id,
-                user=member.mention,
-                server=guild.name,
-                recent_limit=10,
-            )
+            embed, emojis = await embedGenerator.generate_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
 
-            await channel.send(msg, allowed_mentions=discord.AllowedMentions(users=True, roles=False, everyone=False))
+            message = await channel.send(content=f"||{member.mention}||", embed=embed)
+
+            for emoji in emojis:
+                try:
+                    await message.add_reaction(emoji)
+                except (discord.Forbidden, discord.HTTPException):
+                    # manque de perms, emoji invalide, rate limit, etc.
+                    continue
+
         except Exception:
             # On ne casse jamais le bot sur un event
             return
