@@ -7,8 +7,6 @@
 ![Status](https://img.shields.io/badge/⚙️%20Status-En%20développement-yellow)
 ![Version](https://img.shields.io/github/v/tag/gass-an/Eldoria-Bot?label=Version&color=darkgreen&sort=semver&logo=github&logoColor=white)
 
-v{VERSION}
-Version actuelle : **v{VERSION}**
 
 > **Eldoria** est un bot Discord développé en Python avec **py-cord**, conçu pour enrichir ton serveur avec des commandes interactives et des fonctionnalités personnalisées.
 
