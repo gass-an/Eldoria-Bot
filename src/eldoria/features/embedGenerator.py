@@ -10,5 +10,6 @@ from .embed.rolesEmbed import *
 from .embed.tempVoiceEmbed import *
 from .embed.xpEmbed import *
 from .embed.welcomeEmbed import *
+from .embed.versionEmbed import *
 
 from .embed.common.embedImages import *

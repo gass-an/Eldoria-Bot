@@ -4,7 +4,8 @@
             "description": "Commandes de base pour vérifier l'état du bot et accéder rapidement à l'aide.",
             "commands": {
                 "ping": "Vérifie si le bot est en ligne et répond correctement.",
-                "help": "Affiche le menu d'aide interactif et la liste des commandes disponibles."
+                "help": "Affiche le menu d'aide interactif et la liste des commandes disponibles.",
+                "version": "Affiche la version actuelle du bot"
             }
         },
         "Vocaux temporaires": {

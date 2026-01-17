@@ -3,9 +3,12 @@
 ![Python](https://img.shields.io/static/v1?label=Python&message=3.11%2B&color=blueviolet&logo=python)
 ![py-cord](https://img.shields.io/static/v1?label=py-cord&message=2.7.0%2B&color=blueviolet&logo=python&logoColor=white)
 ![Discord](https://img.shields.io/static/v1?label=Discord&message=Bot&color=5865F2&logo=discord&logoColor=white)
-![Docker](https://img.shields.io/static/v1?label=Docker&message=Ready&color=0db7ed&logo=docker&logoColor=white)
+![Docker](https://img.shields.io/static/v1?label=Docker&message=Ready&color=0db7ed&logo=docker&logoColor=white)  
 ![Status](https://img.shields.io/badge/⚙️%20Status-En%20développement-yellow)
+![Version](https://img.shields.io/github/v/tag/gass-an/Eldoria-Bot?label=Version&color=darkgreen&sort=semver&logo=github&logoColor=white)
 
+v{VERSION}
+Version actuelle : **v{VERSION}**
 
 > **Eldoria** est un bot Discord développé en Python avec **py-cord**, conçu pour enrichir ton serveur avec des commandes interactives et des fonctionnalités personnalisées.
 

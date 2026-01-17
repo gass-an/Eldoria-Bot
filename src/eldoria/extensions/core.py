@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+from ..features import embedGenerator
 from ..db import gestionDB
 from ..features import xp_system
 from ..pages.helpMenu import send_help_menu
@@ -96,6 +97,13 @@ class Core(commands.Cog):
     async def ping_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
         await ctx.followup.send(content="Pong !")
+
+    @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
+    async def version(self, ctx: discord.ApplicationContext):
+        await ctx.defer(ephemeral=True)
+        embed, files = await embedGenerator.generate_version_embed()
+        await ctx.followup.send(embed=embed, files=files, ephemeral=True)
+
 
     # -------------------- Errors --------------------
     @commands.Cog.listener()
