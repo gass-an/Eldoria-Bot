@@ -1,6 +1,6 @@
 import json
 import random
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from ..db import gestionDB
 
@@ -16,9 +16,6 @@ def load_welcome_json() -> Dict[str, Any]:
         return {}
 
 
-
-import random
-from typing import Tuple, List
 
 def getWelcomeMessage(
     guild_id: int,
