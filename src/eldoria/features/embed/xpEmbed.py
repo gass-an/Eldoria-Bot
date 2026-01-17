@@ -39,8 +39,44 @@ async def generate_xp_status_embed(cfg: dict, guild_id: int, bot: commands.Bot):
         embed.add_field(
             name="Malus Karuta (k<=10)",
             value=f"{cfg.get('karuta_k_small_percent', 30)}%",
+            inline=False
+        )
+
+        # ---- Vocal XP ----
+        voice_enabled = bool(cfg.get("voice_enabled", True))
+        embed.add_field(
+            name="XP Vocal",
+            value="✅ Activé" if voice_enabled else "⛔ Désactivé",
             inline=True
         )
+
+        if voice_enabled:
+            interval_s = int(cfg.get("voice_interval_seconds", 180))
+            per_int = int(cfg.get("voice_xp_per_interval", 1))
+            cap_xp = int(cfg.get("voice_daily_cap_xp", 100))
+
+            minutes = max(interval_s // 60, 1)  # affichage propre
+            embed.add_field(
+                name="Gain vocal",
+                value=f"{per_int} XP / {minutes}min",
+                inline=True
+            )
+
+            # Affiche une durée max "équivalente" au cap XP (si per_int > 0)
+            if per_int > 0 and interval_s > 0 and cap_xp > 0:
+                cap_seconds = int((cap_xp * interval_s) / per_int)
+                cap_hours = cap_seconds / 3600
+                embed.add_field(
+                    name="Cap vocal",
+                    value=f"{cap_xp} XP/jour ({cap_hours:.1f}h)",
+                    inline=True
+                )
+            else:
+                embed.add_field(
+                    name="Cap vocal",
+                    value=f"{cap_xp} XP/jour",
+                    inline=True
+                )
     
     else :
         embed.add_field(

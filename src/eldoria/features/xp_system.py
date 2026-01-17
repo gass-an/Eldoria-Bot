@@ -3,12 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable, Optional
+from zoneinfo import ZoneInfo
 
 import discord
+
+from ..config import AUTO_SAVE_TZ
 
 from ..db import gestionDB
 from ..defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
+TIMEZONE = ZoneInfo(AUTO_SAVE_TZ)
 
 @dataclass(frozen=True)
 class XpConfig:
@@ -21,9 +25,51 @@ class XpConfig:
     # Ex: 30 => 30% de l'XP normal.
     karuta_k_small_percent: int = int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"])
 
+    # ---- Vocal XP ----
+    voice_enabled: bool = bool(XP_CONFIG_DEFAULTS.get("voice_enabled", True))
+    voice_xp_per_interval: int = int(XP_CONFIG_DEFAULTS.get("voice_xp_per_interval", 1))
+    voice_interval_seconds: int = int(XP_CONFIG_DEFAULTS.get("voice_interval_seconds", 180))
+    voice_daily_cap_xp: int = int(XP_CONFIG_DEFAULTS.get("voice_daily_cap_xp", 100))
+
+    # 0 = auto (system_channel / #general si trouvable), sinon ID du salon.
+    voice_levelup_channel_id: int = int(XP_CONFIG_DEFAULTS.get("voice_levelup_channel_id", 0))
+
 
 def _now_ts() -> int:
     return int(datetime.now(timezone.utc).timestamp())
+
+
+def _day_key_utc(ts: int | None = None) -> str:
+    dt = datetime.fromtimestamp(
+        ts if ts is not None else _now_ts(), 
+        tz=TIMEZONE #prend la timezone défini dans le .env
+        )  
+    return dt.strftime("%Y%m%d")
+
+
+
+def is_voice_member_active(member: discord.Member) -> bool:
+    """Actif = peut participer (non-bot, en vocal, pas mute/deaf)."""
+    if member.bot:
+        return False
+    vs = member.voice
+    if vs is None or vs.channel is None:
+        return False
+
+    # Muted ou deaf (server ou self)
+    if bool(getattr(vs, "mute", False)) or bool(getattr(vs, "self_mute", False)):
+        return False
+    if bool(getattr(vs, "deaf", False)) or bool(getattr(vs, "self_deaf", False)):
+        return False
+
+    return True
+
+
+def is_voice_eligible_in_channel(member: discord.Member, active_count: int) -> bool:
+    """Éligible = membre actif + au moins 2 actifs dans le salon."""
+    if not is_voice_member_active(member):
+        return False
+    return active_count >= 2
 
 
 def _has_active_server_tag_for_guild(member: discord.abc.User, guild: discord.Guild) -> bool:
@@ -190,3 +236,112 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
     await sync_member_level_roles(guild, member, xp=new_xp)
 
     return new_xp, new_lvl, old_lvl
+
+
+async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member) -> Optional[tuple[int, int, int]]:
+    if member.bot:
+        return None
+
+    config_raw = gestionDB.xp_get_config(guild.id)
+    config = XpConfig(**config_raw)
+
+    if not config.enabled or not config.voice_enabled:
+        return None
+
+    now = _now_ts()
+    day_key = _day_key_utc(now)
+
+    prog = gestionDB.xp_voice_get_progress(guild.id, member.id)
+
+    # Reset journalier + persistance immédiate
+    if prog.get("day_key") != day_key:
+        prog = {
+            "day_key": day_key,
+            "last_tick_ts": 0,
+            "buffer_seconds": 0,
+            "bonus_cents": 0,
+            "xp_today": 0,
+        }
+        gestionDB.xp_voice_upsert_progress(
+            guild.id,
+            member.id,
+            day_key=day_key,
+            last_tick_ts=0,
+            buffer_seconds=0,
+            bonus_cents=0,
+            xp_today=0,
+        )
+
+    last_tick = int(prog.get("last_tick_ts", 0) or 0)
+    if last_tick <= 0:
+        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        return None
+
+    # L'éligibilité salon est gérée par la loop; ici seulement l'état du membre
+    if not is_voice_member_active(member):
+        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        return None
+
+    # Bornage delta (anti-jump)
+    delta = max(now - last_tick, 0)
+    if delta > 600:
+        delta = 600
+
+    buffer_seconds = int(prog.get("buffer_seconds", 0) or 0) + delta
+
+    if config.voice_daily_cap_xp <= 0 or config.voice_interval_seconds <= 0 or config.voice_xp_per_interval <= 0:
+        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        return None
+
+    xp_today = int(prog.get("xp_today", 0) or 0)
+    if xp_today >= config.voice_daily_cap_xp:
+        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=0)
+        return None
+
+    intervals = buffer_seconds // config.voice_interval_seconds
+    base_gain = int(intervals * config.voice_xp_per_interval)
+    if base_gain <= 0:
+        gestionDB.xp_voice_upsert_progress(
+            guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=buffer_seconds
+        )
+        return None
+
+    buffer_seconds -= int(intervals * config.voice_interval_seconds)
+
+    total_gain = base_gain
+    bonus_cents = int(prog.get("bonus_cents", 0) or 0)
+
+    if config.bonus_percent > 0 and _has_active_server_tag_for_guild(member, guild):
+        bonus_cents += base_gain * int(config.bonus_percent)
+        extra = bonus_cents // 100
+        bonus_cents %= 100
+        total_gain += int(extra)
+
+    cap_left = max(int(config.voice_daily_cap_xp) - xp_today, 0)
+    if total_gain > cap_left:
+        total_gain = cap_left
+
+    new_xp_today = xp_today + int(total_gain)
+    gestionDB.xp_voice_upsert_progress(
+        guild.id,
+        member.id,
+        day_key=day_key,
+        last_tick_ts=now,
+        buffer_seconds=int(buffer_seconds),
+        bonus_cents=int(bonus_cents),
+        xp_today=int(new_xp_today),
+    )
+
+    if total_gain <= 0:
+        return None
+
+    old_xp, _ = gestionDB.xp_get_member(guild.id, member.id)
+    new_xp = gestionDB.xp_add_xp(guild.id, member.id, int(total_gain))
+
+    levels = gestionDB.xp_get_levels(guild.id)
+    old_lvl = compute_level(old_xp, levels)
+    new_lvl = compute_level(new_xp, levels)
+
+    await sync_member_level_roles(guild, member, xp=new_xp)
+    return new_xp, new_lvl, old_lvl
+

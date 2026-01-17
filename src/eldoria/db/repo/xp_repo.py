@@ -22,9 +22,15 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
               points_per_message,
               cooldown_seconds,
               bonus_percent,
-              karuta_k_small_percent
+              karuta_k_small_percent,
+
+              voice_enabled,
+              voice_xp_per_interval,
+              voice_interval_seconds,
+              voice_daily_cap_xp,
+              voice_levelup_channel_id
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 guild_id,
@@ -33,6 +39,12 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
                 int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
                 int(XP_CONFIG_DEFAULTS["bonus_percent"]),
                 int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+
+                1 if bool(XP_CONFIG_DEFAULTS.get("voice_enabled", True)) else 0,
+                int(XP_CONFIG_DEFAULTS.get("voice_xp_per_interval", 1)),
+                int(XP_CONFIG_DEFAULTS.get("voice_interval_seconds", 180)),
+                int(XP_CONFIG_DEFAULTS.get("voice_daily_cap_xp", 100)),
+                int(XP_CONFIG_DEFAULTS.get("voice_levelup_channel_id", 0)),
             ),
         )
 
@@ -50,7 +62,12 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 def xp_get_config(guild_id: int) -> dict:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT enabled, points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent FROM xp_config WHERE guild_id=?",
+            """
+            SELECT enabled, points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent,
+                   voice_enabled, voice_xp_per_interval, voice_interval_seconds, voice_daily_cap_xp,
+                   voice_levelup_channel_id
+            FROM xp_config WHERE guild_id=?
+            """,
             (guild_id,),
         ).fetchone()
     if not row:
@@ -65,9 +82,14 @@ def xp_get_config(guild_id: int) -> dict:
                   points_per_message,
                   cooldown_seconds,
                   bonus_percent,
-                  karuta_k_small_percent
+              karuta_k_small_percent,
+              voice_enabled,
+              voice_xp_per_interval,
+              voice_interval_seconds,
+              voice_daily_cap_xp,
+              voice_levelup_channel_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     guild_id,
@@ -75,7 +97,12 @@ def xp_get_config(guild_id: int) -> dict:
                     int(XP_CONFIG_DEFAULTS["points_per_message"]),
                     int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
                     int(XP_CONFIG_DEFAULTS["bonus_percent"]),
-                    int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+                int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+                1 if bool(XP_CONFIG_DEFAULTS.get("voice_enabled", True)) else 0,
+                int(XP_CONFIG_DEFAULTS.get("voice_xp_per_interval", 1)),
+                int(XP_CONFIG_DEFAULTS.get("voice_interval_seconds", 180)),
+                int(XP_CONFIG_DEFAULTS.get("voice_daily_cap_xp", 100)),
+                int(XP_CONFIG_DEFAULTS.get("voice_levelup_channel_id", 0)),
                 ),
             )
         return dict(XP_CONFIG_DEFAULTS)
@@ -85,6 +112,12 @@ def xp_get_config(guild_id: int) -> dict:
         "cooldown_seconds": int(row[2]),
         "bonus_percent": int(row[3]),
         "karuta_k_small_percent": int(row[4]),
+
+        "voice_enabled": bool(row[5]),
+        "voice_xp_per_interval": int(row[6]),
+        "voice_interval_seconds": int(row[7]),
+        "voice_daily_cap_xp": int(row[8]),
+        "voice_levelup_channel_id": int(row[9]),
     }
 
 
@@ -96,6 +129,12 @@ def xp_set_config(
     cooldown_seconds: int | None = None,
     bonus_percent: int | None = None,
     karuta_k_small_percent: int | None = None,
+
+    voice_enabled: bool | None = None,
+    voice_xp_per_interval: int | None = None,
+    voice_interval_seconds: int | None = None,
+    voice_daily_cap_xp: int | None = None,
+    voice_levelup_channel_id: int | None = None,
 ):
     sets = []
     params = []
@@ -115,6 +154,22 @@ def xp_set_config(
         sets.append("karuta_k_small_percent=?")
         params.append(int(karuta_k_small_percent))
 
+    if voice_enabled is not None:
+        sets.append("voice_enabled=?")
+        params.append(1 if bool(voice_enabled) else 0)
+    if voice_xp_per_interval is not None:
+        sets.append("voice_xp_per_interval=?")
+        params.append(int(voice_xp_per_interval))
+    if voice_interval_seconds is not None:
+        sets.append("voice_interval_seconds=?")
+        params.append(int(voice_interval_seconds))
+    if voice_daily_cap_xp is not None:
+        sets.append("voice_daily_cap_xp=?")
+        params.append(int(voice_daily_cap_xp))
+    if voice_levelup_channel_id is not None:
+        sets.append("voice_levelup_channel_id=?")
+        params.append(int(voice_levelup_channel_id))
+
     if not sets:
         return
 
@@ -127,9 +182,14 @@ def xp_set_config(
                   points_per_message,
                   cooldown_seconds,
                   bonus_percent,
-                  karuta_k_small_percent
+                  karuta_k_small_percent,
+                  voice_enabled,
+                  voice_xp_per_interval,
+                  voice_interval_seconds,
+                  voice_daily_cap_xp,
+                  voice_levelup_channel_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     guild_id,
@@ -138,12 +198,85 @@ def xp_set_config(
                     int(XP_CONFIG_DEFAULTS["cooldown_seconds"]),
                     int(XP_CONFIG_DEFAULTS["bonus_percent"]),
                     int(XP_CONFIG_DEFAULTS["karuta_k_small_percent"]),
+                    1 if bool(XP_CONFIG_DEFAULTS.get("voice_enabled", True)) else 0,
+                    int(XP_CONFIG_DEFAULTS.get("voice_xp_per_interval", 1)),
+                    int(XP_CONFIG_DEFAULTS.get("voice_interval_seconds", 180)),
+                    int(XP_CONFIG_DEFAULTS.get("voice_daily_cap_xp", 100)),
+                    int(XP_CONFIG_DEFAULTS.get("voice_levelup_channel_id", 0)),
                 ),
             )
         conn.execute(
             f"UPDATE xp_config SET {', '.join(sets)} WHERE guild_id=?",
             (*params, guild_id),
         )
+
+
+# ------------ Vocal XP progress -----------
+def xp_voice_get_progress(guild_id: int, user_id: int) -> dict:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT day_key, last_tick_ts, buffer_seconds, bonus_cents, xp_today
+            FROM xp_voice_progress
+            WHERE guild_id=? AND user_id=?
+            """,
+            (guild_id, user_id),
+        ).fetchone()
+    if not row:
+        return {
+            "day_key": "",
+            "last_tick_ts": 0,
+            "buffer_seconds": 0,
+            "bonus_cents": 0,
+            "xp_today": 0,
+        }
+    return {
+        "day_key": str(row[0] or ""),
+        "last_tick_ts": int(row[1]),
+        "buffer_seconds": int(row[2]),
+        "bonus_cents": int(row[3]),
+        "xp_today": int(row[4]),
+    }
+
+
+def xp_voice_upsert_progress(
+    guild_id: int,
+    user_id: int,
+    *,
+    day_key: str | None = None,
+    last_tick_ts: int | None = None,
+    buffer_seconds: int | None = None,
+    bonus_cents: int | None = None,
+    xp_today: int | None = None,
+):
+    sets = []
+    params: list[object] = []
+    if day_key is not None:
+        sets.append("day_key=?")
+        params.append(str(day_key))
+    if last_tick_ts is not None:
+        sets.append("last_tick_ts=?")
+        params.append(int(last_tick_ts))
+    if buffer_seconds is not None:
+        sets.append("buffer_seconds=?")
+        params.append(int(buffer_seconds))
+    if bonus_cents is not None:
+        sets.append("bonus_cents=?")
+        params.append(int(bonus_cents))
+    if xp_today is not None:
+        sets.append("xp_today=?")
+        params.append(int(xp_today))
+
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO xp_voice_progress(guild_id, user_id) VALUES (?, ?)",
+            (guild_id, user_id),
+        )
+        if sets:
+            conn.execute(
+                f"UPDATE xp_voice_progress SET {', '.join(sets)} WHERE guild_id=? AND user_id=?",
+                (*params, guild_id, user_id),
+            )
 
 def xp_is_enabled(guild_id: int) -> bool:
     with get_conn() as conn:

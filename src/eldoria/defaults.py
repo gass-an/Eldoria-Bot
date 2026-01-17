@@ -18,6 +18,20 @@ XP_CONFIG_DEFAULTS: Final[dict[str, int | bool]] = {
     "cooldown_seconds": 90,
     "bonus_percent": 20,
     "karuta_k_small_percent": 30,
+
+    # ---- Vocal XP ----
+    # Le système global XP doit être activé pour que ça fonctionne.
+    # 1 XP / 3 minutes par défaut, cap journalier = 5h => 100 XP max / jour.
+    # Le bonus "Server Tag" s'applique aussi au vocal, mais le cap reste identique
+    # (le bonus permet juste d'atteindre le cap plus vite).
+    "voice_enabled": True,
+    "voice_xp_per_interval": 1,
+    "voice_interval_seconds": 180,
+    "voice_daily_cap_xp": 100,
+
+    # Salon (texte) où annoncer les passages de niveaux dus au vocal.
+    # 0 = auto (system_channel / #general si trouvable), sinon ID du salon.
+    "voice_levelup_channel_id": 0,
 }
 
 

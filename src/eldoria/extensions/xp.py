@@ -219,10 +219,26 @@ class Xp(commands.Cog):
     @discord.option("cooldown_seconds", int, description="Cooldown en secondes entre 2 gains", min_value=0, max_value=3600, required=False)
     @discord.option("bonus_percent", int, description="Bonus en % si le membre affiche le tag du serveur (0 = désactiver)", min_value=0, max_value=300, required=False)
     @discord.option("karuta_k_small_percent", int, description="% d'XP accordé pour les petits messages Karuta (k<=10) (ex: 30)", min_value=0, max_value=100, required=False)
+    @discord.option("voice_enabled", bool, description="Active l'XP en vocal (le système XP doit être actif)", required=False)
+    @discord.option("voice_interval_seconds", int, description="Intervalle en secondes pour 1 gain vocal (ex: 180)", min_value=30, max_value=3600, required=False)
+    @discord.option("voice_xp_per_interval", int, description="XP gagné par intervalle vocal (>=0)", min_value=0, max_value=1000, required=False)
+    @discord.option("voice_daily_cap_xp", int, description="Cap journalier d'XP gagné en vocal (ex: 100)", min_value=0, max_value=5000, required=False)
+    @discord.option("voice_levelup_channel", discord.TextChannel, description="Salon texte pour annoncer les passages de niveau grâce au vocal (suggestion: #general).", required=False,)
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_set_config(self, ctx: discord.ApplicationContext, points_per_message: int | None = None, cooldown_seconds: int | None = None, 
-                            bonus_percent: int | None = None, karuta_k_small_percent: int | None = None):
+    async def xp_set_config(
+        self,
+        ctx: discord.ApplicationContext,
+        points_per_message: int | None = None,
+        cooldown_seconds: int | None = None,
+        bonus_percent: int | None = None,
+        karuta_k_small_percent: int | None = None,
+        voice_enabled: bool | None = None,
+        voice_interval_seconds: int | None = None,
+        voice_xp_per_interval: int | None = None,
+        voice_daily_cap_xp: int | None = None,
+        voice_levelup_channel: discord.TextChannel | None = None,
+    ):
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -230,7 +246,12 @@ class Xp(commands.Cog):
             return
 
         gestionDB.xp_ensure_defaults(guild.id)
-        if all(v is None for v in (points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent)):
+
+        if all(v is None for v in (
+            points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent,
+            voice_enabled, voice_interval_seconds, voice_xp_per_interval, voice_daily_cap_xp,
+            voice_levelup_channel,
+        )):
             await ctx.followup.send(content="INFO: Aucun champ fourni : aucune modification appliquée.")
             return
 
@@ -240,9 +261,13 @@ class Xp(commands.Cog):
             cooldown_seconds=cooldown_seconds,
             bonus_percent=bonus_percent,
             karuta_k_small_percent=karuta_k_small_percent,
+            voice_enabled=voice_enabled,
+            voice_interval_seconds=voice_interval_seconds,
+            voice_xp_per_interval=voice_xp_per_interval,
+            voice_daily_cap_xp=voice_daily_cap_xp,
+            voice_levelup_channel_id=(voice_levelup_channel.id if voice_levelup_channel is not None else None),
         )
 
-        # Message récap uniquement des champs modifiés
         parts = []
         if points_per_message is not None:
             parts.append(f"**{points_per_message} XP**/message")
@@ -252,6 +277,18 @@ class Xp(commands.Cog):
             parts.append(f"bonus tag **{bonus_percent}%**")
         if karuta_k_small_percent is not None:
             parts.append(f"karuta k<=10 **{karuta_k_small_percent}%**")
+        if voice_enabled is not None:
+            parts.append(f"vocal **{'on' if voice_enabled else 'off'}**")
+        if voice_interval_seconds is not None:
+            parts.append(f"vocal interval **{voice_interval_seconds}s**")
+        if voice_xp_per_interval is not None:
+            parts.append(f"vocal gain **{voice_xp_per_interval} XP**")
+        if voice_daily_cap_xp is not None:
+            parts.append(f"cap vocal **{voice_daily_cap_xp} XP/jour**")
+        if voice_levelup_channel is not None:
+            parts.append(f"annonces vocal dans {voice_levelup_channel.mention}")
+        if voice_levelup_channel is not None:
+            parts.append(f"annonces vocal → {voice_levelup_channel.mention}")
 
         await ctx.followup.send(content="✅ Config XP mise à jour : " + ", ".join(parts) + ".")
 
