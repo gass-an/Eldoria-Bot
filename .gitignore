@@ -2,3 +2,7 @@ __pycache__
 .env
 *.zip
 eldoria.db
+
+.coverage
+htmlcov/
+.pytest_cache/

@@ -6,10 +6,10 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [] - Prochaine version
+## [Unreleased]
 
 ### Added
-
+- test unitaire sur l'ensemble du code
 ### Changed
 
 ### Fixed
