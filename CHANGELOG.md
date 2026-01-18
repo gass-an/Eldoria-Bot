@@ -6,6 +6,19 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [] - Prochaine version
+
+### Added
+
+### Changed
+
+### Fixed
+- Correction du daily reset pour l'xp en vocal (redémarrage ou non du bot)
+
+### Notes
+
+
+
 ## [0.5.0] – 2026-01-17
 
 ### Added

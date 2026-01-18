@@ -70,7 +70,6 @@ class XpVoice(commands.Cog):
                     continue
 
                 now = xp_system._now_ts()
-                day_key = xp_system._day_key_utc(now)
 
                 for vc in list(getattr(guild, "voice_channels", []) or []):
                     members = list(getattr(vc, "members", []) or [])
@@ -87,7 +86,6 @@ class XpVoice(commands.Cog):
                                 gestionDB.xp_voice_upsert_progress(
                                     guild.id,
                                     m.id,
-                                    day_key=day_key,
                                     last_tick_ts=now,
                                 )
                             except Exception:
@@ -160,13 +158,11 @@ class XpVoice(commands.Cog):
             gestionDB.xp_ensure_defaults(member.guild.id)
 
             now = xp_system._now_ts()  # helper interne (UTC)
-            day_key = xp_system._day_key_utc(now)
 
             # On met juste à jour last_tick_ts; le calcul réel est fait par la loop.
             gestionDB.xp_voice_upsert_progress(
                 member.guild.id,
                 member.id,
-                day_key=day_key,
                 last_tick_ts=now,
             )
         except Exception:
