@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
 
-from ..features import embedGenerator
+from ..features import embed_builder
 
-from ..db import gestionDB
+from ..db import database_manager
 
 
 class WelcomeMessage(commands.Cog):
@@ -17,7 +17,7 @@ class WelcomeMessage(commands.Cog):
             guild = member.guild
             guild_id = guild.id
 
-            cfg = gestionDB.wm_get_config(guild_id)
+            cfg = database_manager.wm_get_config(guild_id)
             if not cfg.get("enabled"):
                 return
 
@@ -32,7 +32,7 @@ class WelcomeMessage(commands.Cog):
             if not isinstance(channel, (discord.TextChannel, discord.Thread)):
                 return
 
-            embed, emojis = await embedGenerator.generate_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
+            embed, emojis = await embed_builder.generate_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
 
             message = await channel.send(content=f"||{member.mention}||", embed=embed)
 
@@ -63,8 +63,8 @@ class WelcomeMessage(commands.Cog):
         guild_id = ctx.guild.id
 
         # channel_id est NOT NULL -> on s'assure que la ligne existe
-        gestionDB.wm_ensure_defaults(guild_id)
-        gestionDB.wm_set_config(guild_id, channel_id=channel.id, enabled=True)
+        database_manager.wm_ensure_defaults(guild_id)
+        database_manager.wm_set_config(guild_id, channel_id=channel.id, enabled=True)
 
         await ctx.followup.send(
             content=f"✅ Messages de bienvenue configurés dans {channel.mention} et **activés**.",
@@ -81,9 +81,9 @@ class WelcomeMessage(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        gestionDB.wm_ensure_defaults(guild_id)
+        database_manager.wm_ensure_defaults(guild_id)
 
-        channel_id = gestionDB.wm_get_channel_id(guild_id)
+        channel_id = database_manager.wm_get_channel_id(guild_id)
         if not channel_id:
             await ctx.followup.send(
                 content=(
@@ -93,7 +93,7 @@ class WelcomeMessage(commands.Cog):
             )
             return
 
-        gestionDB.wm_set_enabled(guild_id, True)
+        database_manager.wm_set_enabled(guild_id, True)
         await ctx.followup.send(content="✅ Messages de bienvenue **activés**.")
 
     @commands.slash_command(name="welcome_disable", description="(Admin) Désactive les messages d'arrivée.")
@@ -106,8 +106,8 @@ class WelcomeMessage(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        gestionDB.wm_ensure_defaults(guild_id)
-        gestionDB.wm_set_enabled(guild_id, False)
+        database_manager.wm_ensure_defaults(guild_id)
+        database_manager.wm_set_enabled(guild_id, False)
         await ctx.followup.send(content="⛔ Messages de bienvenue **désactivés**.")
 
 

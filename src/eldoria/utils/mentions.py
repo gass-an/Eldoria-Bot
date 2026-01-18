@@ -1,11 +1,11 @@
 import discord
 
-from ..db import gestionDB
+from ..db import database_manager
 
 
 def level_mention(guild: discord.Guild, level: int) -> str:
     """Retourne la mention du rôle du niveau si configuré, sinon 'levelX'."""
-    role_ids = gestionDB.xp_get_role_ids(guild.id)  # dict: {level: role_id}
+    role_ids = database_manager.xp_get_role_ids(guild.id)  # dict: {level: role_id}
     rid = role_ids.get(level) if role_ids else None
     role = guild.get_role(rid) if rid else None
     return role.mention if role else f"level{level}"

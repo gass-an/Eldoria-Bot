@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
 
-from ..features import embedGenerator
-from ..db import gestionDB
+from ..features import embed_builder
+from ..db import database_manager
 from ..features import xp_system
-from ..pages.helpMenu import send_help_menu
+from ..pages.help_menu import send_help_menu
 from ..utils.mentions import level_mention
 from ..utils.interactions import reply_ephemeral
 
@@ -23,14 +23,14 @@ class Core(commands.Cog):
             print(f"Erreur lors de la synchronisation des commandes : {e}")
 
         print("Initialisation de la base de données si nécessaire.")
-        gestionDB.init_db()
+        database_manager.init_db()
 
         print("Suppression en base des channels temporaires inexistant")
         for guild in self.bot.guilds:
-            rows = gestionDB.tv_list_active_all(guild.id)
+            rows = database_manager.tv_list_active_all(guild.id)
             for parent_id, channel_id in rows:
                 if guild.get_channel(channel_id) is None:
-                    gestionDB.tv_remove_active(guild.id, parent_id, channel_id)
+                    database_manager.tv_remove_active(guild.id, parent_id, channel_id)
 
         print(f"{self.bot.user} est en cours d'exécution !\n")
 
@@ -68,7 +68,7 @@ class Core(commands.Cog):
             guild_id = message.guild.id
             channel_id = message.channel.id
 
-            role_id = gestionDB.sr_match(guild_id, channel_id, str(user_message))
+            role_id = database_manager.sr_match(guild_id, channel_id, str(user_message))
             if role_id is not None:
                 # On supprime le message pour garder le "secret"
                 try:
@@ -101,7 +101,7 @@ class Core(commands.Cog):
     @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
     async def version(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
-        embed, files = await embedGenerator.generate_version_embed()
+        embed, files = await embed_builder.generate_version_embed()
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
 

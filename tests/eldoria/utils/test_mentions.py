@@ -35,7 +35,7 @@ def stub_role_ids(monkeypatch):
     def xp_get_role_ids(guild_id: int):
         return dict(box["role_ids"])
 
-    monkeypatch.setattr(mentions.gestionDB, "xp_get_role_ids", xp_get_role_ids)
+    monkeypatch.setattr(mentions.database_manager, "xp_get_role_ids", xp_get_role_ids)
     return box
 
 

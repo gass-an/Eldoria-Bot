@@ -6,7 +6,7 @@ from tests._embed_fakes import FakeBot, FakeGuild, FakeMember  # noqa: F401
 
 @pytest.mark.asyncio
 async def test_generate_version_embed_contains_version_and_files():
-    from eldoria.features.embed.versionEmbed import generate_version_embed
+    from eldoria.features.embed.version_embed import generate_version_embed
     from eldoria.version import VERSION
 
     embed, files = await generate_version_embed()
@@ -20,7 +20,7 @@ async def test_generate_version_embed_contains_version_and_files():
 
 @pytest.mark.asyncio
 async def test_generate_welcome_embed_uses_welcome_message_and_avatar(monkeypatch):
-    import eldoria.features.embed.welcomeEmbed as mod
+    import eldoria.features.embed.welcome_embed as mod
 
     def fake_getWelcomeMessage(guild_id, *, user, server, recent_limit):
         assert guild_id == 123

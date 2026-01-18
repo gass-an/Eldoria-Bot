@@ -9,14 +9,26 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
-- test unitaire sur l'ensemble du code
+
 ### Changed
+
+### Fixed
+
+### Notes
+
+
+
+## [0.5.1] – 2026-01-18
+
+### Added
+- Test unitaire sur l'ensemble du code
+
+### Changed
+- Refactorisation de l'architecture et des noms de fichiers
 
 ### Fixed
 - Correction du daily reset pour l'xp en vocal (redémarrage ou non du bot)
 - Changement de la couleur de l'embed : 0x00FFFF -> 0x3FA7C4
-### Notes
-
 
 
 ## [0.5.0] – 2026-01-17

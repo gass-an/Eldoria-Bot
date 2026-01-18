@@ -10,8 +10,8 @@ from tests._pages_fakes import (
 
 @pytest.mark.asyncio
 async def test_help_menu_refresh_nav_buttons_styles_and_disabled(monkeypatch):
-    # Stub helpEmbed used by HelpMenuView
-    import eldoria.pages.helpMenu as mod
+    # Stub help_embed used by HelpMenuView
+    import eldoria.pages.help_menu as mod
 
     class _HE:
         @staticmethod
@@ -30,7 +30,7 @@ async def test_help_menu_refresh_nav_buttons_styles_and_disabled(monkeypatch):
         def build_category_embed(*, cat, cmds, help_infos, cmd_map, thumb_url, banner_url):
             return f"CAT_{cat}"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=1,
@@ -57,9 +57,9 @@ async def test_help_menu_refresh_nav_buttons_styles_and_disabled(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
-    # stub helpEmbed (not used directly here)
+    # stub help_embed (not used directly here)
     class _HE:
         @staticmethod
         def common_files(a, b):
@@ -77,7 +77,7 @@ async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
         def build_category_embed(**kwargs):
             return "CAT"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=1,
@@ -90,8 +90,8 @@ async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
 
     msg = FakeMessage(
         attachments=[
-            FakeAttachment(filename="logo_Bot.png", url="https://cdn/logo.png"),
-            FakeAttachment(filename="banner_Bot.png", url="https://cdn/banner.png"),
+            FakeAttachment(filename="logo_bot.png", url="https://cdn/logo.png"),
+            FakeAttachment(filename="banner_bot.png", url="https://cdn/banner.png"),
         ]
     )
     inter = FakeInteraction(user=FakeUser(1), message=msg)
@@ -103,10 +103,10 @@ async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_interaction_check_blocks_other_user(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
     import discord  # type: ignore
 
-    # stub helpEmbed
+    # stub help_embed
     class _HE:
         @staticmethod
         def common_files(a, b):
@@ -121,7 +121,7 @@ async def test_help_menu_interaction_check_blocks_other_user(monkeypatch):
         def build_category_embed(**kwargs):
             return "CAT"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=999,
@@ -140,7 +140,7 @@ async def test_help_menu_interaction_check_blocks_other_user(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_interaction_check_fallback_followup_when_already_responded(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
     import discord  # type: ignore
 
     class _HE:
@@ -157,7 +157,7 @@ async def test_help_menu_interaction_check_fallback_followup_when_already_respon
         def build_category_embed(**kwargs):
             return "CAT"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=999,
@@ -179,7 +179,7 @@ async def test_help_menu_interaction_check_fallback_followup_when_already_respon
 
 @pytest.mark.asyncio
 async def test_help_menu_safe_edit_fast_path_when_urls_present(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
     class _HE:
         @staticmethod
@@ -195,7 +195,7 @@ async def test_help_menu_safe_edit_fast_path_when_urls_present(monkeypatch):
         def build_category_embed(**kwargs):
             return "CAT"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=1,
@@ -219,7 +219,7 @@ async def test_help_menu_safe_edit_fast_path_when_urls_present(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_safe_edit_defer_then_edit_with_files(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
     class _HE:
         @staticmethod
@@ -235,7 +235,7 @@ async def test_help_menu_safe_edit_defer_then_edit_with_files(monkeypatch):
         def build_category_embed(**kwargs):
             return "CAT"
 
-    monkeypatch.setattr(mod, "helpEmbed", _HE)
+    monkeypatch.setattr(mod, "help_embed", _HE)
 
     view = mod.HelpMenuView(
         author_id=1,

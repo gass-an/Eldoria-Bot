@@ -20,8 +20,8 @@ def test_common_files_returns_two_files_when_urls_missing():
 
     files = common_files(None, None)
     assert len(files) == 2
-    assert files[0].filename == "logo_Bot.png"
-    assert files[1].filename == "banner_Bot.png"
+    assert files[0].filename == "logo_bot.png"
+    assert files[1].filename == "banner_bot.png"
 
 
 def test_decorate_uses_cdn_urls_when_present():
@@ -40,5 +40,5 @@ def test_decorate_uses_attachment_urls_when_missing():
     e = discord.Embed(title="t")
     decorate(e, None, None)
 
-    assert e.thumbnail == {"url": "attachment://logo_Bot.png"}
-    assert e.image == {"url": "attachment://banner_Bot.png"}
+    assert e.thumbnail == {"url": "attachment://logo_bot.png"}
+    assert e.image == {"url": "attachment://banner_bot.png"}

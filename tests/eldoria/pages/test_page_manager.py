@@ -5,7 +5,7 @@ from tests._pages_fakes import FakeInteraction, FakeUser  # noqa: F401
 
 @pytest.mark.asyncio
 async def test_paginator_init_buttons_and_total_pages():
-    from eldoria.pages.gestionPages import Paginator
+    from eldoria.pages.page_manager import Paginator
 
     items = list(range(21))  # page_size=10 -> ceil = 3
 
@@ -26,7 +26,7 @@ async def test_paginator_init_buttons_and_total_pages():
 
 @pytest.mark.asyncio
 async def test_paginator_create_embed_calls_generator_with_first_page():
-    from eldoria.pages.gestionPages import Paginator
+    from eldoria.pages.page_manager import Paginator
 
     items = list(range(25))
     calls = []
@@ -45,7 +45,7 @@ async def test_paginator_create_embed_calls_generator_with_first_page():
 
 @pytest.mark.asyncio
 async def test_paginator_update_embed_slices_items_and_disables_buttons():
-    from eldoria.pages.gestionPages import Paginator
+    from eldoria.pages.page_manager import Paginator
 
     items = list(range(25))
     calls = []
@@ -75,7 +75,7 @@ async def test_paginator_update_embed_slices_items_and_disables_buttons():
 
 @pytest.mark.asyncio
 async def test_paginator_next_and_previous_page_changes_current_page():
-    from eldoria.pages.gestionPages import Paginator
+    from eldoria.pages.page_manager import Paginator
 
     items = list(range(25))
 

@@ -4,10 +4,10 @@ import discord
 # Images helpers (centralisé)
 # ---------------------------------------------------------------------------
 
-DEFAULT_THUMBNAIL_PATH = "./images/logo_Bot.png"
-DEFAULT_BANNER_PATH = "./images/banner_Bot.png"
-DEFAULT_THUMBNAIL_FILENAME = "logo_Bot.png"
-DEFAULT_BANNER_FILENAME = "banner_Bot.png"
+DEFAULT_THUMBNAIL_PATH = "./assets/images/logo_bot.png"
+DEFAULT_BANNER_PATH = "./assets/images/banner_bot.png"
+DEFAULT_THUMBNAIL_FILENAME = "logo_bot.png"
+DEFAULT_BANNER_FILENAME = "banner_bot.png"
 
 
 def common_files(

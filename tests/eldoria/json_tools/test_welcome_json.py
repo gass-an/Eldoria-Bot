@@ -3,8 +3,8 @@ import io
 import json
 import builtins
 
-import eldoria.json_tools.welcomeJson as welcome_mod
-from eldoria.json_tools.welcomeJson import load_welcome_json, getWelcomeMessage
+import eldoria.json_tools.welcome_json as welcome_mod
+from eldoria.json_tools.welcome_json import load_welcome_json, getWelcomeMessage
 
 
 def test_load_welcome_json_file_not_found(monkeypatch):
@@ -69,8 +69,8 @@ def test_getWelcomeMessage_avoids_recent_keys_and_formats_placeholders(monkeypat
     def fake_record(guild_id, key, keep=10):
         recorded.append((guild_id, key, keep))
 
-    monkeypatch.setattr(welcome_mod.gestionDB, "wm_get_recent_message_keys", fake_recent)
-    monkeypatch.setattr(welcome_mod.gestionDB, "wm_record_welcome_message", fake_record)
+    monkeypatch.setattr(welcome_mod.database_manager, "wm_get_recent_message_keys", fake_recent)
+    monkeypatch.setattr(welcome_mod.database_manager, "wm_record_welcome_message", fake_record)
 
     # random mocks
     def fake_choice(seq):
@@ -113,14 +113,14 @@ def test_getWelcomeMessage_all_recent_allows_repeat(monkeypatch):
 
     # Tout est "recent" → il doit retomber sur l'ensemble complet (autorise répétition)
     monkeypatch.setattr(
-        welcome_mod.gestionDB,
+        welcome_mod.database_manager,
         "wm_get_recent_message_keys",
         lambda guild_id, limit=10: ["w01", "w02"],
     )
 
     recorded = []
     monkeypatch.setattr(
-        welcome_mod.gestionDB,
+        welcome_mod.database_manager,
         "wm_record_welcome_message",
         lambda guild_id, key, keep=10: recorded.append((guild_id, key, keep)),
     )

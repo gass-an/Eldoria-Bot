@@ -3,7 +3,7 @@ import io
 import json
 import builtins
 
-from eldoria.json_tools.helpJson import load_help_json, load_help_config
+from eldoria.json_tools.help_json import load_help_json, load_help_config
 
 
 def test_load_help_json_file_not_found(monkeypatch):

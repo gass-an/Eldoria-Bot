@@ -9,7 +9,7 @@ import discord
 
 from ..config import AUTO_SAVE_TZ
 
-from ..db import gestionDB
+from ..db import database_manager
 from ..defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
 TIMEZONE = ZoneInfo(AUTO_SAVE_TZ)
@@ -116,9 +116,9 @@ async def ensure_guild_xp_setup(guild: discord.Guild):
     """Crée la config + niveaux par défaut + rôles level5..level1 (si absents),
     sans jamais toucher aux positions (création uniquement).
     """
-    gestionDB.xp_ensure_defaults(guild.id, XP_LEVELS_DEFAULTS)
+    database_manager.xp_ensure_defaults(guild.id, XP_LEVELS_DEFAULTS)
 
-    role_ids = gestionDB.xp_get_role_ids(guild.id)
+    role_ids = database_manager.xp_get_role_ids(guild.id)
     roles_by_id = {r.id: r for r in guild.roles}
 
     # On crée du plus haut niveau au plus bas : level5 → level1
@@ -146,7 +146,7 @@ async def ensure_guild_xp_setup(guild: discord.Guild):
                 return
 
         # 4) Stocker/mettre à jour en DB
-        gestionDB.xp_upsert_role_id(guild.id, lvl, role.id)
+        database_manager.xp_upsert_role_id(guild.id, lvl, role.id)
 
 
 async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, *, xp: int | None = None):
@@ -155,15 +155,15 @@ async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, 
         return
 
     if xp is None:
-        xp, _ = gestionDB.xp_get_member(guild.id, member.id)
+        xp, _ = database_manager.xp_get_member(guild.id, member.id)
 
-    levels = gestionDB.xp_get_levels(guild.id)
+    levels = database_manager.xp_get_levels(guild.id)
     if not levels:
         # fallback (normalement impossible si ensure_guild_xp_setup est appelé)
         levels = list(XP_LEVELS_DEFAULTS.items())
 
     current_lvl = compute_level(xp, levels)
-    role_ids = gestionDB.xp_get_role_ids(guild.id)
+    role_ids = database_manager.xp_get_role_ids(guild.id)
     if not role_ids:
         return
 
@@ -197,7 +197,7 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
     guild = message.guild
     member = message.author
 
-    config_raw = gestionDB.xp_get_config(guild.id)
+    config_raw = database_manager.xp_get_config(guild.id)
     config = XpConfig(**config_raw)
 
     # XP global switch (par guilde)
@@ -205,7 +205,7 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
         return None
 
     now = _now_ts()
-    old_xp, last_ts = gestionDB.xp_get_member(guild.id, member.id)
+    old_xp, last_ts = database_manager.xp_get_member(guild.id, member.id)
     if last_ts and (now - last_ts) < config.cooldown_seconds:
         return None
 
@@ -227,9 +227,9 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
         pct = max(int(getattr(config, "karuta_k_small_percent", 30)), 0)
         gained = int(round(gained * (pct / 100)))
 
-    new_xp = gestionDB.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
+    new_xp = database_manager.xp_add_xp(guild.id, member.id, gained, set_last_xp_ts=now)
 
-    levels = gestionDB.xp_get_levels(guild.id)
+    levels = database_manager.xp_get_levels(guild.id)
     old_lvl = compute_level(old_xp, levels)
     new_lvl = compute_level(new_xp, levels)
 
@@ -242,7 +242,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     if member.bot:
         return None
 
-    config_raw = gestionDB.xp_get_config(guild.id)
+    config_raw = database_manager.xp_get_config(guild.id)
     config = XpConfig(**config_raw)
 
     if not config.enabled or not config.voice_enabled:
@@ -251,7 +251,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     now = _now_ts()
     day_key = _day_key_utc(now)
 
-    prog = gestionDB.xp_voice_get_progress(guild.id, member.id)
+    prog = database_manager.xp_voice_get_progress(guild.id, member.id)
 
     # Reset journalier + persistance immédiate
     if prog.get("day_key") != day_key:
@@ -262,7 +262,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
             "bonus_cents": 0,
             "xp_today": 0,
         }
-        gestionDB.xp_voice_upsert_progress(
+        database_manager.xp_voice_upsert_progress(
             guild.id,
             member.id,
             day_key=day_key,
@@ -274,12 +274,12 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
 
     last_tick = int(prog.get("last_tick_ts", 0) or 0)
     if last_tick <= 0:
-        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        database_manager.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     # L'éligibilité salon est gérée par la loop; ici seulement l'état du membre
     if not is_voice_member_active(member):
-        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        database_manager.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     # Bornage delta (anti-jump)
@@ -290,18 +290,18 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     buffer_seconds = int(prog.get("buffer_seconds", 0) or 0) + delta
 
     if config.voice_daily_cap_xp <= 0 or config.voice_interval_seconds <= 0 or config.voice_xp_per_interval <= 0:
-        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        database_manager.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     xp_today = int(prog.get("xp_today", 0) or 0)
     if xp_today >= config.voice_daily_cap_xp:
-        gestionDB.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=0)
+        database_manager.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=0)
         return None
 
     intervals = buffer_seconds // config.voice_interval_seconds
     base_gain = int(intervals * config.voice_xp_per_interval)
     if base_gain <= 0:
-        gestionDB.xp_voice_upsert_progress(
+        database_manager.xp_voice_upsert_progress(
             guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=buffer_seconds
         )
         return None
@@ -322,7 +322,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
         total_gain = cap_left
 
     new_xp_today = xp_today + int(total_gain)
-    gestionDB.xp_voice_upsert_progress(
+    database_manager.xp_voice_upsert_progress(
         guild.id,
         member.id,
         day_key=day_key,
@@ -335,10 +335,10 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     if total_gain <= 0:
         return None
 
-    old_xp, _ = gestionDB.xp_get_member(guild.id, member.id)
-    new_xp = gestionDB.xp_add_xp(guild.id, member.id, int(total_gain))
+    old_xp, _ = database_manager.xp_get_member(guild.id, member.id)
+    new_xp = database_manager.xp_add_xp(guild.id, member.id, int(total_gain))
 
-    levels = gestionDB.xp_get_levels(guild.id)
+    levels = database_manager.xp_get_levels(guild.id)
     old_lvl = compute_level(old_xp, levels)
     new_lvl = compute_level(new_xp, levels)
 

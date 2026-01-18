@@ -5,7 +5,7 @@ from tests._embed_fakes import FakeBot, FakeGuild, FakeMember, FakeRole  # activ
 
 @pytest.mark.asyncio
 async def test_generate_xp_status_embed_disabled_branch():
-    from eldoria.features.embed.xpEmbed import generate_xp_status_embed
+    from eldoria.features.embed.xp_embed import generate_xp_status_embed
 
     bot = FakeBot(FakeGuild(123))
     embed, files = await generate_xp_status_embed({"enabled": False}, 123, bot)
@@ -19,7 +19,7 @@ async def test_generate_xp_status_embed_disabled_branch():
 
 @pytest.mark.asyncio
 async def test_generate_xp_status_embed_enabled_with_voice_cap_hours():
-    from eldoria.features.embed.xpEmbed import generate_xp_status_embed
+    from eldoria.features.embed.xp_embed import generate_xp_status_embed
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     cfg = {
@@ -45,9 +45,9 @@ async def test_generate_xp_status_embed_enabled_with_voice_cap_hours():
 
 @pytest.mark.asyncio
 async def test_generate_list_xp_embed_empty(monkeypatch):
-    import eldoria.features.embed.xpEmbed as mod
+    import eldoria.features.embed.xp_embed as mod
 
-    monkeypatch.setattr(mod.gestionDB, "xp_get_role_ids", lambda guild_id: {})
+    monkeypatch.setattr(mod.database_manager, "xp_get_role_ids", lambda guild_id: {})
 
     bot = FakeBot(FakeGuild(123))
     embed, files = await mod.generate_list_xp_embed([], 0, 1, 123, bot)
@@ -60,10 +60,10 @@ async def test_generate_list_xp_embed_empty(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_generate_list_xp_embed_labels_from_roles_and_precomputed(monkeypatch):
-    import eldoria.features.embed.xpEmbed as mod
+    import eldoria.features.embed.xp_embed as mod
 
     # mapping level->role_id
-    monkeypatch.setattr(mod.gestionDB, "xp_get_role_ids", lambda guild_id: {5: 555})
+    monkeypatch.setattr(mod.database_manager, "xp_get_role_ids", lambda guild_id: {5: 555})
 
     guild = FakeGuild(123)
     guild.add_member(FakeMember("<@1>", display_name="Alice", member_id=1))
@@ -86,7 +86,7 @@ async def test_generate_list_xp_embed_labels_from_roles_and_precomputed(monkeypa
 
 @pytest.mark.asyncio
 async def test_generate_xp_profile_embed_max_level():
-    import eldoria.features.embed.xpEmbed as mod
+    import eldoria.features.embed.xp_embed as mod
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     user = FakeMember("<@42>", display_name="Alice", member_id=42)
@@ -110,7 +110,7 @@ async def test_generate_xp_profile_embed_max_level():
 
 @pytest.mark.asyncio
 async def test_generate_xp_profile_embed_next_level_remaining():
-    import eldoria.features.embed.xpEmbed as mod
+    import eldoria.features.embed.xp_embed as mod
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     user = FakeMember("<@99>", display_name="Bob", member_id=99)
@@ -133,7 +133,7 @@ async def test_generate_xp_profile_embed_next_level_remaining():
 
 @pytest.mark.asyncio
 async def test_generate_xp_roles_embed_empty_and_non_empty():
-    import eldoria.features.embed.xpEmbed as mod
+    import eldoria.features.embed.xp_embed as mod
 
     bot = FakeBot(FakeGuild(123))
     embed_empty, _ = await mod.generate_xp_roles_embed([], 123, bot)

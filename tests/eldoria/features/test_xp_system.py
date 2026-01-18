@@ -54,10 +54,10 @@ def fake_db(monkeypatch):
     def xp_get_levels(guild_id):
         return list(levels)
 
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_config", xp_get_config)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_member", xp_get_member)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_add_xp", xp_add_xp)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_levels", xp_get_levels)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_config", xp_get_config)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_member", xp_get_member)
+    monkeypatch.setattr(xp_system.database_manager, "xp_add_xp", xp_add_xp)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_levels", xp_get_levels)
 
     async def _noop_sync_member_level_roles(guild, member, *, xp=None):
         return None
@@ -125,12 +125,12 @@ def fake_voice_db(monkeypatch):
         cur = voice_prog.setdefault((guild_id, member_id), {})
         cur.update(kwargs)
 
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_config", xp_get_config)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_member", xp_get_member)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_add_xp", xp_add_xp)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_get_levels", xp_get_levels)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_voice_get_progress", xp_voice_get_progress)
-    monkeypatch.setattr(xp_system.gestionDB, "xp_voice_upsert_progress", xp_voice_upsert_progress)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_config", xp_get_config)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_member", xp_get_member)
+    monkeypatch.setattr(xp_system.database_manager, "xp_add_xp", xp_add_xp)
+    monkeypatch.setattr(xp_system.database_manager, "xp_get_levels", xp_get_levels)
+    monkeypatch.setattr(xp_system.database_manager, "xp_voice_get_progress", xp_voice_get_progress)
+    monkeypatch.setattr(xp_system.database_manager, "xp_voice_upsert_progress", xp_voice_upsert_progress)
 
     async def _noop_sync_member_level_roles(guild, member, *, xp=None):
         return None

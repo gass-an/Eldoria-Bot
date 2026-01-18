@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
 
-from ..db import gestionDB
+from ..db import database_manager
 from ..utils import discord_utils
-from ..pages import gestionPages
-from ..features import embedGenerator
+from ..pages import page_manager
+from ..features import embed_builder
 
 
 class ReactionRoles(commands.Cog):
@@ -21,7 +21,7 @@ class ReactionRoles(commands.Cog):
         if member is None or member == self.bot.user:
             return
 
-        role_id = gestionDB.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+        role_id = database_manager.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
         if role_id is None:
             return
 
@@ -38,7 +38,7 @@ class ReactionRoles(commands.Cog):
         if guild is None:
             return
 
-        role_id = gestionDB.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+        role_id = database_manager.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
         if role_id is None:
             return
 
@@ -79,7 +79,7 @@ class ReactionRoles(commands.Cog):
             )
             return
 
-        existing = gestionDB.rr_list_by_message(guild_id, message_id)  # dict: {emoji: role_id}
+        existing = database_manager.rr_list_by_message(guild_id, message_id)  # dict: {emoji: role_id}
 
         for existing_emoji, existing_role_id in existing.items():
             if existing_role_id == role.id and existing_emoji != emoji:
@@ -108,7 +108,7 @@ class ReactionRoles(commands.Cog):
             ))
             return
 
-        gestionDB.rr_upsert(guild_id, message_id, emoji, role.id)
+        database_manager.rr_upsert(guild_id, message_id, emoji, role.id)
 
         await ctx.followup.send(
             content=f"## La réaction {emoji} est bien associée au rôle <@&{role.id}> sur le message sélectionné ! \n"
@@ -132,7 +132,7 @@ class ReactionRoles(commands.Cog):
         channel = await self.bot.fetch_channel(channel_id)
         message = await channel.fetch_message(message_id)
 
-        gestionDB.rr_delete(guild_id, message_id, emoji)
+        database_manager.rr_delete(guild_id, message_id, emoji)
 
         try:
             await message.clear_reaction(emoji)
@@ -159,7 +159,7 @@ class ReactionRoles(commands.Cog):
         channel = await self.bot.fetch_channel(channel_id)
         message = await channel.fetch_message(message_id)
 
-        gestionDB.rr_delete_message(guild_id, message_id)
+        database_manager.rr_delete_message(guild_id, message_id)
 
         try:
             await message.clear_reactions()
@@ -181,12 +181,12 @@ class ReactionRoles(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        role_config_guild_list = gestionDB.rr_list_by_guild_grouped(guild_id)
+        role_config_guild_list = database_manager.rr_list_by_guild_grouped(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = gestionPages.Paginator(
+        paginator = page_manager.Paginator(
             items=role_config_guild_list,
-            embed_generator=embedGenerator.generate_list_roles_embed,
+            embed_generator=embed_builder.generate_list_roles_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

@@ -5,20 +5,20 @@ from tests._embed_fakes import FakeBot, FakeChannel, FakeGuild  # active stubs d
 
 @pytest.mark.asyncio
 async def test_generate_list_roles_embed_builds_fields_and_footer(monkeypatch):
-    from eldoria.features.embed import rolesEmbed
+    from eldoria.features.embed import roles_embed
 
     async def fake_find_channel_id(*, bot, message_id, guild_id):
         assert guild_id == 123
         assert message_id == "111"
         return 999
 
-    monkeypatch.setattr(rolesEmbed.discord_utils, "find_channel_id", fake_find_channel_id)
+    monkeypatch.setattr(roles_embed.discord_utils, "find_channel_id", fake_find_channel_id)
 
     roles = [
         ("111", {"😀": 1, "🔥": 2}),
     ]
 
-    embed, files = await rolesEmbed.generate_list_roles_embed(
+    embed, files = await roles_embed.generate_list_roles_embed(
         roles=roles,
         current_page=0,
         total_pages=3,
@@ -34,19 +34,19 @@ async def test_generate_list_roles_embed_builds_fields_and_footer(monkeypatch):
     assert embed.footer["text"].startswith("Nombre de rôles attribués : 2")
     assert "Page 1/3" in embed.footer["text"]
     assert len(files) == 2
-    assert embed.thumbnail == {"url": "attachment://logo_Bot.png"}
-    assert embed.image == {"url": "attachment://banner_Bot.png"}
+    assert embed.thumbnail == {"url": "attachment://logo_bot.png"}
+    assert embed.image == {"url": "attachment://banner_bot.png"}
 
 
 @pytest.mark.asyncio
 async def test_generate_list_secret_roles_embed():
-    from eldoria.features.embed import rolesEmbed
+    from eldoria.features.embed import roles_embed
 
     roles = [
         ("777", {"open sesame": 42}),
     ]
 
-    embed, files = await rolesEmbed.generate_list_secret_roles_embed(
+    embed, files = await roles_embed.generate_list_secret_roles_embed(
         roles=roles,
         current_page=1,
         total_pages=2,
@@ -66,10 +66,10 @@ async def test_generate_list_secret_roles_embed():
 
 @pytest.mark.asyncio
 async def test_generate_list_temp_voice_parents_embed_empty_items():
-    from eldoria.features.embed import tempVoiceEmbed
+    from eldoria.features.embed import temp_voice_embed
 
     bot = FakeBot(guild=None)
-    embed, files = await tempVoiceEmbed.generate_list_temp_voice_parents_embed(
+    embed, files = await temp_voice_embed.generate_list_temp_voice_parents_embed(
         items=[], page=0, total_pages=1, identifiant_for_embed=123, bot=bot
     )
 
@@ -81,13 +81,13 @@ async def test_generate_list_temp_voice_parents_embed_empty_items():
 
 @pytest.mark.asyncio
 async def test_generate_list_temp_voice_parents_embed_with_found_and_missing_channels():
-    from eldoria.features.embed import tempVoiceEmbed
+    from eldoria.features.embed import temp_voice_embed
 
     guild = FakeGuild(123)
     guild.add_channel(FakeChannel(10))
     bot = FakeBot(guild)
 
-    embed, files = await tempVoiceEmbed.generate_list_temp_voice_parents_embed(
+    embed, files = await temp_voice_embed.generate_list_temp_voice_parents_embed(
         items=[(10, 3), (999, 2)], page=1, total_pages=5, identifiant_for_embed=123, bot=bot
     )
 

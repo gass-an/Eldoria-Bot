@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from ...db import gestionDB
+from ...db import database_manager
 from .common.embedImages import common_files, decorate
 from .common.embedColors import EMBED_COLOUR_PRIMARY
 
@@ -142,7 +142,7 @@ async def generate_list_xp_embed(items, current_page: int, total_pages: int, gui
     guild = bot.get_guild(guild_id)
 
     # Récupère le mapping {level: role_id} depuis la DB (indépendant du nom)
-    role_ids = gestionDB.xp_get_role_ids(guild_id) if guild_id else {}
+    role_ids = database_manager.xp_get_role_ids(guild_id) if guild_id else {}
 
     def level_label(level: int) -> str:
         if guild:

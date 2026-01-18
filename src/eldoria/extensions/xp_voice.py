@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands, tasks
 
 from ..features import xp_system
-from ..db import gestionDB
+from ..db import database_manager
 from ..utils.mentions import level_mention
 
 
@@ -63,9 +63,9 @@ class XpVoice(commands.Cog):
     async def voice_xp_loop(self):
         for guild in list(getattr(self.bot, "guilds", []) or []):
             try:
-                gestionDB.xp_ensure_defaults(guild.id)
+                database_manager.xp_ensure_defaults(guild.id)
 
-                cfg = gestionDB.xp_get_config(guild.id)
+                cfg = database_manager.xp_get_config(guild.id)
                 if not bool(cfg.get("enabled", False)) or not bool(cfg.get("voice_enabled", True)):
                     continue
 
@@ -83,7 +83,7 @@ class XpVoice(commands.Cog):
                         # coupe le compteur pour éviter d'accumuler du temps "solo"
                         for m in active_members:
                             try:
-                                gestionDB.xp_voice_upsert_progress(
+                                database_manager.xp_voice_upsert_progress(
                                     guild.id,
                                     m.id,
                                     last_tick_ts=now,
@@ -155,12 +155,12 @@ class XpVoice(commands.Cog):
 
         try:
             # Assure la config (au cas où la guild vient d'être join)
-            gestionDB.xp_ensure_defaults(member.guild.id)
+            database_manager.xp_ensure_defaults(member.guild.id)
 
             now = xp_system._now_ts()  # helper interne (UTC)
 
             # On met juste à jour last_tick_ts; le calcul réel est fait par la loop.
-            gestionDB.xp_voice_upsert_progress(
+            database_manager.xp_voice_upsert_progress(
                 member.guild.id,
                 member.id,
                 last_tick_ts=now,

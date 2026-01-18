@@ -1,6 +1,6 @@
 from tests._embed_fakes import FakeEmbed  # noqa: F401 (active stubs discord)
 
-from eldoria.features.embed.helpEmbed import build_home_embed, build_category_embed
+from eldoria.features.embed.help_embed import build_home_embed, build_category_embed
 
 
 def test_build_home_embed_fields_and_footer():
@@ -19,8 +19,8 @@ def test_build_home_embed_fields_and_footer():
     assert embed.footer == {
         "text": "Utilise les boutons pour naviguer. (Peut prendre plusieurs secondes)"
     }
-    assert embed.thumbnail == {"url": "attachment://logo_Bot.png"}
-    assert embed.image == {"url": "attachment://banner_Bot.png"}
+    assert embed.thumbnail == {"url": "attachment://logo_bot.png"}
+    assert embed.image == {"url": "attachment://banner_bot.png"}
 
 
 def test_build_category_embed_description_resolution_order():

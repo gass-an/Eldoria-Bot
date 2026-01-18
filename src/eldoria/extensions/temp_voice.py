@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
 
-from ..db import gestionDB
-from ..pages import gestionPages
-from ..features import embedGenerator
+from ..db import database_manager
+from ..pages import page_manager
+from ..features import embed_builder
 
 
 class TempVoice(commands.Cog):
@@ -17,20 +17,20 @@ class TempVoice(commands.Cog):
 
         # 1) DELETE d'abord : si on quitte un salon temporaire et qu'il devient vide
         if before.channel:
-            parent_id = gestionDB.tv_find_parent_of_active(guild.id, before.channel.id)
+            parent_id = database_manager.tv_find_parent_of_active(guild.id, before.channel.id)
             if parent_id is not None and len(before.channel.members) == 0:
                 try:
                     await before.channel.delete()
                 finally:
-                    gestionDB.tv_remove_active(guild.id, parent_id, before.channel.id)
+                    database_manager.tv_remove_active(guild.id, parent_id, before.channel.id)
 
         # 2) GARDE-FOU : si on arrive déjà dans un salon temporaire, on ne crée rien
         if after.channel:
-            if gestionDB.tv_find_parent_of_active(guild.id, after.channel.id) is not None:
+            if database_manager.tv_find_parent_of_active(guild.id, after.channel.id) is not None:
                 return
 
             # 3) CREATE : uniquement si after.channel est un "parent" configuré
-            user_limit = gestionDB.tv_get_parent(guild.id, after.channel.id)
+            user_limit = database_manager.tv_get_parent(guild.id, after.channel.id)
             if user_limit is not None:
                 category = after.channel.category
                 new_channel_name = f"Salon de {member.display_name}"
@@ -47,7 +47,7 @@ class TempVoice(commands.Cog):
                 )
 
                 # Important : enregistrer AVANT le move pour que le 2e event (move) soit filtré
-                gestionDB.tv_add_active(guild.id, after.channel.id, new_channel.id)
+                database_manager.tv_add_active(guild.id, after.channel.id, new_channel.id)
 
                 await member.move_to(new_channel)
 
@@ -68,7 +68,7 @@ class TempVoice(commands.Cog):
 
         guild_id = ctx.guild.id
         channel_id = channel.id
-        gestionDB.tv_upsert_parent(guild_id, channel_id, user_limit)
+        database_manager.tv_upsert_parent(guild_id, channel_id, user_limit)
 
         await ctx.followup.send(content=f"Le salon {channel.mention} est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
 
@@ -89,11 +89,11 @@ class TempVoice(commands.Cog):
         guild_id = ctx.guild.id
         channel_id = channel.id
 
-        if gestionDB.tv_get_parent(guild_id, channel_id) is None:
+        if database_manager.tv_get_parent(guild_id, channel_id) is None:
             await ctx.followup.send(content=f"❌ Le salon {channel.mention} n'est pas configuré comme salon parent.")
             return
 
-        gestionDB.tv_delete_parent(guild_id, channel_id)
+        database_manager.tv_delete_parent(guild_id, channel_id)
 
         await ctx.followup.send(content=f"✅ Le salon {channel.mention} n'est plus un salon de création automatique.")
 
@@ -109,12 +109,12 @@ class TempVoice(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        parents = gestionDB.tv_list_parents(guild_id)
+        parents = database_manager.tv_list_parents(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = gestionPages.Paginator(
+        paginator = page_manager.Paginator(
             items=parents,
-            embed_generator=embedGenerator.generate_list_temp_voice_parents_embed,
+            embed_generator=embed_builder.generate_list_temp_voice_parents_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

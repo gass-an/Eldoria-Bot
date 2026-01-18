@@ -25,11 +25,11 @@ class FakeBot:
 
 @pytest.mark.asyncio
 async def test_send_help_menu_no_visible_commands(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
     # help config: one category with one command, but user can't run it
     monkeypatch.setattr(
-        mod.helpJson,
+        mod.help_json,
         "load_help_config",
         lambda: (
             {"ban": "Ban"},
@@ -54,11 +54,11 @@ async def test_send_help_menu_no_visible_commands(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_send_help_menu_builds_view_and_sends_embed(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
     # help config declares only "ping" in category Utils
     monkeypatch.setattr(
-        mod.helpJson,
+        mod.help_json,
         "load_help_config",
         lambda: (
             {"ping": "Ping"},
@@ -115,10 +115,10 @@ async def test_send_help_menu_builds_view_and_sends_embed(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_send_help_menu_filters_by_default_member_permissions(monkeypatch):
-    import eldoria.pages.helpMenu as mod
+    import eldoria.pages.help_menu as mod
 
     monkeypatch.setattr(
-        mod.helpJson,
+        mod.help_json,
         "load_help_config",
         lambda: (
             {"secure": "Secure"},

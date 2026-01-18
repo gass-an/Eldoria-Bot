@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from ...json_tools.welcomeJson import getWelcomeMessage
+from ...json_tools.welcome_json import getWelcomeMessage
 
 from .common.embedColors import EMBED_COLOUR_PRIMARY
 from .common.embedImages import common_files, decorate

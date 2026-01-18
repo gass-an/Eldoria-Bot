@@ -5,11 +5,11 @@ Les imports sont relatifs pour fonctionner quand le bot est lancé
 comme package (src/eldoria/...).
 """
 
-from .embed.helpEmbed import *
-from .embed.rolesEmbed import *
-from .embed.tempVoiceEmbed import *
-from .embed.xpEmbed import *
-from .embed.welcomeEmbed import *
-from .embed.versionEmbed import *
+from .embed.help_embed import *
+from .embed.roles_embed import *
+from .embed.temp_voice_embed import *
+from .embed.xp_embed import *
+from .embed.welcome_embed import *
+from .embed.version_embed import *
 
 from .embed.common.embedImages import *

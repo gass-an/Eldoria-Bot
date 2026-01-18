@@ -2,15 +2,15 @@ import json
 import random
 from typing import Any, Dict, List, Tuple
 
-from ..db import gestionDB
+from ..db import database_manager
 
 def load_welcome_json() -> Dict[str, Any]:
-    """Charge le fichier json/welcome_message.json.
+    """Charge le fichier resources/json/welcome_message.json.
 
     Le format du fichier peut évoluer : cette fonction renvoie simplement le JSON brut.
     """
     try:
-        with open("./json/welcome_message.json", "r", encoding="utf-8") as file:
+        with open("./resources/json/welcome_message.json", "r", encoding="utf-8") as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
@@ -26,7 +26,7 @@ def getWelcomeMessage(
 ) -> Tuple[str, str, List[str]]:
     """Retourne (title, message, emojis) de bienvenue choisi aléatoirement.
 
-    - Tire un message depuis `json/welcome_message.json` au format:
+    - Tire un message depuis `resources/json/welcome_message.json` au format:
       {
         "packs": [
           {"title": "...", "messages": {"w01": "...", ...}, "emojis": ["👋", ...]},
@@ -78,7 +78,7 @@ def getWelcomeMessage(
 
     recent_limit = max(0, int(recent_limit))
     recent_keys = (
-        gestionDB.wm_get_recent_message_keys(guild_id, limit=recent_limit)
+        database_manager.wm_get_recent_message_keys(guild_id, limit=recent_limit)
         if recent_limit > 0
         else []
     )
@@ -103,6 +103,6 @@ def getWelcomeMessage(
     emojis = random.sample(emojis, k=min(len(emojis), 2))
 
     # Update historique
-    gestionDB.wm_record_welcome_message(guild_id, chosen_key, keep=recent_limit)
+    database_manager.wm_record_welcome_message(guild_id, chosen_key, keep=recent_limit)
 
     return (title, msg, emojis)

@@ -1,16 +1,16 @@
 import discord
 from discord.ext import commands
 
-from ..db import gestionDB
-from ..pages import gestionPages
-from ..features import embedGenerator
+from ..db import database_manager
+from ..pages import page_manager
+from ..features import embed_builder
 
 # -------------------- Fonctions pour l'autocompletion --------------------
 async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
     user_input = (interaction.value or "").lower()
     guild_id = interaction.interaction.guild.id
     channel_id = interaction.options.get("channel")
-    all_messages = gestionDB.sr_list_messages(guild_id=guild_id, channel_id=channel_id)
+    all_messages = database_manager.sr_list_messages(guild_id=guild_id, channel_id=channel_id)
     return [m for m in all_messages if user_input in m.lower()][:25]
 
 
@@ -45,7 +45,7 @@ class SecretRoles(commands.Cog):
         channel_id = channel.id
         message_str = str(message)
 
-        existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
+        existing_role_id = database_manager.sr_match(guild_id, channel_id, message_str)
         if existing_role_id is not None and existing_role_id != role.id:
             await ctx.followup.send(
                 content=f"Le message `{message_str}` est déjà associé au rôle <@&{existing_role_id}> dans le même channel."
@@ -59,7 +59,7 @@ class SecretRoles(commands.Cog):
             await ctx.followup.send(content="Je n'ai pas le droit de gérer ce rôle.")
             return
 
-        gestionDB.sr_upsert(guild_id, channel_id, message_str, role.id)
+        database_manager.sr_upsert(guild_id, channel_id, message_str, role.id)
         await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
 
     @commands.slash_command(name="delete_secret_role", description="Supprime l'attibution d'un secret_role déjà paramétré.")
@@ -78,12 +78,12 @@ class SecretRoles(commands.Cog):
         channel_id = channel.id
         message_str = str(message)
 
-        existing_role_id = gestionDB.sr_match(guild_id, channel_id, message_str)
+        existing_role_id = database_manager.sr_match(guild_id, channel_id, message_str)
         if existing_role_id is None:
             await ctx.followup.send(content=f"Aucune attribution trouvée pour le message `{message_str}` dans ce channel.")
             return
 
-        gestionDB.sr_delete(guild_id, channel_id, message_str)
+        database_manager.sr_delete(guild_id, channel_id, message_str)
         await ctx.followup.send(content=f"Le message `{message_str}` n'attribue plus de rôle")
 
     @commands.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
@@ -95,12 +95,12 @@ class SecretRoles(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        secret_roles_guild_list = gestionDB.sr_list_by_guild_grouped(guild_id)
+        secret_roles_guild_list = database_manager.sr_list_by_guild_grouped(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = gestionPages.Paginator(
+        paginator = page_manager.Paginator(
             items=secret_roles_guild_list,
-            embed_generator=embedGenerator.generate_list_secret_roles_embed,
+            embed_generator=embed_builder.generate_list_secret_roles_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

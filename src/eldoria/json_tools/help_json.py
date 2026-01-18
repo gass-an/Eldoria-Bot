@@ -3,14 +3,14 @@ from typing import Any, Dict, Tuple
 
 
 def load_help_json() -> Dict[str, Any]:
-    """Charge le fichier json/help.json.
+    """Charge le fichier resources/json/help.json.
 
     Le format du fichier peut évoluer : cette fonction renvoie simplement le JSON brut.
     Pour obtenir une structure normalisée (help_infos, categories, category_descriptions),
     utilise : `load_help_config()`.
     """
     try:
-        with open("./json/help.json", "r", encoding="utf-8") as file:
+        with open("./resources/json/help.json", "r", encoding="utf-8") as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
