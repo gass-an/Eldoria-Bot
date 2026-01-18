@@ -14,7 +14,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Fixed
 - Correction du daily reset pour l'xp en vocal (redémarrage ou non du bot)
-
+- Changement de la couleur de l'embed : 0x00FFFF -> 0x3FA7C4
 ### Notes
 
 
