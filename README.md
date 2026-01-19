@@ -47,7 +47,24 @@ Sauvegarde manuelle de la base SQLite dans un salon dédié et restauration via 
 Envoi automatique d’un message d’accueil aléatoire lors de l’arrivée d’un nouvel utilisateur.
 
 
-## 🧱 Prérequis
+## 🔗 Ajouter le bot à votre serveur
+
+Vous pouvez inviter **Eldoria** sur votre serveur Discord en utilisant le lien ci-dessous.
+
+➡️ [Inviter Eldoria sur votre serveur](https://discord.com/oauth2/authorize?client_id=1328953950656925736&permissions=2433870928&integration_type=0&scope=bot )
+
+> ⚠️ Le bot utilise le principe du **moindre privilège** : aucune permission administrateur n’est requise.
+
+
+<br> 
+<br>
+<br> 
+<br> 
+<br>
+
+# 🛠️ Développement & installation
+
+### 🧱 Prérequis
 
 - Python **3.11+**
 - Un bot Discord et son **TOKEN**
@@ -55,15 +72,15 @@ Envoi automatique d’un message d’accueil aléatoire lors de l’arrivée d�
 
 
 
-## 🚀 Lancer avec Docker Compose (recommandé)
-
+## 🚀 Lancer avec Docker Compose
+> Méthode recommandée pour la production
 ### Prérequis
 - Docker
 - Docker Compose (plugin `docker compose`)
 
 ### 1. Configurer l'environnement
 Crée un fichier **`.env`** à la racine du projet.  
-Suivre le `.env .exemple` comme exemple.
+Suivre le `.env.exemple` comme exemple.
 
 ### 2. Démarrer le bot
 ```bash
@@ -108,7 +125,7 @@ pip install -r requirements.txt
 
 ### 3. Configurer l’environnement
 Crée un fichier **`.env`** à la racine du projet.  
-Suivre le `.env .exemple` comme exemple.
+Suivre le `.env.exemple` comme exemple.
 
 ### 4. Lancer le bot
 
