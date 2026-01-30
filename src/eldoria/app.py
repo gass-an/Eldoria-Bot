@@ -17,6 +17,7 @@ def create_bot() -> commands.Bot:
     bot.load_extension("eldoria.extensions.core")
     bot.load_extension("eldoria.extensions.xp")
     bot.load_extension("eldoria.extensions.xp_voice")
+    bot.load_extension("eldoria.extensions.duels")
     bot.load_extension("eldoria.extensions.reaction_roles")
     bot.load_extension("eldoria.extensions.secret_roles")
     bot.load_extension("eldoria.extensions.temp_voice")

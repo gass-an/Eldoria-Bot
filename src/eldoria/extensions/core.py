@@ -1,7 +1,12 @@
 import discord
 from discord.ext import commands
 
-from ..features import embed_builder
+from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
+from eldoria.features.duel.games import init_games
+from eldoria.features.embed.version_embed import generate_version_embed
+from eldoria.ui.duels import init_duel_ui
+
+
 from ..db import database_manager
 from ..features import xp_system
 from ..pages.help_menu import send_help_menu
@@ -25,12 +30,16 @@ class Core(commands.Cog):
         print("Initialisation de la base de données si nécessaire.")
         database_manager.init_db()
 
-        print("Suppression en base des channels temporaires inexistant")
+        print("Suppression en base des channels temporaires inexistant.")
         for guild in self.bot.guilds:
             rows = database_manager.tv_list_active_all(guild.id)
             for parent_id, channel_id in rows:
                 if guild.get_channel(channel_id) is None:
                     database_manager.tv_remove_active(guild.id, parent_id, channel_id)
+
+        print("Initialisation des différents jeux pour les duels.")
+        init_games()
+        init_duel_ui()
 
         print(f"{self.bot.user} est en cours d'exécution !\n")
 
@@ -101,7 +110,7 @@ class Core(commands.Cog):
     @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
     async def version(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
-        embed, files = await embed_builder.generate_version_embed()
+        embed, files = await generate_version_embed()
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
 
@@ -109,6 +118,18 @@ class Core(commands.Cog):
     @commands.Cog.listener()
     async def on_application_command_error(self, interaction: discord.Interaction, error):
         err = getattr(error, "original", error)
+
+        if isinstance(err, GuildRequired):
+            await reply_ephemeral(interaction,"❌ Cette commande doit être utilisée sur un serveur.")
+            return
+        
+        if isinstance(err, ChannelRequired):
+            await reply_ephemeral(interaction, "❌ Impossible de retrouver le salon associé à cette action.")
+            return
+
+        if isinstance(err, MessageRequired):
+            await reply_ephemeral(interaction, "❌ Le message associé à cette action est introuvable.")
+            return
 
         if isinstance(err, commands.MissingPermissions):
             missing = ", ".join(err.missing_permissions)

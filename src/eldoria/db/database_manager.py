@@ -7,3 +7,4 @@ from .repo.reaction_roles_repo import *
 from .repo.secret_roles_repo import *
 from .repo.temp_voice_repo import *
 from .repo.welcome_message_repo import *
+from .repo.duel_repo import *

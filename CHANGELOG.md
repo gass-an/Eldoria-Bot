@@ -9,6 +9,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Duels de mini-jeux pour miser de l'XP : disponible que pour Pierre-Feuille-Ciseaux (1 manche)
 
 ### Changed
 

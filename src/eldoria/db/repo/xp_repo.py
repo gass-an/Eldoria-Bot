@@ -1,3 +1,5 @@
+from sqlite3 import Connection
+
 from ..connection import get_conn
 from ...defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
@@ -343,13 +345,15 @@ def xp_get_role_ids(guild_id: int) -> dict[int, int]:
     return {int(level): int(role_id) for (level, role_id) in rows}
 
 
-def xp_get_member(guild_id: int, user_id: int) -> tuple[int, int]:
+def xp_get_member(guild_id: int, user_id: int, *, conn: Connection | None = None) -> tuple[int, int]:
     """Retourne (xp, last_xp_ts)."""
-    with get_conn() as conn:
-        row = conn.execute(
-            "SELECT xp, last_xp_ts FROM xp_members WHERE guild_id=? AND user_id=?",
-            (guild_id, user_id),
-        ).fetchone()
+    if conn is None:
+        with get_conn() as conn2:
+            return xp_get_member(guild_id, user_id, conn=conn2)
+    row = conn.execute(
+        "SELECT xp, last_xp_ts FROM xp_members WHERE guild_id=? AND user_id=?",
+        (guild_id, user_id),
+    ).fetchone()
     return (int(row[0]), int(row[1])) if row else (0, 0)
 
 
@@ -375,26 +379,36 @@ def xp_set_member(guild_id: int, user_id: int, *, xp: int | None = None, last_xp
         )
 
 
-def xp_add_xp(guild_id: int, user_id: int, delta: int, *, set_last_xp_ts: int | None = None) -> int:
+def xp_add_xp(
+    guild_id: int,
+    user_id: int,
+    delta: int,
+    *,
+    set_last_xp_ts: int | None = None,
+    conn: Connection | None = None,
+) -> int:
     """Ajoute delta et retourne le nouvel XP."""
-    with get_conn() as conn:
+    if conn is None:
+        with get_conn() as conn2:
+            return xp_add_xp(guild_id, user_id, delta, set_last_xp_ts=set_last_xp_ts, conn=conn2)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO xp_members(guild_id, user_id) VALUES (?, ?)",
+        (guild_id, user_id),
+    )
+    conn.execute(
+        "UPDATE xp_members SET xp = MAX(xp + ?, 0) WHERE guild_id=? AND user_id=?",
+        (int(delta), guild_id, user_id),
+    )
+    if set_last_xp_ts is not None:
         conn.execute(
-            "INSERT OR IGNORE INTO xp_members(guild_id, user_id) VALUES (?, ?)",
-            (guild_id, user_id),
+            "UPDATE xp_members SET last_xp_ts=? WHERE guild_id=? AND user_id=?",
+            (int(set_last_xp_ts), guild_id, user_id),
         )
-        conn.execute(
-            "UPDATE xp_members SET xp = MAX(xp + ?, 0) WHERE guild_id=? AND user_id=?",
-            (int(delta), guild_id, user_id),
-        )
-        if set_last_xp_ts is not None:
-            conn.execute(
-                "UPDATE xp_members SET last_xp_ts=? WHERE guild_id=? AND user_id=?",
-                (int(set_last_xp_ts), guild_id, user_id),
-            )
-        row = conn.execute(
-            "SELECT xp FROM xp_members WHERE guild_id=? AND user_id=?",
-            (guild_id, user_id),
-        ).fetchone()
+    row = conn.execute(
+        "SELECT xp FROM xp_members WHERE guild_id=? AND user_id=?",
+        (guild_id, user_id),
+    ).fetchone()
     return int(row[0]) if row else 0
 
 

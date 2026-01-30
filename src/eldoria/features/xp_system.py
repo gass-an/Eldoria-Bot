@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Iterable, Optional
 from zoneinfo import ZoneInfo
 
 import discord
 
 from ..config import AUTO_SAVE_TZ
-
+from ..utils.timestamp import now_ts
 from ..db import database_manager
 from ..defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
@@ -35,13 +35,9 @@ class XpConfig:
     voice_levelup_channel_id: int = int(XP_CONFIG_DEFAULTS.get("voice_levelup_channel_id", 0))
 
 
-def _now_ts() -> int:
-    return int(datetime.now(timezone.utc).timestamp())
-
-
 def _day_key_utc(ts: int | None = None) -> str:
     dt = datetime.fromtimestamp(
-        ts if ts is not None else _now_ts(), 
+        ts if ts is not None else now_ts(), 
         tz=TIMEZONE #prend la timezone défini dans le .env
         )  
     return dt.strftime("%Y%m%d")
@@ -204,7 +200,7 @@ async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int
     if not config.enabled:
         return None
 
-    now = _now_ts()
+    now = now_ts()
     old_xp, last_ts = database_manager.xp_get_member(guild.id, member.id)
     if last_ts and (now - last_ts) < config.cooldown_seconds:
         return None
@@ -248,7 +244,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     if not config.enabled or not config.voice_enabled:
         return None
 
-    now = _now_ts()
+    now = now_ts()
     day_key = _day_key_utc(now)
 
     prog = database_manager.xp_voice_get_progress(guild.id, member.id)

@@ -1,0 +1,10 @@
+{
+	"title": "⚔️ Duel d'XP",
+	"description": "Défie un autre joueur dans un mini-jeu avec une mise en XP.\n\n> Avant de commencer, tu choisis un jeu et une mise (5 / 10 / 50 / 100 XP).\n> Une invitation est envoyée publiquement : l'adversaire peut accepter ou refuser.\n\n> ▸ À l'acceptation, la mise est temporairement retirée aux deux joueurs.\n> ▸ Le gagnant remporte 2x la mise.\n> ▸ En cas d'égalité, chacun récupère sa mise.\n> ▸ La mise maximale dépend de l'XP du joueur le plus pauvre.",
+	"games": {
+		"RPS": {
+		"name": "Pierre • Feuille • Ciseaux",
+		"description": "Chaque joueur choisit un coup en secret. Dès que les deux ont joué, le résultat est calculé automatiquement."
+		}
+	}
+}
