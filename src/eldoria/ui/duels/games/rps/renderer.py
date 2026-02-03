@@ -14,7 +14,8 @@ from eldoria.features.duel.games.rps.rps_constants import (
     RPS_MOVE_ROCK,
     RPS_MOVE_SCISSORS,
 )
-from eldoria.ui.duels.common import build_game_base_embed, build_game_result_base_embed
+from eldoria.ui.duels.common import build_game_base_embed
+from eldoria.ui.duels.result.finished import build_game_result_base_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise
 
 from .view import RpsView

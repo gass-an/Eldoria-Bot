@@ -158,6 +158,14 @@ def init_db():
             finished_at		INTEGER,
 			payload         TEXT          
         );
+
+        -- Accélère la task d'expiration (status + expires_at)
+        CREATE INDEX IF NOT EXISTS idx_duels_status_expires
+            ON duels(status, expires_at);
+
+        -- Accélère les lookups via message (UI)
+        CREATE INDEX IF NOT EXISTS idx_duels_message
+            ON duels(guild_id, channel_id, message_id);
         """)
 
     # Migration douce pour DB déjà en prod (ajout de colonnes/tables manquantes)

@@ -42,3 +42,7 @@ DUEL_RESULTS: Final[list[str]] = [
     DUEL_RESULT_WIN_B,
     DUEL_RESULT_DRAW
 ]
+
+
+KEEP_EXPIRED_DAYS: Final[int] = 3
+KEEP_FINISHED_DAYS: Final[int] = 30

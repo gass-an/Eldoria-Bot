@@ -4,8 +4,11 @@ from discord.ext import tasks
 
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.duel.duel_service import cancel_expired_duels, new_duel
+from eldoria.features.duel.duel_service import cancel_expired_duels, cleanup_old_duels, new_duel
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
+from eldoria.ui.duels.result.expired import build_expired_duels_embed
+from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
+from eldoria.utils.timestamp import now_ts
 
 
 
@@ -18,10 +21,67 @@ class Duels(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.clear_expired_duels_loop.start()
+        self.maintenance_cleanup.start()
 
-    @tasks.loop(minutes=1)
+    # -------------------- Loops --------------------
+    @tasks.loop(hours=24)
+    async def maintenance_cleanup(self):
+        cleanup_old_duels(now_ts())
+
+    @tasks.loop(seconds=15)
     async def clear_expired_duels_loop(self):
-        cancel_expired_duels()
+        # 1) Service (DB) : transition vers EXPIRED + refunds éventuels
+        expired = cancel_expired_duels()
+
+        # 2) UI : éditer uniquement les messages associés
+        for info in expired:
+            try:
+                await self._apply_expired_ui(info)
+            except Exception:
+                # On ne casse pas la loop pour un message supprimé / perms / etc.
+                continue
+
+
+    @maintenance_cleanup.before_loop
+    async def before_maintenance_cleanup(self):
+        await self.bot.wait_until_ready()
+
+    @clear_expired_duels_loop.before_loop
+    async def before_clear_expired_duels_loop(self):
+        await self.bot.wait_until_ready()
+
+    # -------------------- Helpers --------------------
+    async def _apply_expired_ui(self, info: dict):
+        """Édite le message du duel pour afficher l'état EXPIRED.
+
+        `info` provient de cancel_expired_duels().
+        """
+        message_id = info.get("message_id")
+        channel_id = info.get("channel_id")
+
+        if not message_id or not channel_id:
+            return
+
+        guild = self.bot.get_guild(int(info["guild_id"]))
+        if guild is None:
+            return
+
+        player_a = await get_member_by_id_or_raise(guild, int(info["player_a_id"]))
+        player_b = await get_member_by_id_or_raise(guild, int(info["player_b_id"]))
+
+        embed, _files = await build_expired_duels_embed(
+            player_a=player_a,
+            player_b=player_b,
+            previous_status=str(info.get("previous_status")),
+            stake_xp=int(info.get("stake_xp") or 0),
+            game_type=str(info.get("game_type") or ""),
+        )
+
+        channel = await get_text_or_thread_channel(bot=self.bot, channel_id=int(channel_id))
+        message = await channel.fetch_message(int(message_id))
+
+        # On supprime les boutons : view=None
+        await message.edit(content="", embed=embed, view=None)
 
 
     # -------------------- Commands --------------------
@@ -58,15 +118,6 @@ class Duels(commands.Cog):
         duel_id = data_for_embed["duel"]["id"]
         embed, files = await build_home_duels_embed(expires_at)
         await ctx.followup.send(embed=embed, files=files, view=HomeView(bot=self.bot, duel_id=duel_id), ephemeral=True)
-
-
-
-
-
-
-
-
-
 
 def setup(bot: commands.Bot):
     bot.add_cog(Duels(bot))

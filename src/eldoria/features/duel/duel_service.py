@@ -220,8 +220,15 @@ def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict
 
 
 
-def cancel_expired_duels():
+def cancel_expired_duels() -> list[dict[str, Any]]:
+    """Expire les duels arrivés à échéance.
+
+    Retourne une liste d'objets décrivant les duels effectivement passés en EXPIRED.
+    Le Cog peut s'en servir pour éditer le message Discord associé (embed + suppression des boutons).
+    """
+
     duels = list_expired_duels(now_ts())
+    expired: list[dict[str, Any]] = []
 
     for duel in duels:
         duel_id = duel["duel_id"]
@@ -263,6 +270,22 @@ def cancel_expired_duels():
                 conn=conn,
             )
 
+            # Pour l'UI : uniquement si on a un message à éditer.
+            # (CONFIG est souvent un message éphémère, donc message_id peut être NULL)
+            expired.append(
+                {
+                    "duel_id": duel_id,
+                    "guild_id": duel["guild_id"],
+                    "channel_id": duel["channel_id"],
+                    "message_id": duel["message_id"],
+                    "player_a_id": duel["player_a_id"],
+                    "player_b_id": duel["player_b_id"],
+                    "stake_xp": duel["stake_xp"],
+                    "game_type": duel["game_type"],
+                    "previous_status": status,
+                }
+            )
+
             if status in (DUEL_STATUS_CONFIG, DUEL_STATUS_INVITED):
                 continue
 
@@ -272,4 +295,16 @@ def cancel_expired_duels():
             stake_xp = duel["stake_xp"]
 
             modify_xp_for_players(guild_id, player_a_id, player_b_id, stake_xp, conn=conn)
+
+    return expired
+
+
+def cleanup_old_duels(now_ts: int) -> None:
+    cutoff_short = now_ts - (KEEP_EXPIRED_DAYS * 86400)
+    cutoff_finished = now_ts - (KEEP_FINISHED_DAYS * 86400)
+
+    cleanup_duels(
+        cutoff_short=cutoff_short,
+        cutoff_finished=cutoff_finished,
+    )
 

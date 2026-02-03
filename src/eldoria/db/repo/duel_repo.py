@@ -187,3 +187,19 @@ def list_expired_duels(now_ts: int, *, conn: Connection | None = None) -> list[R
     return rows
 
 
+def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection | None = None) -> list[Row]:
+    if conn is None:
+        with get_conn() as conn2:
+            return cleanup_duels(cutoff_short, cutoff_finished, conn=conn2)
+    rows = _execute_in_conn(conn, """
+        DELETE FROM duels
+        WHERE finished_at IS NOT NULL
+          AND (
+                (status IN ('EXPIRED', 'CANCELLED') AND finished_at <= ?)
+             OR (status = 'FINISHED'      AND finished_at <= ?)
+          )
+        """, (
+            cutoff_short,
+            cutoff_finished,
+        ), 
+    )
