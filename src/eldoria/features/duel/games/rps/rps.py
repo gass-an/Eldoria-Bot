@@ -2,7 +2,7 @@ import json
 from sqlite3 import Row
 from typing import Any
 
-from eldoria.features.duel.duel_helpers import assert_duel_not_expired, build_snapshot, get_duel_or_raise
+from eldoria.features.duel.duel_helpers import assert_duel_not_expired, build_snapshot, dump_payload, get_duel_or_raise
 from eldoria.features.duel.games.protocol import DuelGame
 
 from ...constants import *
@@ -24,9 +24,6 @@ def load_rps_payload(duel) -> dict:
             RPS_PAYLOAD_A_MOVE: None,
             RPS_PAYLOAD_B_MOVE: None
         }
-
-def dump_payload(payload: dict) -> str:
-    return json.dumps(payload, separators=(",", ":"))
 
 def who_is_moving(duel, user_id):
     player_a_id = duel["player_a_id"]

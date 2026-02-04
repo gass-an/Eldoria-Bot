@@ -10,6 +10,7 @@ from eldoria.features.duel.games.rps.rps_constants import (
     RPS_MOVE_ROCK,
     RPS_MOVE_SCISSORS,
 )
+from eldoria.ui.duels.apply import apply_duel_snapshot
 from eldoria.utils.discord_utils import require_user_id
 
 
@@ -34,13 +35,7 @@ class RpsView(discord.ui.View):
 
         # re-render the same message
         from eldoria.ui.duels.render import render_duel_message  # local import to avoid cycles
-        embed, _, view = await render_duel_message(snapshot=snapshot, guild=interaction.guild, bot=self.bot)
-
-        await interaction.message.edit(
-            content=interaction.message.content or "",
-            embed=embed,
-            view=view,
-        )
+        await apply_duel_snapshot(interaction=interaction, snapshot=snapshot, bot=self.bot)
 
     @discord.ui.button(label="🪨 Pierre", style=discord.ButtonStyle.secondary)
     async def rock(self, button: discord.ui.Button, interaction: discord.Interaction):

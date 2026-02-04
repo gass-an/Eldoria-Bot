@@ -17,7 +17,7 @@ WINS: Final[dict[str, str]] = {
     RPS_MOVE_PAPER: RPS_MOVE_ROCK
 }
 
-RPS_PAYLOAD_VERSION: Final[str] = "version"
+RPS_PAYLOAD_VERSION: Final[str] = "rps_version"
 RPS_PAYLOAD_A_MOVE: Final[str] = "a_move"
 RPS_PAYLOAD_B_MOVE: Final[str] = "b_move"
 

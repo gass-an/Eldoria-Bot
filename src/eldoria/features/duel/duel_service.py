@@ -1,8 +1,10 @@
+import json
 from  sqlite3 import Row
 from typing import Any, cast
 
-from eldoria.features.duel.duel_helpers import _get_allowed_stakes_from_duel, _is_duel_complete_for_game, _resolve_duel_for_game, assert_duel_not_expired, build_snapshot, finish_duel, get_allowed_stakes, get_duel_or_raise, get_xp_for_players, is_configuration_available, modify_xp_for_players
+from eldoria.features.duel.duel_helpers import _get_allowed_stakes_from_duel, _is_duel_complete_for_game, _resolve_duel_for_game, assert_duel_not_expired, build_snapshot, dump_payload, finish_duel, get_allowed_stakes, get_duel_or_raise, get_xp_for_players, is_configuration_available, load_payload_any, modify_xp_for_players
 from eldoria.features.duel.games.registry import require_game
+from eldoria.features.xp_system import compute_level
 
 from ...exceptions.duel_exceptions import *
 from ...db.database_manager import *
@@ -10,6 +12,8 @@ from ...db.connection import get_conn
 from ...utils.timestamp import *
 from .constants import *
 import eldoria.features.duel.constants as constants
+
+from eldoria.db import database_manager
 
 
 def new_duel(guild_id: int, channel_id: int, player_a_id: int, player_b_id: int) -> dict[str, Any]:
@@ -122,6 +126,17 @@ def accept_duel(duel_id: int, user_id: int)-> dict[str, Any]:
         ):
             raise DuelAlreadyHandled(duel_id, DUEL_STATUS_INVITED)
 
+        payload = load_payload_any(duel)
+        if "xp_baseline" not in payload:
+            xp_a = xp_get_member(guild_id, player_a_id, conn=conn)[0]
+            xp_b = xp_get_member(guild_id, player_b_id, conn=conn)[0]
+            payload["xp_baseline"] = {"player_a_before_xp": xp_a, "player_b_before_xp": xp_b}
+
+            old_payload_json = duel["payload"]  # peut être None
+            new_payload_json = dump_payload(payload)
+
+            update_payload_if_unchanged(duel_id, old_payload_json, new_payload_json, conn=conn)
+
         modify_xp_for_players(
             guild_id,
             player_a_id,
@@ -193,8 +208,10 @@ def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict
             raise InvalidResult(str(result))
 
         # idempotent (si déjà terminé -> DuelAlreadyHandled / DuelNotFinishable)
+        finished_now = False
         try:
             finish_duel(duel_id, result)
+            finished_now = True
         except (DuelAlreadyHandled, DuelNotFinishable):
             # quelqu'un a déjà fini / plus ACTIVE, on continue quand même
             pass
@@ -206,8 +223,55 @@ def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict
         player_b_id = duel2["player_b_id"]
         xp = get_xp_for_players(guild_id, player_a_id, player_b_id)
 
+
+        payload = {}
+        try:
+            payload = json.loads(duel2["payload"] or "{}")
+        except Exception:
+            pass
+
+        baseline = payload.get("xp_baseline")
+        level_changes = []
+
+        if baseline:
+            levels = database_manager.xp_get_levels(guild_id)
+
+            # Player A
+            old_xp = baseline.get("player_a_before_xp")
+            new_xp = xp[player_a_id]
+            if old_xp is not None:
+                old_lvl = compute_level(old_xp, levels)
+                new_lvl = compute_level(new_xp, levels)
+                if old_lvl != new_lvl:
+                    level_changes.append({
+                        "user_id": player_a_id,
+                        "old_level": old_lvl,
+                        "new_level": new_lvl,
+                    })
+
+            # Player B
+            old_xp = baseline.get("player_b_before_xp")
+            new_xp = xp[player_b_id]
+            if old_xp is not None:
+                old_lvl = compute_level(old_xp, levels)
+                new_lvl = compute_level(new_xp, levels)
+                if old_lvl != new_lvl:
+                    level_changes.append({
+                        "user_id": player_b_id,
+                        "old_level": old_lvl,
+                        "new_level": new_lvl,
+                    })
+
+
+        effects = {
+            "xp_changed": True,
+            "sync_roles_user_ids": [player_a_id, player_b_id],
+        }
+        if finished_now:
+            effects["level_changes"] = level_changes
+
         # on renvoie snapshot FINAL enrichi
-        return build_snapshot(duel_row=duel2, xp=xp, game_infos=cast(dict[str, Any], game_infos))
+        return build_snapshot(duel_row=duel2, xp=xp, game_infos=cast(dict[str, Any], game_infos), effects=effects)
 
     # Sinon WAITING -> on renvoie tel quel
     return snapshot
@@ -242,11 +306,31 @@ def cancel_expired_duels() -> list[dict[str, Any]]:
 
                 if fresh["status"] == DUEL_STATUS_ACTIVE and _is_duel_complete_for_game(fresh):
                     result = _resolve_duel_for_game(fresh)
+                    
+                    finished_now = False
                     try:
                         finish_duel(duel_id, result, ignore_expired=True)
+                        finished_now = True
                     except (DuelAlreadyHandled, DuelNotFinishable):
                         # quelqu'un l'a déjà terminé / il n'est plus ACTIVE
                         pass
+                    
+                    if finished_now:
+                        expired.append({
+                            "duel_id": duel_id,
+                            "guild_id": fresh["guild_id"],
+                            "channel_id": fresh["channel_id"],
+                            "message_id": fresh["message_id"],
+                            "player_a_id": fresh["player_a_id"],
+                            "player_b_id": fresh["player_b_id"],
+                            "stake_xp": fresh["stake_xp"],
+                            "game_type": fresh["game_type"],
+                            "previous_status": DUEL_STATUS_ACTIVE,
+                            "xp_changed": True,
+                            "sync_roles_user_ids": [fresh["player_a_id"], fresh["player_b_id"]],
+                            "auto_finished": True,
+                        })
+                        
                     continue
             except Exception as e:
                 print(f"[cancel_expired_duels] resolve error duel_id={duel_id} \n Error : {e}")
@@ -283,6 +367,8 @@ def cancel_expired_duels() -> list[dict[str, Any]]:
                     "stake_xp": duel["stake_xp"],
                     "game_type": duel["game_type"],
                     "previous_status": status,
+                    "xp_changed": status == DUEL_STATUS_ACTIVE,
+                    "sync_roles_user_ids": [duel["player_a_id"], duel["player_b_id"]],
                 }
             )
 

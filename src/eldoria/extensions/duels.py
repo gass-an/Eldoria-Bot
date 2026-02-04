@@ -5,6 +5,7 @@ from discord.ext import tasks
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
 from eldoria.features.duel.duel_service import cancel_expired_duels, cleanup_old_duels, new_duel
+from eldoria.features.xp.role_sync import sync_xp_roles_for_users
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
@@ -40,6 +41,11 @@ class Duels(commands.Cog):
             except Exception:
                 # On ne casse pas la loop pour un message supprimé / perms / etc.
                 continue
+            if info.get("xp_changed"):
+                guild = self.bot.get_guild(info["guild_id"])
+                if guild is None:
+                    continue
+                await sync_xp_roles_for_users(guild, info.get("sync_roles_user_ids", []))
 
 
     @maintenance_cleanup.before_loop

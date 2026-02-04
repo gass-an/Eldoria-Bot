@@ -1,5 +1,6 @@
 from sqlite3 import Row
 from typing import cast
+import json
 
 from discord import Any
 
@@ -65,6 +66,20 @@ def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
             raise DuelNotFinished(duel_id, DUEL_STATUS_FINISHED)
         
 
+
+
+
+def load_payload_any(duel: Row) -> dict[str, Any]:
+    try:
+        raw = duel["payload"]
+        if not raw:
+            return {}
+        return cast(dict[str, Any], json.loads(raw))
+    except Exception:
+        return {}
+
+def dump_payload(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, separators=(",", ":"))
 
 
 
@@ -159,9 +174,13 @@ def get_xp_for_players(guild_id: int, player_a_id: int, player_b_id: int, *,conn
         player_b_xp = xp_get_member(guild_id, player_b_id, conn=conn)[0]
         return {player_a_id: player_a_xp, player_b_id: player_b_xp}
 
-def build_snapshot(duel_row: Row, *, allowed_stakes: list[int] | None = None, 
-                    xp: dict[int, int] | None = None, game_infos: dict[str, Any] | None = None
-                    ) -> dict[str, Any]:
+def build_snapshot(duel_row: Row, 
+                   *, 
+                   allowed_stakes: list[int] | None = None, 
+                   xp: dict[int, int] | None = None, 
+                   game_infos: dict[str, Any] | None = None, 
+                   effects: dict[str, Any] | None = None
+                   ) -> dict[str, Any]:
     id = duel_row["duel_id"]
     channel_id = duel_row["channel_id"]
     message_id = duel_row["message_id"]
@@ -195,4 +214,6 @@ def build_snapshot(duel_row: Row, *, allowed_stakes: list[int] | None = None,
     if game_infos is not None:
         result["game"] = game_infos
 
+    if effects is not None:
+        result["effects"] = effects
     return result
