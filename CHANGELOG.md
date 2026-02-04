@@ -10,6 +10,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Added
 - Duels de mini-jeux pour miser de l'XP : disponible que pour Pierre-Feuille-Ciseaux (1 manche)
+- Amélioration de l’affichage du terminal au lancement (banner + logs structurés)
 
 ### Changed
 

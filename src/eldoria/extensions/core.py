@@ -1,6 +1,8 @@
+import logging
 import discord
 from discord.ext import commands
 
+from eldoria.app.startup import startup
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
 from eldoria.features.duel.games import init_games
 from eldoria.features.xp.message_xp import handle_message_xp
@@ -13,6 +15,7 @@ from ..ui.help.view import send_help_menu
 from ..utils.mentions import level_mention
 from ..utils.interactions import reply_ephemeral
 
+log = logging.getLogger(__name__)
 
 class Core(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -21,27 +24,18 @@ class Core(commands.Cog):
     # -------------------- Lifecycle --------------------
     @commands.Cog.listener()
     async def on_ready(self):
+        
+        if getattr(self.bot, "_booted", False):
+            return
+        self.bot._booted = True
+
         try:
             await self.bot.sync_commands()
-            print("Les commandes globales ont été synchronisées.")
-        except Exception as e:
-            print(f"Erreur lors de la synchronisation des commandes : {e}")
+        except Exception:
+            log.exception("Erreur lors de la synchronisation des commandes")
 
-        print("Initialisation de la base de données si nécessaire.")
-        database_manager.init_db()
-
-        print("Suppression en base des channels temporaires inexistant.")
-        for guild in self.bot.guilds:
-            rows = database_manager.tv_list_active_all(guild.id)
-            for parent_id, channel_id in rows:
-                if guild.get_channel(channel_id) is None:
-                    database_manager.tv_remove_active(guild.id, parent_id, channel_id)
-
-        print("Initialisation des différents jeux pour les duels.")
-        init_games()
-        init_duel_ui()
-
-        print(f"{self.bot.user} est en cours d'exécution !\n")
+        startup(self.bot)
+        log.info("🚀 Connecté en tant que %s (%d guilds)", self.bot.user, len(self.bot.guilds))
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()

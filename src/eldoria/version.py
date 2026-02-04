@@ -1,1 +1,4 @@
-VERSION="0.5.1"
+from typing import Final
+
+
+VERSION: Final[str] ="0.5.1"
