@@ -2,13 +2,15 @@ import re
 import discord
 from discord.ext import commands
 
+from eldoria.features.xp.levels import compute_level
+from eldoria.features.xp.roles import sync_member_level_roles
+from eldoria.features.xp.setup import ensure_guild_xp_setup
 from eldoria.ui.xp.embeds.leaderboard import build_list_xp_embed
 from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
 
 from ..db import database_manager
-from ..features import xp_system
 from ..utils.mentions import level_label
 
 
@@ -54,7 +56,7 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        await xp_system.ensure_guild_xp_setup(guild)
+        await ensure_guild_xp_setup(guild)
         database_manager.xp_set_config(guild.id, enabled=True)
 
         await ctx.followup.send(content="✅ Système d'XP **activé** sur ce serveur.")
@@ -110,7 +112,7 @@ class Xp(commands.Cog):
 
         xp, _ = database_manager.xp_get_member(guild_id, user_id)
         levels = database_manager.xp_get_levels(guild_id)
-        lvl = xp_system.compute_level(xp, levels)
+        lvl = compute_level(xp, levels)
 
         role_ids = database_manager.xp_get_role_ids(guild_id)
         lvl_label = level_label(guild, role_ids, lvl)
@@ -180,7 +182,7 @@ class Xp(commands.Cog):
 
         items = []
         for (uid, xp) in rows:
-            lvl = xp_system.compute_level(xp, levels)
+            lvl = compute_level(xp, levels)
             lbl = level_label(guild, role_ids, lvl)
             items.append((uid, xp, lvl, lbl))
 
@@ -215,7 +217,7 @@ class Xp(commands.Cog):
 
         try:
             for m in guild.members:
-                await xp_system.sync_member_level_roles(guild, m)
+                await sync_member_level_roles(guild, m)
         except Exception:
             pass
 
@@ -368,7 +370,7 @@ class Xp(commands.Cog):
         for mem in affected:
             try:
                 await mem.remove_roles(from_role_obj, reason="XP role setup: replace role mapping")
-                await xp_system.sync_member_level_roles(guild, mem)
+                await sync_member_level_roles(guild, mem)
             except discord.Forbidden:
                 failed += 1
             except Exception:
@@ -400,9 +402,9 @@ class Xp(commands.Cog):
         database_manager.xp_ensure_defaults(guild.id)
         new_xp = database_manager.xp_add_xp(guild.id, member.id, delta)
         levels = database_manager.xp_get_levels(guild.id)
-        lvl = xp_system.compute_level(new_xp, levels)
+        lvl = compute_level(new_xp, levels)
 
-        await xp_system.sync_member_level_roles(guild, member, xp=new_xp)
+        await sync_member_level_roles(guild, member, xp=new_xp)
 
         role_ids = database_manager.xp_get_role_ids(guild.id)
         lbl = level_label(guild, role_ids, lvl)

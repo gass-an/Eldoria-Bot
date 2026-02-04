@@ -3,12 +3,12 @@ from discord.ext import commands
 
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
 from eldoria.features.duel.games import init_games
+from eldoria.features.xp.message_xp import handle_message_xp
 from eldoria.ui.version.embeds import build_version_embed
 from eldoria.ui.duels import init_duel_ui
 
 
 from ..db import database_manager
-from ..features import xp_system
 from ..ui.help.view import send_help_menu
 from ..utils.mentions import level_mention
 from ..utils.interactions import reply_ephemeral
@@ -56,7 +56,7 @@ class Core(commands.Cog):
         # ---- XP: on compte aussi les messages avec pièces jointes (même sans texte)
         try:
             if user_message or message.attachments:
-                res = await xp_system.handle_message_xp(message)
+                res = await handle_message_xp(message)
                 if res is not None:
                     new_xp, new_lvl, old_lvl = res
                     if new_lvl > old_lvl:

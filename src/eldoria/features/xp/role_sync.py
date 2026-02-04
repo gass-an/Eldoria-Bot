@@ -3,7 +3,7 @@ from __future__ import annotations
 import discord
 
 from eldoria.db import database_manager
-from eldoria.features.xp_system import sync_member_level_roles
+from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.utils.discord_utils import get_member_by_id_or_raise
 
 

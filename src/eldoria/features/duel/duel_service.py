@@ -4,7 +4,7 @@ from typing import Any, cast
 
 from eldoria.features.duel.duel_helpers import _get_allowed_stakes_from_duel, _is_duel_complete_for_game, _resolve_duel_for_game, assert_duel_not_expired, build_snapshot, dump_payload, finish_duel, get_allowed_stakes, get_duel_or_raise, get_xp_for_players, is_configuration_available, load_payload_any, modify_xp_for_players
 from eldoria.features.duel.games.registry import require_game
-from eldoria.features.xp_system import compute_level
+from eldoria.features.xp.levels import compute_level
 
 from ...exceptions.duel_exceptions import *
 from ...db.database_manager import *

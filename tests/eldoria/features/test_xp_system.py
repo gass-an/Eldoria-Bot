@@ -1,7 +1,9 @@
 import pytest
 
-from eldoria.features import xp_system
-
+from eldoria.features.xp.levels import compute_level
+from eldoria.features.xp.message_xp import handle_message_xp
+from eldoria.features.xp.tags import _has_active_server_tag_for_guild
+from eldoria.features.xp.voice_xp import is_voice_eligible_in_channel, is_voice_member_active, tick_voice_xp_for_member
 from tests.conftest import (
     FakeGuild,
     FakeMember,
@@ -54,10 +56,10 @@ def fake_db(monkeypatch):
     def xp_get_levels(guild_id):
         return list(levels)
 
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_config", xp_get_config)
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_member", xp_get_member)
-    monkeypatch.setattr(xp_system.database_manager, "xp_add_xp", xp_add_xp)
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_levels", xp_get_levels)
+    monkeypatch.setattr(database_manager, "xp_get_config", xp_get_config)
+    monkeypatch.setattr(database_manager, "xp_get_member", xp_get_member)
+    monkeypatch.setattr(database_manager, "xp_add_xp", xp_add_xp)
+    monkeypatch.setattr(database_manager, "xp_get_levels", xp_get_levels)
 
     async def _noop_sync_member_level_roles(guild, member, *, xp=None):
         return None
@@ -125,12 +127,12 @@ def fake_voice_db(monkeypatch):
         cur = voice_prog.setdefault((guild_id, member_id), {})
         cur.update(kwargs)
 
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_config", xp_get_config)
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_member", xp_get_member)
-    monkeypatch.setattr(xp_system.database_manager, "xp_add_xp", xp_add_xp)
-    monkeypatch.setattr(xp_system.database_manager, "xp_get_levels", xp_get_levels)
-    monkeypatch.setattr(xp_system.database_manager, "xp_voice_get_progress", xp_voice_get_progress)
-    monkeypatch.setattr(xp_system.database_manager, "xp_voice_upsert_progress", xp_voice_upsert_progress)
+    monkeypatch.setattr(database_manager, "xp_get_config", xp_get_config)
+    monkeypatch.setattr(database_manager, "xp_get_member", xp_get_member)
+    monkeypatch.setattr(database_manager, "xp_add_xp", xp_add_xp)
+    monkeypatch.setattr(database_manager, "xp_get_levels", xp_get_levels)
+    monkeypatch.setattr(database_manager, "xp_voice_get_progress", xp_voice_get_progress)
+    monkeypatch.setattr(database_manager, "xp_voice_upsert_progress", xp_voice_upsert_progress)
 
     async def _noop_sync_member_level_roles(guild, member, *, xp=None):
         return None
@@ -180,7 +182,7 @@ async def test_message_no_cooldown_no_tag(fake_db):
     member = FakeMember()
     msg = FakeMessage(guild=guild, author=member, content="hello world")
 
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
     assert res is not None
     new_xp, new_lvl, old_lvl = res
 
@@ -195,18 +197,18 @@ async def test_message_with_cooldown_blocks_gain(fake_db):
     member = FakeMember()
 
     msg1 = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg1) is not None
+    assert await handle_message_xp(msg1) is not None
 
     fake_db["now_box"]["now"] += 10  # cooldown = 60
     msg2 = FakeMessage(guild=guild, author=member, content="hello again")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 @pytest.mark.asyncio
 async def test_message_in_dm_returns_none(fake_db):
     member = FakeMember()
     msg = type("Msg", (), {"guild": None, "author": member, "content": "hello"})()
-    assert await xp_system.handle_message_xp(msg) is None
+    assert await handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
@@ -214,7 +216,7 @@ async def test_message_from_bot_returns_none(fake_db):
     guild = FakeGuild()
     bot_member = FakeMember(bot=True)
     msg = FakeMessage(guild=guild, author=bot_member, content="hello")
-    assert await xp_system.handle_message_xp(msg) is None
+    assert await handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
@@ -223,7 +225,7 @@ async def test_message_xp_disabled_returns_none(fake_db):
     guild = FakeGuild()
     member = FakeMember()
     msg = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg) is None
+    assert await handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
@@ -232,7 +234,7 @@ async def test_message_points_per_message_zero_returns_none(fake_db):
     guild = FakeGuild()
     member = FakeMember()
     msg = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg) is None
+    assert await handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
@@ -241,7 +243,7 @@ async def test_message_points_per_message_negative_returns_none(fake_db):
     guild = FakeGuild()
     member = FakeMember()
     msg = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg) is None
+    assert await handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
@@ -250,7 +252,7 @@ async def test_message_bonus_percent_zero_disables_bonus_even_with_tag(fake_db):
     guild = FakeGuild(tag="ELD")
     member = _member_with_tag(guild)
     msg = FakeMessage(guild=guild, author=member, content="hello")
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
     assert res is not None
     new_xp, *_ = res
     assert new_xp == 10
@@ -261,7 +263,7 @@ async def test_message_whitespace_only_not_treated_as_karuta(fake_db):
     guild = FakeGuild()
     member = FakeMember()
     msg = FakeMessage(guild=guild, author=member, content="   ")
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
     assert res is not None
     new_xp, *_ = res
     assert new_xp == 10
@@ -276,7 +278,7 @@ async def test_message_karuta_small_percent_zero_results_in_no_xp_gain_but_updat
 
     # premier message (karuta) -> gained 0
     msg1 = FakeMessage(guild=guild, author=member, content="k")
-    res1 = await xp_system.handle_message_xp(msg1)
+    res1 = await handle_message_xp(msg1)
     assert res1 is not None
     new_xp, new_lvl, old_lvl = res1
     assert new_xp == 0
@@ -285,7 +287,7 @@ async def test_message_karuta_small_percent_zero_results_in_no_xp_gain_but_updat
     # cooldown doit bloquer grace au timestamp mis a jour
     fake_db["now_box"]["now"] += 1
     msg2 = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 # =========================
@@ -314,7 +316,7 @@ async def test_karuta_messages_apply_small_percent(fake_db, content):
     member = FakeMember()
 
     msg = FakeMessage(guild=guild, author=member, content=content)
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
 
     assert res is not None
     gained_xp, *_ = res
@@ -341,7 +343,7 @@ async def test_non_karuta_length_10_or_more(fake_db, content):
     assert len(content) >= 10
 
     msg = FakeMessage(guild=guild, author=member, content=content)
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
 
     assert res is not None
     gained_xp, *_ = res
@@ -366,7 +368,7 @@ async def test_non_karuta_not_starting_with_k(fake_db, content):
     member = FakeMember()
 
     msg = FakeMessage(guild=guild, author=member, content=content)
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
 
     assert res is not None
     gained_xp, *_ = res
@@ -385,7 +387,7 @@ async def test_karuta_with_tag_applies_bonus_then_small_percent(fake_db):
     member = _member_with_tag(guild)
 
     msg = FakeMessage(guild=guild, author=member, content="kcd")
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
 
     assert res is not None
     gained_xp, *_ = res
@@ -406,13 +408,13 @@ async def test_karuta_respects_cooldown(fake_db):
     member = FakeMember()
 
     msg1 = FakeMessage(guild=guild, author=member, content="kcd")
-    assert await xp_system.handle_message_xp(msg1) is not None
+    assert await handle_message_xp(msg1) is not None
 
     # cooldown = 60s
     fake_db["now_box"]["now"] += 1
 
     msg2 = FakeMessage(guild=guild, author=member, content="kcd")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 @pytest.mark.asyncio
@@ -422,12 +424,12 @@ async def test_karuta_with_tag_and_cooldown(fake_db):
     member = _member_with_tag(guild)
 
     msg1 = FakeMessage(guild=guild, author=member, content="kcd")
-    assert await xp_system.handle_message_xp(msg1) is not None
+    assert await handle_message_xp(msg1) is not None
 
     fake_db["now_box"]["now"] += 5
 
     msg2 = FakeMessage(guild=guild, author=member, content="kcd")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 @pytest.mark.asyncio
@@ -436,7 +438,7 @@ async def test_message_no_cooldown_with_tag_bonus(fake_db):
     member = _member_with_tag(guild)
     msg = FakeMessage(guild=guild, author=member, content="hello")
 
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
     assert res is not None
     new_xp, *_ = res
 
@@ -450,11 +452,11 @@ async def test_message_with_cooldown_with_tag_blocks_gain(fake_db):
     member = _member_with_tag(guild)
 
     msg1 = FakeMessage(guild=guild, author=member, content="hello")
-    assert await xp_system.handle_message_xp(msg1) is not None
+    assert await handle_message_xp(msg1) is not None
 
     fake_db["now_box"]["now"] += 30
     msg2 = FakeMessage(guild=guild, author=member, content="hello again")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 @pytest.mark.asyncio
@@ -463,7 +465,7 @@ async def test_message_karuta_kd_no_cooldown_with_tag_bonus_then_small_percent(f
     member = _member_with_tag(guild)
     msg = FakeMessage(guild=guild, author=member, content="kd")
 
-    res = await xp_system.handle_message_xp(msg)
+    res = await handle_message_xp(msg)
     assert res is not None
     new_xp, *_ = res
 
@@ -477,11 +479,11 @@ async def test_message_karuta_kd_with_cooldown_with_tag_blocks_gain(fake_db):
     member = _member_with_tag(guild)
 
     msg1 = FakeMessage(guild=guild, author=member, content="kd")
-    assert await xp_system.handle_message_xp(msg1) is not None
+    assert await handle_message_xp(msg1) is not None
 
     fake_db["now_box"]["now"] += 5
     msg2 = FakeMessage(guild=guild, author=member, content="kd")
-    assert await xp_system.handle_message_xp(msg2) is None
+    assert await handle_message_xp(msg2) is None
 
 
 # =========================
@@ -491,19 +493,19 @@ async def test_message_karuta_kd_with_cooldown_with_tag_blocks_gain(fake_db):
 def test_is_voice_member_active_basic():
     guild = FakeGuild()
     m = _active_voice_member(with_tag=False, guild=guild)
-    assert xp_system.is_voice_member_active(m) is True
+    assert is_voice_member_active(m) is True
 
 
 def test_is_voice_member_active_false_when_muted():
     m = FakeMember(voice=FakeVoiceState(channel=object(), self_mute=True))
-    assert xp_system.is_voice_member_active(m) is False
+    assert is_voice_member_active(m) is False
 
 
 def test_is_voice_eligible_in_channel_requires_two_actives():
     guild = FakeGuild()
     m = _active_voice_member(with_tag=False, guild=guild)
-    assert xp_system.is_voice_eligible_in_channel(m, active_count=1) is False  # vocal seul
-    assert xp_system.is_voice_eligible_in_channel(m, active_count=2) is True
+    assert is_voice_eligible_in_channel(m, active_count=1) is False  # vocal seul
+    assert is_voice_eligible_in_channel(m, active_count=2) is True
 
 
 # =========================
@@ -513,35 +515,35 @@ def test_is_voice_eligible_in_channel_requires_two_actives():
 def test_has_active_server_tag_false_when_primary_guild_missing():
     guild = FakeGuild(tag="ELD")
     member = FakeMember(primary_guild=None)
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is False
+    assert _has_active_server_tag_for_guild(member, guild) is False
 
 
 def test_has_active_server_tag_false_when_identity_disabled():
     guild = FakeGuild(tag="ELD")
     pg = FakePrimaryGuild(identity_enabled=False, identity_guild_id=guild.id, tag=guild.tag)
     member = FakeMember(primary_guild=pg)
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is False
+    assert _has_active_server_tag_for_guild(member, guild) is False
 
 
 def test_has_active_server_tag_false_when_identity_guild_mismatch():
     guild = FakeGuild(tag="ELD")
     pg = FakePrimaryGuild(identity_enabled=True, identity_guild_id=999, tag=guild.tag)
     member = FakeMember(primary_guild=pg)
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is False
+    assert _has_active_server_tag_for_guild(member, guild) is False
 
 
 def test_has_active_server_tag_true_when_tags_match_case_insensitive():
     guild = FakeGuild(tag="eLd")
     pg = FakePrimaryGuild(identity_enabled=True, identity_guild_id=guild.id, tag="ELD")
     member = FakeMember(primary_guild=pg)
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is True
+    assert _has_active_server_tag_for_guild(member, guild) is True
 
 
 def test_has_active_server_tag_false_when_tags_differ_and_both_present():
     guild = FakeGuild(tag="ELD")
     pg = FakePrimaryGuild(identity_enabled=True, identity_guild_id=guild.id, tag="NOPE")
     member = FakeMember(primary_guild=pg)
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is False
+    assert _has_active_server_tag_for_guild(member, guild) is False
 
 
 def test_has_active_server_tag_fallback_via_member__user_primary_guild():
@@ -555,7 +557,7 @@ def test_has_active_server_tag_fallback_via_member__user_primary_guild():
     member = FakeMember(primary_guild=None)
     member._user = _User(primary_guild=pg)
 
-    assert xp_system._has_active_server_tag_for_guild(member, guild) is True
+    assert _has_active_server_tag_for_guild(member, guild) is True
 
 
 # =========================
@@ -564,11 +566,11 @@ def test_has_active_server_tag_fallback_via_member__user_primary_guild():
 
 def test_compute_level_thresholds():
     levels = [(1, 0), (2, 100), (3, 200)]
-    assert xp_system.compute_level(0, levels) == 1
-    assert xp_system.compute_level(99, levels) == 1
-    assert xp_system.compute_level(100, levels) == 2
-    assert xp_system.compute_level(199, levels) == 2
-    assert xp_system.compute_level(200, levels) == 3
+    assert compute_level(0, levels) == 1
+    assert compute_level(99, levels) == 1
+    assert compute_level(100, levels) == 2
+    assert compute_level(199, levels) == 2
+    assert compute_level(200, levels) == 3
 
 
 @pytest.mark.asyncio
@@ -576,7 +578,7 @@ async def test_voice_first_tick_initializes_progress(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    res = await xp_system.tick_voice_xp_for_member(guild, member)
+    res = await tick_voice_xp_for_member(guild, member)
     assert res is None
 
     prog = fake_voice_db["voice_prog"][(guild.id, member.id)]
@@ -588,10 +590,10 @@ async def test_voice_gain_after_interval_without_tag(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     fake_voice_db["now_box"]["now"] += 60
-    res = await xp_system.tick_voice_xp_for_member(guild, member)
+    res = await tick_voice_xp_for_member(guild, member)
     assert res is not None
 
     new_xp, new_lvl, old_lvl = res
@@ -605,10 +607,10 @@ async def test_voice_gain_with_tag_applies_bonus_over_time(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=True, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     fake_voice_db["now_box"]["now"] += 60
-    res = await xp_system.tick_voice_xp_for_member(guild, member)
+    res = await tick_voice_xp_for_member(guild, member)
     assert res is not None
 
     new_xp, *_ = res
@@ -620,15 +622,15 @@ async def test_voice_daily_cap_limits_gain(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     fake_voice_db["now_box"]["now"] += 600  # 10 intervals => 50 xp (cap=50)
-    res = await xp_system.tick_voice_xp_for_member(guild, member)
+    res = await tick_voice_xp_for_member(guild, member)
     assert res is not None
     assert res[0] == 50
 
     fake_voice_db["now_box"]["now"] += 60
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
 
 @pytest.mark.asyncio
@@ -636,12 +638,12 @@ async def test_voice_inactive_member_updates_last_tick_but_gives_no_xp(fake_voic
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
     # rend le membre inactif (mute)
     member.voice = FakeVoiceState(channel=object(), self_mute=True)
 
     fake_voice_db["now_box"]["now"] += 120
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     prog = fake_voice_db["voice_prog"][(guild.id, member.id)]
     assert int(prog.get("last_tick_ts", 0)) == fake_voice_db["now_box"]["now"]
@@ -655,16 +657,16 @@ async def test_voice_daily_reset_resets_progress_and_reinitializes_last_tick(fak
     member = _active_voice_member(with_tag=False, guild=guild)
 
     # init jour 20260118
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
     fake_voice_db["now_box"]["now"] += 60
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is not None
+    assert await tick_voice_xp_for_member(guild, member) is not None
 
     # change de jour
     monkeypatch.setattr(xp_system, "_day_key_utc", lambda ts=None: "20260119")
     fake_voice_db["now_box"]["now"] += 60
 
     # reset -> None (car last_tick_ts repasse a 0 puis init)
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     prog = fake_voice_db["voice_prog"][(guild.id, member.id)]
     assert prog["day_key"] == "20260119"
@@ -682,11 +684,11 @@ async def test_voice_delta_is_clamped_to_600_seconds(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     # delta enorme, mais clamp a 600 => 10 intervals (60s) => 10*5=50
     fake_voice_db["now_box"]["now"] += 10_000
-    res = await xp_system.tick_voice_xp_for_member(guild, member)
+    res = await tick_voice_xp_for_member(guild, member)
     assert res is not None
     assert res[0] == 50
 
@@ -709,10 +711,10 @@ async def test_voice_invalid_config_values_give_no_xp(fake_voice_db, field, valu
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     fake_voice_db["now_box"]["now"] += 60
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
 
 @pytest.mark.asyncio
@@ -721,9 +723,9 @@ async def test_voice_buffer_less_than_interval_persists_no_xp(fake_voice_db):
     guild = FakeGuild(tag="ELD")
     member = _active_voice_member(with_tag=False, guild=guild)
 
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
     fake_voice_db["now_box"]["now"] += 30
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     prog = fake_voice_db["voice_prog"][(guild.id, member.id)]
     assert int(prog.get("buffer_seconds", 0)) == 30
@@ -745,12 +747,12 @@ async def test_voice_bonus_cents_accumulates_across_ticks(fake_voice_db):
     member = _active_voice_member(with_tag=True, guild=guild)
 
     # init
-    assert await xp_system.tick_voice_xp_for_member(guild, member) is None
+    assert await tick_voice_xp_for_member(guild, member) is None
 
     gained_total = 0
     for _ in range(5):
         fake_voice_db["now_box"]["now"] += 60
-        res = await xp_system.tick_voice_xp_for_member(guild, member)
+        res = await tick_voice_xp_for_member(guild, member)
         assert res is not None
         gained_total = res[0]
 

@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from eldoria.features.xp_system import get_xp_role_ids
+from eldoria.features.xp.roles import get_xp_role_ids
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 

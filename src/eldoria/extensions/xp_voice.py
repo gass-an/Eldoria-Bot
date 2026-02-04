@@ -1,7 +1,9 @@
 import discord
 from discord.ext import commands, tasks
 
-from ..features import xp_system
+from eldoria.features.xp.voice_xp import is_voice_member_active, tick_voice_xp_for_member
+from eldoria.utils.timestamp import now_ts
+
 from ..db import database_manager
 from ..utils.mentions import level_mention
 
@@ -69,14 +71,14 @@ class XpVoice(commands.Cog):
                 if not bool(cfg.get("enabled", False)) or not bool(cfg.get("voice_enabled", True)):
                     continue
 
-                now = xp_system._now_ts()
+                now = now_ts()
 
                 for vc in list(getattr(guild, "voice_channels", []) or []):
                     members = list(getattr(vc, "members", []) or [])
                     if not members:
                         continue
 
-                    active_members = [m for m in members if xp_system.is_voice_member_active(m)]
+                    active_members = [m for m in members if is_voice_member_active(m)]
                     active_count = len(active_members)
 
                     if active_count < 2:
@@ -94,7 +96,7 @@ class XpVoice(commands.Cog):
 
                     for member in active_members:
                         try:
-                            res = await xp_system.tick_voice_xp_for_member(guild, member)
+                            res = await tick_voice_xp_for_member(guild, member)
                             if res is None:
                                 continue
 
@@ -157,7 +159,7 @@ class XpVoice(commands.Cog):
             # Assure la config (au cas où la guild vient d'être join)
             database_manager.xp_ensure_defaults(member.guild.id)
 
-            now = xp_system._now_ts()  # helper interne (UTC)
+            now = now_ts()  # helper interne (UTC)
 
             # On met juste à jour last_tick_ts; le calcul réel est fait par la loop.
             database_manager.xp_voice_upsert_progress(
