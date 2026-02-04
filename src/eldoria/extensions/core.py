@@ -3,13 +3,13 @@ from discord.ext import commands
 
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
 from eldoria.features.duel.games import init_games
-from eldoria.features.embed.version_embed import generate_version_embed
+from eldoria.ui.version.embeds import build_version_embed
 from eldoria.ui.duels import init_duel_ui
 
 
 from ..db import database_manager
 from ..features import xp_system
-from ..pages.help_menu import send_help_menu
+from ..ui.help.view import send_help_menu
 from ..utils.mentions import level_mention
 from ..utils.interactions import reply_ephemeral
 
@@ -110,7 +110,7 @@ class Core(commands.Cog):
     @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
     async def version(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
-        embed, files = await generate_version_embed()
+        embed, files = await build_version_embed()
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
 

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Optional
+from typing import Dict, Iterable, Optional
 from zoneinfo import ZoneInfo
 
 import discord
+
+from eldoria.db.repo.xp_repo import xp_get_role_ids
 
 from ..config import AUTO_SAVE_TZ
 from ..utils.timestamp import now_ts
@@ -106,6 +108,20 @@ def compute_level(xp: int, levels: Iterable[tuple[int, int]]) -> int:
         if xp >= required:
             lvl = level
     return lvl
+
+def get_xp_role_ids(guild_id: int | None) -> Dict[int, int]:
+    """
+    Retourne le mapping {level: role_id} pour un serveur XP.
+    Si guild_id est None ou invalide, retourne un dict vide.
+    """
+    if not guild_id:
+        return {}
+
+    try:
+        return xp_get_role_ids(guild_id) or {}
+    except Exception:
+        # sécurité : l'UI ne doit jamais planter à cause de la DB
+        return {}
 
 
 async def ensure_guild_xp_setup(guild: discord.Guild):

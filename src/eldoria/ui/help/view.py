@@ -1,7 +1,9 @@
 import discord
 
-from ..features.embed import help_embed
-from ..json_tools import help_json
+from eldoria.json_tools.help_json import load_help_config
+from eldoria.ui.common.embeds.images import common_files, decorate
+from eldoria.ui.help.embeds import build_category_embed, build_home_embed
+
 
 
 class HelpMenuView(discord.ui.View):
@@ -83,9 +85,9 @@ class HelpMenuView(discord.ui.View):
 
     # -------------------- Embeds builders --------------------
     def _common_files(self):
-        return help_embed.common_files(self._thumb_url, self._banner_url)
+        return common_files(self._thumb_url, self._banner_url)
     def _decorate(self, embed: discord.Embed):
-        return help_embed.decorate(embed, self._thumb_url, self._banner_url)
+        return decorate(embed, self._thumb_url, self._banner_url)
 
     def _capture_attachment_urls_from_message(self, interaction: discord.Interaction):
         """Récupère les URLs CDN des images déjà attachées au message."""
@@ -98,7 +100,7 @@ class HelpMenuView(discord.ui.View):
             elif att.filename == "banner_bot.png":
                 self._banner_url = att.url
     def build_home(self):
-        embed = help_embed.build_home_embed(
+        embed = build_home_embed(
             visible_by_cat=self.visible_by_cat,
             cat_descriptions=self.cat_descriptions,
             thumb_url=self._thumb_url,
@@ -107,7 +109,7 @@ class HelpMenuView(discord.ui.View):
         return embed, self._common_files()
     def build_category(self, cat: str):
         cmds = self.visible_by_cat.get(cat, [])
-        embed = help_embed.build_category_embed(
+        embed = build_category_embed(
             cat=cat,
             cmds=cmds,
             help_infos=self.help_infos,
@@ -193,7 +195,7 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot):
     member_perms = ctx.user.guild_permissions
 
     # Help config (normalisée) via json_tools/gestionJson.py
-    help_infos, categories, cat_descriptions = help_json.load_help_config()
+    help_infos, categories, cat_descriptions = load_help_config()
 
     # Commandes internes / techniques qu'on ne veut pas exposer dans le /help
     excluded_cmds = {"manual_save", "insert_db"}

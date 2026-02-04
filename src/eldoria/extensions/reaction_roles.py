@@ -1,10 +1,11 @@
 import discord
 from discord.ext import commands
 
+from eldoria.ui.roles.embeds import build_list_roles_embed
+
 from ..db import database_manager
 from ..utils import discord_utils
-from ..pages import page_manager
-from ..features import embed_builder
+from ..ui.common import pagination
 
 
 class ReactionRoles(commands.Cog):
@@ -184,9 +185,9 @@ class ReactionRoles(commands.Cog):
         role_config_guild_list = database_manager.rr_list_by_guild_grouped(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = page_manager.Paginator(
+        paginator = pagination.Paginator(
             items=role_config_guild_list,
-            embed_generator=embed_builder.generate_list_roles_embed,
+            embed_generator=build_list_roles_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

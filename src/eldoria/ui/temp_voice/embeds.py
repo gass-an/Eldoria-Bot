@@ -1,9 +1,9 @@
 import discord
 
-from .common.embedImages import common_files, decorate
-from .common.embedColors import EMBED_COLOUR_PRIMARY
+from ..common.embeds.images import common_files, decorate
+from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 
-async def generate_list_temp_voice_parents_embed(items, page: int, total_pages: int, identifiant_for_embed: int, bot):
+async def build_list_temp_voice_parents_embed(items, page: int, total_pages: int, identifiant_for_embed: int, bot):
     """
     items: list[(parent_channel_id, user_limit)] pour la page courante
     identifiant_for_embed: guild_id

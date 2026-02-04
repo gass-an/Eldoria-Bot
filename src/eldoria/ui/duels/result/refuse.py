@@ -1,7 +1,7 @@
 import discord
 
-from eldoria.features.embed.common.embedColors import EMBED_COLOUR_ERROR
-from eldoria.features.embed.common.embedImages import common_thumb, decorate_thumb_only
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_ERROR
+from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 
 
 async def build_refuse_duels_embed(player_b: discord.Member):

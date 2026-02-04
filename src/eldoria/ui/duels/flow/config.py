@@ -6,8 +6,8 @@ from eldoria.exceptions.duel_ui_errors import duel_error_message
 from eldoria.features.duel.constants import STAKE_XP_DEFAULTS
 from eldoria.features.duel.duel_helpers import get_allowed_stakes
 from eldoria.features.duel.duel_service import configure_stake_xp, send_invite
-from eldoria.features.embed.common.embedColors import EMBED_COLOUR_PRIMARY
-from eldoria.features.embed.common.embedImages import common_thumb, decorate_thumb_only
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
+from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 
 from eldoria.ui.duels.flow.invite import InviteView, build_invite_duels_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel, require_guild

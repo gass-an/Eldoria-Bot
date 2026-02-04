@@ -1,9 +1,11 @@
 import discord
 from discord.ext import commands
 
+from eldoria.ui.roles.embeds import build_list_secret_roles_embed
+
 from ..db import database_manager
-from ..pages import page_manager
-from ..features import embed_builder
+from ..ui.common import pagination
+
 
 # -------------------- Fonctions pour l'autocompletion --------------------
 async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
@@ -98,9 +100,9 @@ class SecretRoles(commands.Cog):
         secret_roles_guild_list = database_manager.sr_list_by_guild_grouped(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = page_manager.Paginator(
+        paginator = pagination.Paginator(
             items=secret_roles_guild_list,
-            embed_generator=embed_builder.generate_list_secret_roles_embed,
+            embed_generator=build_list_secret_roles_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

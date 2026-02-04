@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import discord
 
-from eldoria.features.embed.common.embedColors import EMBED_COLOUR_ERROR
-from eldoria.features.embed.common.embedImages import common_thumb, decorate_thumb_only
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_ERROR
+from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 from eldoria.json_tools.duels_json import get_game_text
 
 

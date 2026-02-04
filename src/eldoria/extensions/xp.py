@@ -2,8 +2,13 @@ import re
 import discord
 from discord.ext import commands
 
+from eldoria.ui.xp.embeds.leaderboard import build_list_xp_embed
+from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
+from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
+from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
+
 from ..db import database_manager
-from ..features import embed_builder, xp_system
+from ..features import xp_system
 from ..utils.mentions import level_label
 
 
@@ -81,7 +86,7 @@ class Xp(commands.Cog):
         await ctx.defer(ephemeral=True)
 
         cfg = database_manager.xp_get_config(guild.id)
-        embed, files = await embed_builder.generate_xp_status_embed(cfg=cfg, guild_id=guild.id, bot=self.bot)
+        embed, files = await build_xp_status_embed(cfg=cfg, guild_id=guild.id, bot=self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @commands.slash_command(name="xp", description="Affiche ton XP et ton niveau.")
@@ -97,7 +102,7 @@ class Xp(commands.Cog):
         user_id = user.id
 
         if not database_manager.xp_is_enabled(guild_id):
-            embed, files = await embed_builder.generate_xp_disable_embed(guild_id, self.bot)
+            embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
@@ -118,7 +123,7 @@ class Xp(commands.Cog):
                 next_label = level_label(guild, role_ids, lvl + 1)
                 break
 
-        embed, files = await embed_builder.generate_xp_profile_embed(
+        embed, files = await build_xp_profile_embed(
             guild_id=guild_id,
             user=user,
             xp=xp,
@@ -142,14 +147,14 @@ class Xp(commands.Cog):
         guild_id = guild.id
 
         if not database_manager.xp_is_enabled(guild_id):
-            embed, files = await embed_builder.generate_xp_disable_embed(guild_id, self.bot)
+            embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
         database_manager.xp_ensure_defaults(guild_id)
 
         levels_with_roles = database_manager.xp_get_levels_with_roles(guild_id)
-        embed, files = await embed_builder.generate_xp_roles_embed(levels_with_roles, guild_id, self.bot)
+        embed, files = await build_xp_roles_embed(levels_with_roles, guild_id, self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @commands.slash_command(name="xp_classement", description="Affiche le classement des joueurs en fonction de leurs XP.")
@@ -163,7 +168,7 @@ class Xp(commands.Cog):
         guild_id = guild.id
 
         if not database_manager.xp_is_enabled(guild_id):
-            embed, files = await embed_builder.generate_xp_disable_embed(guild_id, self.bot)
+            embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
@@ -179,10 +184,10 @@ class Xp(commands.Cog):
             lbl = level_label(guild, role_ids, lvl)
             items.append((uid, xp, lvl, lbl))
 
-        from ..pages import page_manager  # import local pour éviter cycles
-        paginator = page_manager.Paginator(
+        from ..ui.common import pagination  # import local pour éviter cycles
+        paginator = pagination.Paginator(
             items=items,
-            embed_generator=embed_builder.generate_list_xp_embed,
+            embed_generator=build_list_xp_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

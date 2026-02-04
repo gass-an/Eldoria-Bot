@@ -4,11 +4,11 @@ from tests._embed_fakes import FakeBot, FakeGuild, FakeMember, FakeRole  # activ
 
 
 @pytest.mark.asyncio
-async def test_generate_xp_status_embed_disabled_branch():
-    from eldoria.features.embed.xp_embed import generate_xp_status_embed
+async def test_build_xp_status_embed_disabled_branch():
+    from eldoria.ui.xp.embeds import build_xp_status_embed
 
     bot = FakeBot(FakeGuild(123))
-    embed, files = await generate_xp_status_embed({"enabled": False}, 123, bot)
+    embed, files = await build_xp_status_embed({"enabled": False}, 123, bot)
 
     assert embed.title == "Statut du système XP"
     assert any(f["name"] == "État" and "Désactivé" in f["value"] for f in embed.fields)
@@ -18,8 +18,8 @@ async def test_generate_xp_status_embed_disabled_branch():
 
 
 @pytest.mark.asyncio
-async def test_generate_xp_status_embed_enabled_with_voice_cap_hours():
-    from eldoria.features.embed.xp_embed import generate_xp_status_embed
+async def test_build_xp_status_embed_enabled_with_voice_cap_hours():
+    from eldoria.ui.xp.embeds import build_xp_status_embed
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     cfg = {
@@ -34,7 +34,7 @@ async def test_generate_xp_status_embed_enabled_with_voice_cap_hours():
         "voice_daily_cap_xp": 100,
     }
 
-    embed, _files = await generate_xp_status_embed(cfg, 123, bot)
+    embed, _files = await build_xp_status_embed(cfg, 123, bot)
     values = "\n".join(f["value"] for f in embed.fields)
 
     assert "✅ Activé" in values
@@ -44,13 +44,13 @@ async def test_generate_xp_status_embed_enabled_with_voice_cap_hours():
 
 
 @pytest.mark.asyncio
-async def test_generate_list_xp_embed_empty(monkeypatch):
-    import eldoria.features.embed.xp_embed as mod
+async def test_build_list_xp_embed_empty(monkeypatch):
+    import eldoria.ui.xp.embeds as mod
 
     monkeypatch.setattr(mod.database_manager, "xp_get_role_ids", lambda guild_id: {})
 
     bot = FakeBot(FakeGuild(123))
-    embed, files = await mod.generate_list_xp_embed([], 0, 1, 123, bot)
+    embed, files = await mod.build_list_xp_embed([], 0, 1, 123, bot)
 
     assert embed.title == "Classement XP"
     assert embed.fields and embed.fields[0]["name"] == "Aucun membre"
@@ -59,8 +59,8 @@ async def test_generate_list_xp_embed_empty(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_generate_list_xp_embed_labels_from_roles_and_precomputed(monkeypatch):
-    import eldoria.features.embed.xp_embed as mod
+async def test_build_list_xp_embed_labels_from_roles_and_precomputed(monkeypatch):
+    import eldoria.ui.xp.embeds as mod
 
     # mapping level->role_id
     monkeypatch.setattr(mod.database_manager, "xp_get_role_ids", lambda guild_id: {5: 555})
@@ -75,7 +75,7 @@ async def test_generate_list_xp_embed_labels_from_roles_and_precomputed(monkeypa
         (999, 50, 2, "lvl2"),      # label pré-calculé
     ]
 
-    embed, _files = await mod.generate_list_xp_embed(items, 0, 2, 123, bot)
+    embed, _files = await mod.build_list_xp_embed(items, 0, 2, 123, bot)
 
     text = embed.fields[0]["value"]
     assert "**1.** Alice" in text
@@ -85,13 +85,13 @@ async def test_generate_list_xp_embed_labels_from_roles_and_precomputed(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_generate_xp_profile_embed_max_level():
-    import eldoria.features.embed.xp_embed as mod
+async def test_build_xp_profile_embed_max_level():
+    import eldoria.ui.xp.embeds as mod
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     user = FakeMember("<@42>", display_name="Alice", member_id=42)
 
-    embed, files = await mod.generate_xp_profile_embed(
+    embed, files = await mod.build_xp_profile_embed(
         guild_id=123,
         user=user,
         xp=999,
@@ -109,13 +109,13 @@ async def test_generate_xp_profile_embed_max_level():
 
 
 @pytest.mark.asyncio
-async def test_generate_xp_profile_embed_next_level_remaining():
-    import eldoria.features.embed.xp_embed as mod
+async def test_build_xp_profile_embed_next_level_remaining():
+    import eldoria.ui.xp.embeds as mod
 
     bot = FakeBot(FakeGuild(123, name="Srv"))
     user = FakeMember("<@99>", display_name="Bob", member_id=99)
 
-    embed, _files = await mod.generate_xp_profile_embed(
+    embed, _files = await mod.build_xp_profile_embed(
         guild_id=123,
         user=user,
         xp=80,
@@ -132,18 +132,18 @@ async def test_generate_xp_profile_embed_next_level_remaining():
 
 
 @pytest.mark.asyncio
-async def test_generate_xp_roles_embed_empty_and_non_empty():
-    import eldoria.features.embed.xp_embed as mod
+async def test_build_xp_roles_embed_empty_and_non_empty():
+    import eldoria.ui.xp.embeds as mod
 
     bot = FakeBot(FakeGuild(123))
-    embed_empty, _ = await mod.generate_xp_roles_embed([], 123, bot)
+    embed_empty, _ = await mod.build_xp_roles_embed([], 123, bot)
     assert embed_empty.fields and embed_empty.fields[0]["name"] == "Aucune configuration"
 
     guild = FakeGuild(123)
     guild.add_role(FakeRole(777))
     bot2 = FakeBot(guild)
 
-    embed, _ = await mod.generate_xp_roles_embed([(1, 10, None), (2, 50, 777)], 123, bot2)
+    embed, _ = await mod.build_xp_roles_embed([(1, 10, None), (2, 50, 777)], 123, bot2)
     value = embed.fields[0]["value"]
 
     assert "**Niveau 1**" in value and "lvl1" in value and "**10 XP**" in value

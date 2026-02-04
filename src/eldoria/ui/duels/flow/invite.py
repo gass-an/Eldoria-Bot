@@ -4,8 +4,8 @@ from discord.ext import commands
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
 from eldoria.features.duel.duel_service import accept_duel, refuse_duel
-from eldoria.features.embed.common.embedColors import EMBED_COLOUR_PRIMARY
-from eldoria.features.embed.common.embedImages import common_thumb, decorate_thumb_only
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
+from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 from eldoria.json_tools.duels_json import get_game_text
 from eldoria.ui.duels.render import render_duel_message
 from eldoria.ui.duels.result.refuse import build_refuse_duels_embed

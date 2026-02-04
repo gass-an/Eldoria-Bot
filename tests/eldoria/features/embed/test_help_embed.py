@@ -1,6 +1,6 @@
 from tests._embed_fakes import FakeEmbed  # noqa: F401 (active stubs discord)
 
-from eldoria.features.embed.help_embed import build_home_embed, build_category_embed
+from eldoria.ui.help.embeds import build_home_embed, build_category_embed
 
 
 def test_build_home_embed_fields_and_footer():

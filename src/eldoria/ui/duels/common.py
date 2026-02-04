@@ -3,8 +3,8 @@ from __future__ import annotations
 import discord
 
 from eldoria.json_tools.duels_json import get_game_text
-from eldoria.features.embed.common.embedImages import decorate_thumb_only, common_thumb
-from eldoria.features.embed.common.embedColors import EMBED_COLOUR_VALIDATION
+from eldoria.ui.common.embeds.images import decorate_thumb_only, common_thumb
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_VALIDATION
 
 
 async def build_game_base_embed(

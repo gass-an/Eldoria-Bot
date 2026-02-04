@@ -11,7 +11,7 @@ from tests._pages_fakes import (
 @pytest.mark.asyncio
 async def test_help_menu_refresh_nav_buttons_styles_and_disabled(monkeypatch):
     # Stub help_embed used by HelpMenuView
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
 
     class _HE:
         @staticmethod
@@ -57,7 +57,7 @@ async def test_help_menu_refresh_nav_buttons_styles_and_disabled(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
 
     # stub help_embed (not used directly here)
     class _HE:
@@ -103,7 +103,7 @@ async def test_help_menu_capture_attachment_urls_from_message(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_interaction_check_blocks_other_user(monkeypatch):
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
     import discord  # type: ignore
 
     # stub help_embed
@@ -140,7 +140,7 @@ async def test_help_menu_interaction_check_blocks_other_user(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_interaction_check_fallback_followup_when_already_responded(monkeypatch):
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
     import discord  # type: ignore
 
     class _HE:
@@ -179,7 +179,7 @@ async def test_help_menu_interaction_check_fallback_followup_when_already_respon
 
 @pytest.mark.asyncio
 async def test_help_menu_safe_edit_fast_path_when_urls_present(monkeypatch):
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
 
     class _HE:
         @staticmethod
@@ -219,7 +219,7 @@ async def test_help_menu_safe_edit_fast_path_when_urls_present(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_help_menu_safe_edit_defer_then_edit_with_files(monkeypatch):
-    import eldoria.pages.help_menu as mod
+    import eldoria.ui.help.view as mod
 
     class _HE:
         @staticmethod

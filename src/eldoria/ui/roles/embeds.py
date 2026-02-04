@@ -2,10 +2,10 @@ import discord
 from discord.ext import commands
 
 from ...utils import discord_utils
-from .common.embedImages import common_files, decorate
-from .common.embedColors import EMBED_COLOUR_PRIMARY
+from ..common.embeds.images import common_files, decorate
+from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 
-async def generate_list_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
+async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
     nb_roles = 0
     embed = discord.Embed(
         title="Liste des rôles",
@@ -38,7 +38,7 @@ async def generate_list_roles_embed(roles, current_page, total_pages, guild_id, 
     return embed, files
 
 
-async def generate_list_secret_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
+async def build_list_secret_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
     nb_roles = 0
     embed = discord.Embed(
         title="Liste des rôles secrets",

@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands
 
+from eldoria.ui.temp_voice.embeds import build_list_temp_voice_parents_embed
+
 from ..db import database_manager
-from ..pages import page_manager
-from ..features import embed_builder
+from ..ui.common import pagination
 
 
 class TempVoice(commands.Cog):
@@ -112,9 +113,9 @@ class TempVoice(commands.Cog):
         parents = database_manager.tv_list_parents(guild_id)
 
         await ctx.defer(ephemeral=True)
-        paginator = page_manager.Paginator(
+        paginator = pagination.Paginator(
             items=parents,
-            embed_generator=embed_builder.generate_list_temp_voice_parents_embed,
+            embed_generator=build_list_temp_voice_parents_embed,
             identifiant_for_embed=guild_id,
             bot=self.bot,
         )

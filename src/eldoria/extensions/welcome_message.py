@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from ..features import embed_builder
+from eldoria.ui.welcome.embeds import build_welcome_embed
 
 from ..db import database_manager
 
@@ -32,7 +32,7 @@ class WelcomeMessage(commands.Cog):
             if not isinstance(channel, (discord.TextChannel, discord.Thread)):
                 return
 
-            embed, emojis = await embed_builder.generate_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
+            embed, emojis = await build_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
 
             message = await channel.send(content=f"||{member.mention}||", embed=embed)
 

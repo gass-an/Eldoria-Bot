@@ -1,7 +1,7 @@
 import discord
 
-from .common.embedImages import common_files, decorate
-from .common.embedColors import EMBED_COLOUR_PRIMARY
+from ..common.embeds.images import decorate
+from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 
 def build_home_embed(
     visible_by_cat: dict[str, list[str]],

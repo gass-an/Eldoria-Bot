@@ -1,11 +1,11 @@
 import discord
 
 from ...version import VERSION
-from .common.embedColors import EMBED_COLOUR_PRIMARY
-from .common.embedImages import common_files, decorate
+from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
+from ..common.embeds.images import common_files, decorate
 
 
-async def generate_version_embed():
+async def build_version_embed():
     embed = discord.Embed(
         title="Eldoria",
         description="La version actuelle de votre bot préféré",
