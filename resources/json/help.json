@@ -5,6 +5,7 @@
             "commands": {
                 "ping": "Vérifie si le bot est en ligne et répond correctement.",
                 "help": "Affiche le menu d'aide interactif et la liste des commandes disponibles.",
+                "duel": "Defi un autre membre en duel (et pari de l'xp)",
                 "version": "Affiche la version actuelle du bot"
             }
         },
