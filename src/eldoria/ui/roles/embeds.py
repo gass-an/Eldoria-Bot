@@ -1,11 +1,13 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
+
 from ...utils import discord_utils
 from ..common.embeds.images import common_files, decorate
 from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 
-async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
+async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot: EldoriaBot):
     nb_roles = 0
     embed = discord.Embed(
         title="Liste des rôles",
@@ -38,7 +40,7 @@ async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot
     return embed, files
 
 
-async def build_list_secret_roles_embed(roles, current_page, total_pages, guild_id, bot: commands.Bot):
+async def build_list_secret_roles_embed(roles, current_page, total_pages, guild_id, bot: EldoriaBot):
     nb_roles = 0
     embed = discord.Embed(
         title="Liste des rôles secrets",

@@ -2,7 +2,7 @@ import json
 from sqlite3 import Row
 from typing import Any
 
-from eldoria.features.duel.duel_helpers import assert_duel_not_expired, build_snapshot, dump_payload, get_duel_or_raise
+from eldoria.features.duel._internal.helpers import assert_duel_not_expired, build_snapshot, dump_payload, get_duel_or_raise
 from eldoria.features.duel.games.protocol import DuelGame
 
 from ...constants import *

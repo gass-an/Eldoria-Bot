@@ -1,11 +1,12 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_xp_roles_embed(levels_with_roles, guild_id: int, bot: commands.Bot):
+async def build_xp_roles_embed(levels_with_roles, guild_id: int, bot: EldoriaBot):
     """Crée un embed listant les rôles liés aux niveaux et l'XP nécessaire.
 
     Paramètre attendu:

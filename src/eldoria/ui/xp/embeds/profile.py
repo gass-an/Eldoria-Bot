@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
@@ -14,7 +15,7 @@ async def build_xp_profile_embed(
     level_label: str,
     next_level_label: str | None,
     next_xp_required: int | None,
-    bot: commands.Bot,
+    bot: EldoriaBot,
     ):
     
     guild = bot.get_guild(guild_id)

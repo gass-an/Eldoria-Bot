@@ -2,9 +2,12 @@ import logging
 import time
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.app.extensions import EXTENSIONS
+from eldoria.app.services import Services
 from eldoria.db.repo.temp_voice_repo import tv_list_active_all, tv_remove_active
 from eldoria.db.schema import init_db
+from eldoria.features.duel.duel_service import DuelService
 from eldoria.features.duel.games import init_games
 from eldoria.ui.duels import init_duel_ui
 
@@ -26,21 +29,28 @@ def step(name: str, fn, *, critical: bool = True, logger: logging.Logger | None 
         if critical:
             raise
 
-def load_extensions(bot: commands.Bot) -> int:
+def load_extensions(bot: EldoriaBot) -> int:
     count = 0
     for ext in EXTENSIONS:
         bot.load_extension(ext)
         count += 1
     return count
 
-def cleanup_temp_channels(bot):
+def cleanup_temp_channels(bot: EldoriaBot):
     for guild in bot.guilds:
         rows = tv_list_active_all(guild.id)
         for parent_id, channel_id in rows:
             if guild.get_channel(channel_id) is None:
                 tv_remove_active(guild.id, parent_id, channel_id)
 
+def init_services(bot: EldoriaBot):
+    bot.services = Services(
+        duel=DuelService()
+    )
+
 def startup(bot):
+    step("Initialisation des services", lambda: init_services(bot), critical=False)
+    step("Initialisation des extensions", lambda: load_extensions(bot))
     step("Initialisation de la base de données", init_db)
     step("Nettoyage des channels temporaires", lambda: cleanup_temp_channels(bot), critical=False)
     step("Initialisation des jeux de duel", init_games, critical=False)

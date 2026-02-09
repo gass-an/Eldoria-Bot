@@ -1,12 +1,13 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.features.xp.roles import get_xp_role_ids
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: commands.Bot):
+async def build_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: EldoriaBot):
     """Génère l'embed du classement XP.
 
     `items` peut être au format :

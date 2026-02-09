@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.roles.embeds import build_list_secret_roles_embed
 
 from ..db import database_manager
@@ -17,7 +18,7 @@ async def message_secret_role_autocomplete(interaction: discord.AutocompleteCont
 
 
 class SecretRoles(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
     @commands.slash_command(
@@ -110,5 +111,5 @@ class SecretRoles(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(SecretRoles(bot))

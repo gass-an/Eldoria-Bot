@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import discord
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.duel.duel_service import play_game_action
 from eldoria.features.duel.games.rps.rps_constants import (
     RPS_MOVE_PAPER,
     RPS_MOVE_ROCK,
@@ -15,16 +15,17 @@ from eldoria.utils.discord_utils import require_user_id
 
 
 class RpsView(discord.ui.View):
-    def __init__(self, *, bot: object, duel_id: int):
+    def __init__(self, *, bot: EldoriaBot, duel_id: int):
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
+        self.duel = self.bot.services.duel
 
     async def _play(self, interaction: discord.Interaction, move: str) -> None:
         await interaction.response.defer()
 
         try:
-            snapshot = play_game_action(
+            snapshot = self.duel.play_game_action(
                 duel_id=self.duel_id,
                 user_id=require_user_id(interaction=interaction),
                 action={"move": move},

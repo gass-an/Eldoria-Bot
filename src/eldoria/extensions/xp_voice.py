@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.features.xp.voice_xp import is_voice_member_active, tick_voice_xp_for_member
 from eldoria.utils.timestamp import now_ts
 
@@ -51,7 +52,7 @@ class XpVoice(commands.Cog):
     - Le cooldown ne s'applique PAS (cooldown réservé aux messages)
     """
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
         self.voice_xp_loop.start()
 
@@ -171,5 +172,5 @@ class XpVoice(commands.Cog):
             return
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(XpVoice(bot))

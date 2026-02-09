@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.duel.duel_service import cancel_expired_duels, cleanup_old_duels, new_duel
 from eldoria.features.xp.role_sync import sync_xp_roles_for_users
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
@@ -19,20 +19,21 @@ def require_guild_ctx(ctx: discord.ApplicationContext):
     return ctx.guild, ctx.channel
 
 class Duels(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
         self.clear_expired_duels_loop.start()
         self.maintenance_cleanup.start()
+        self.duel = self.bot.services.duel
 
     # -------------------- Loops --------------------
     @tasks.loop(hours=24)
     async def maintenance_cleanup(self):
-        cleanup_old_duels(now_ts())
+        self.duel.cleanup_old_duels(now_ts())
 
     @tasks.loop(seconds=15)
     async def clear_expired_duels_loop(self):
         # 1) Service (DB) : transition vers EXPIRED + refunds éventuels
-        expired = cancel_expired_duels()
+        expired = self.duel.cancel_expired_duels()
 
         # 2) UI : éditer uniquement les messages associés
         for info in expired:
@@ -115,7 +116,7 @@ class Duels(commands.Cog):
         player_b_id = member.id
 
         try:
-            data_for_embed = new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
+            data_for_embed = self.duel.new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
         except DuelError as e:
             await ctx.followup.send(duel_error_message(e), ephemeral=True)
             return
@@ -125,5 +126,5 @@ class Duels(commands.Cog):
         embed, files = await build_home_duels_embed(expires_at)
         await ctx.followup.send(embed=embed, files=files, view=HomeView(bot=self.bot, duel_id=duel_id), ephemeral=True)
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(Duels(bot))

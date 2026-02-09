@@ -7,13 +7,15 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 
+from eldoria.app.bot import EldoriaBot
+
 from ..config import AUTO_SAVE_TIME, AUTO_SAVE_TZ, MY_ID, SAVE_GUILD_ID, SAVE_CHANNEL_ID
 from ..db import database_manager
 from ..utils.db_validation import is_valid_sqlite_db
 
 
 class Saves(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
         # Démarre l'auto-save si configuré
@@ -200,5 +202,5 @@ class Saves(commands.Cog):
         await ctx.followup.send(content="✅ Base de données remplacée avec succès.")
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(Saves(bot))

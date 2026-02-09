@@ -1,13 +1,15 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
+
 from ...json_tools.welcome_json import getWelcomeMessage
 
 from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 from ..common.embeds.images import common_files, decorate
 
 
-async def build_welcome_embed(guild_id: int, member: discord.Member, bot: commands.Bot):
+async def build_welcome_embed(guild_id: int, member: discord.Member, bot: EldoriaBot):
     guild = bot.get_guild(guild_id)
 
     (title, msg, emojis) = getWelcomeMessage(

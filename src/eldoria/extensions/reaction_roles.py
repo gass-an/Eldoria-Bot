@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.roles.embeds import build_list_roles_embed
 
 from ..db import database_manager
@@ -9,7 +10,7 @@ from ..ui.common import pagination
 
 
 class ReactionRoles(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
     # -------------------- Events --------------------
@@ -195,5 +196,5 @@ class ReactionRoles(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(ReactionRoles(bot))

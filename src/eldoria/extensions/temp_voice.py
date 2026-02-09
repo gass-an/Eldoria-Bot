@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.temp_voice.embeds import build_list_temp_voice_parents_embed
 
 from ..db import database_manager
@@ -8,7 +9,7 @@ from ..ui.common import pagination
 
 
 class TempVoice(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
     # -------------------- Events --------------------
@@ -123,5 +124,5 @@ class TempVoice(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(TempVoice(bot))

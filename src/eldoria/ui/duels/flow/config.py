@@ -1,11 +1,12 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
+
 from eldoria.features.duel.constants import STAKE_XP_DEFAULTS
-from eldoria.features.duel.duel_helpers import get_allowed_stakes
-from eldoria.features.duel.duel_service import configure_stake_xp, send_invite
+
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 
@@ -28,14 +29,15 @@ async def build_config_stake_duels_embed(expires_at: int):
 
 
 class StakeXpView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, duel_id: int):
+    def __init__(self, bot: EldoriaBot, duel_id: int):
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
+        self.duel = bot.services.duel
 
         list_stake = STAKE_XP_DEFAULTS
         for stake in list_stake:
-            if stake in get_allowed_stakes(duel_id):
+            if stake in self.duel.get_allowed_stakes(duel_id):
                 disable = False 
             else:
                 disable = True
@@ -49,7 +51,7 @@ class StakeXpView(discord.ui.View):
             async def on_click(interaction: discord.Interaction, stake=stake):
                 await interaction.response.defer()
                 try : 
-                    snapshot = configure_stake_xp(self.duel_id, stake_xp=stake)
+                    snapshot = self.duel.configure_stake_xp(self.duel_id, stake_xp=stake)
                 except DuelError as e:
                     await interaction.edit_original_response(content=duel_error_message(e), embeds=[], attachments=[], view=None)
                     return
@@ -62,7 +64,7 @@ class StakeXpView(discord.ui.View):
                 message = await channel.send(content=f"<@{player_b_id}>. Quelqu'un vous provoque en duel !")
                 
                 try :
-                    snapshot2 = send_invite(duel_id=duel_id, message_id=message.id)
+                    snapshot2 = self.duel.send_invite(duel_id=duel_id, message_id=message.id)
                 except DuelError as e:
                     await interaction.edit_original_response(content=duel_error_message(e), embeds=[], attachments=[], view=None)
                     return

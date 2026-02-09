@@ -3,7 +3,7 @@ import time
 import discord
 from discord.ext import commands
 
-from eldoria.app.startup import startup
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
 from eldoria.features.duel.games import init_games
 from eldoria.features.xp.message_xp import handle_message_xp
@@ -19,7 +19,7 @@ from ..utils.interactions import reply_ephemeral
 log = logging.getLogger(__name__)
 
 class Core(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
     # -------------------- Lifecycle --------------------
@@ -28,7 +28,7 @@ class Core(commands.Cog):
         
         if getattr(self.bot, "_booted", False):
             return
-        setattr(self.bot, "_booted", True)
+        self.bot._booted = True
 
         try:
             await self.bot.sync_commands()
@@ -39,7 +39,6 @@ class Core(commands.Cog):
         discord_ms = (time.perf_counter() - started_at) * 1000
         log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_ms)
 
-        startup(self.bot)
         elapsed = (time.perf_counter() - started_at)
         log.info("🚀 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", elapsed, self.bot.user, len(self.bot.guilds))
 
@@ -158,5 +157,5 @@ class Core(commands.Cog):
         await reply_ephemeral(interaction, "❌ Une erreur est survenue lors de l'exécution de la commande.")
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(Core(bot))

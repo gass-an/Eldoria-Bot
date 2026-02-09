@@ -1,6 +1,7 @@
 import re, discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, UserRequired
 
 def extract_id_from_link(link: str):
@@ -12,7 +13,7 @@ def extract_id_from_link(link: str):
         return guild_id, channel_id, message_id
     return None, None, None
 
-async def find_channel_id(bot: commands.Bot, message_id: int, guild_id: int):
+async def find_channel_id(bot: EldoriaBot, message_id: int, guild_id: int):
     guild = bot.get_guild(guild_id)
         
     if not guild:

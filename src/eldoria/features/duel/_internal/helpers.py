@@ -11,8 +11,6 @@ from eldoria.exceptions.duel_exceptions import DuelAlreadyHandled, DuelNotFinish
 from eldoria.features.duel import constants
 from eldoria.features.duel.constants import DUEL_RESULTS, DUEL_STATUS_ACTIVE, DUEL_STATUS_CONFIG, DUEL_STATUS_FINISHED, GAME_TYPES, STAKE_XP_DEFAULTS
 
-
-from eldoria.features.duel.games.registry import require_game
 from eldoria.utils.timestamp import now_ts
 
 
@@ -132,31 +130,6 @@ def modify_xp_for_players(
     new_xp_player_b = xp_add_xp(guild_id, player_b_id, xp, conn=conn)
     return {player_a_id: new_xp_player_a, player_b_id: new_xp_player_b}
 
-
-def _is_duel_complete_for_game(duel: Row) -> bool:
-    game_key = duel["game_type"]
-    if not game_key:
-        return False
-
-    try:
-        game = require_game(game_key)
-    except ValueError:
-        return False
-
-    return game.is_complete(duel)
-
-
-def _resolve_duel_for_game(duel: Row) -> str:
-    game_key = duel["game_type"]
-    if not game_key:
-        raise WrongGameType(game_key, "UNKNOWN")
-
-    try:
-        game = require_game(game_key)
-    except ValueError:
-        raise WrongGameType(game_key, "SUPPORTED_GAME")
-
-    return game.resolve(duel)
 
 def assert_duel_not_expired(duel: Row): 
     expires_at = duel["expires_at"]

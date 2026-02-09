@@ -1,13 +1,14 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.ui.welcome.embeds import build_welcome_embed
 
 from ..db import database_manager
 
 
 class WelcomeMessage(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
         # -------------------- Listener (optional but useful) --------------------
@@ -112,5 +113,5 @@ class WelcomeMessage(commands.Cog):
 
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(WelcomeMessage(bot))

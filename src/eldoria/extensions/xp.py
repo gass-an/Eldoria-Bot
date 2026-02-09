@@ -2,6 +2,7 @@ import re
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.features.xp.setup import ensure_guild_xp_setup
@@ -42,7 +43,7 @@ async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext):
     return results
 
 class Xp(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: EldoriaBot):
         self.bot = bot
 
     # ---------- XP system ----------
@@ -412,5 +413,5 @@ class Xp(commands.Cog):
         await ctx.followup.send(content=f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lbl}**).")
 
 
-def setup(bot: commands.Bot):
+def setup(bot: EldoriaBot):
     bot.add_cog(Xp(bot))

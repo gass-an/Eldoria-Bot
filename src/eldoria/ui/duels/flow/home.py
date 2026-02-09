@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.duel.duel_service import configure_game_type
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 from eldoria.json_tools.duels_json import get_duel_embed_data
@@ -40,10 +40,11 @@ async def build_home_duels_embed(expires_at: int):
 
 
 class HomeView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, duel_id: int):
+    def __init__(self, bot: EldoriaBot, duel_id: int):
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
+        self.duel = bot.services.duel
 
         data = get_duel_embed_data()
         games = data.get("games", {})
@@ -60,7 +61,7 @@ class HomeView(discord.ui.View):
             async def on_click(interaction: discord.Interaction, gk=game_key):
                 await interaction.response.defer()
                 try : 
-                    snapshot = configure_game_type(self.duel_id, gk)
+                    snapshot = self.duel.configure_game_type(self.duel_id, gk)
                 except DuelError as e:
                     await interaction.edit_original_response(content=duel_error_message(e), embeds=[], attachments=[], view=None)
                     return

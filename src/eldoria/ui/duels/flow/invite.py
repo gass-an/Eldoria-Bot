@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.duel.duel_service import accept_duel, refuse_duel
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 from eldoria.json_tools.duels_json import get_game_text
@@ -59,17 +59,18 @@ async def build_invite_duels_embed(
 
 
 class InviteView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, duel_id: int):
+    def __init__(self, bot: EldoriaBot, duel_id: int):
         super().__init__(timeout=300)
         self.bot = bot
         self.duel_id = duel_id
+        self.duel = bot.services.duel
         
     @discord.ui.button(label="✅ Accepter", style=discord.ButtonStyle.secondary)
     async def accept(self, button: discord.ui.Button, interaction: discord.Interaction):
         await interaction.response.defer()
 
         try:
-            snapshot = accept_duel(duel_id=self.duel_id, user_id=require_user_id(interaction=interaction))
+            snapshot = self.duel.accept_duel(duel_id=self.duel_id, user_id=require_user_id(interaction=interaction))
             duel= snapshot.get("duel")
         except DuelError as e:
             await interaction.followup.send(content=duel_error_message(e), ephemeral=True)
@@ -93,7 +94,7 @@ class InviteView(discord.ui.View):
         await interaction.response.defer()
 
         try:
-            snapshot = refuse_duel(duel_id=self.duel_id, user_id=require_user_id(interaction=interaction))
+            snapshot = self.duel.refuse_duel(duel_id=self.duel_id, user_id=require_user_id(interaction=interaction))
         except DuelError as e:
             await interaction.followup.send(content=duel_error_message(e), ephemeral=True)
             return
