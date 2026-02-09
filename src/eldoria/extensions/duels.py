@@ -3,11 +3,13 @@ from discord.ext import commands
 from discord.ext import tasks
 
 from eldoria.app.bot import EldoriaBot
+from eldoria.db import database_manager
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
 from eldoria.features.xp.role_sync import sync_xp_roles_for_users
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
+from eldoria.ui.xp.embeds.status import build_xp_disable_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
 from eldoria.utils.timestamp import now_ts
 
@@ -96,6 +98,7 @@ class Duels(commands.Cog):
     @discord.option("member", discord.Member, description="La personne que vous voulez provoquez en duel !")
     async def duel_command(self, ctx: discord.ApplicationContext, member: discord.Member):
         await ctx.defer(ephemeral=True)
+
         if member.bot:
             await ctx.followup.send(content="🤖 Tu ne peux pas défier un bot.", ephemeral=True)
             return
@@ -103,7 +106,7 @@ class Duels(commands.Cog):
         if member.id == ctx.user.id:
             await ctx.followup.send(content="😅 Tu ne peux pas te défier toi-même.", ephemeral=True)
             return
-        
+
         try:
             guild, channel = require_guild_ctx(ctx)
         except RuntimeError:
@@ -111,6 +114,12 @@ class Duels(commands.Cog):
             return
 
         guild_id = guild.id
+
+        if not database_manager.xp_is_enabled(guild_id):
+            embed, files = await build_xp_disable_embed(guild_id, self.bot)
+            await ctx.followup.send(embed=embed, files=files, ephemeral=True)
+            return
+
         channel_id = channel.id
         player_a_id = ctx.user.id
         player_b_id = member.id

@@ -32,5 +32,5 @@ class DuelService:
     def cleanup_old_duels(self, now_ts: int) -> None:
         return maintenance.cleanup_old_duels(now_ts)
     
-    def get_allowed_stakes(duel_id: int) -> list[int]:
+    def get_allowed_stakes(self, duel_id: int) -> list[int]:
         return helpers.get_allowed_stakes(duel_id)
