@@ -105,7 +105,8 @@ class Core(commands.Cog):
     @commands.slash_command(name="ping", description="Ping-pong (pour vérifier que le bot est bien UP !)")
     async def ping_command(self, ctx: discord.ApplicationContext):
         await ctx.defer(ephemeral=True)
-        await ctx.followup.send(content="Pong !")
+        ws_latency = round(self.bot.latency * 1000)
+        await ctx.followup.send(content=f"Pong 🏓\nLatence : `{ws_latency} ms`")
 
     @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
     async def version(self, ctx: discord.ApplicationContext):
