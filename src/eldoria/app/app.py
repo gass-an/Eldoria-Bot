@@ -2,10 +2,12 @@ import logging
 import discord
 from discord.ext import commands
 
+from eldoria.app.startup import load_extensions, step
+
 from ..config import TOKEN
 from .banner import startup_banner
 
-log = logging.getLogger("eldoria.app")
+log = logging.getLogger(__name__)
 
 
 def create_bot() -> commands.Bot:
@@ -15,28 +17,17 @@ def create_bot() -> commands.Bot:
     intents.members = True
 
     bot = commands.Bot(intents=intents)
-
-    log.info("Chargement des extensions")
-    for ext in (
-        "eldoria.extensions.core",
-        "eldoria.extensions.xp",
-        "eldoria.extensions.xp_voice",
-        "eldoria.extensions.duels",
-        "eldoria.extensions.reaction_roles",
-        "eldoria.extensions.secret_roles",
-        "eldoria.extensions.temp_voice",
-        "eldoria.extensions.saves",
-        "eldoria.extensions.welcome_message",
-    ):
-        bot.load_extension(ext)
-
+    step("Initialisation des extensions", lambda: load_extensions(bot), logger=log)
+    
     return bot
 
 
-def main():
+def main(started_at: float):
     if not TOKEN:
         raise RuntimeError("discord_token manquant dans le .env")
 
     print(startup_banner())
     bot = create_bot()
+    setattr(bot, "_started_at", started_at)
+    log.info("⏳ Connexion à Discord…")
     bot.run(TOKEN)

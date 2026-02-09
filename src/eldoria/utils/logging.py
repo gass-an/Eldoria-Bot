@@ -19,7 +19,7 @@ def setup_logging(level: int = logging.INFO) -> None:
     handler.setLevel(level)
 
     formatter = logging.Formatter(
-        "%(asctime)s  %(levelname)-7s  %(name)s  - %(message)s",
+        "%(asctime)-10s  %(levelname)-10s  %(name)-30s - %(message)s",
         datefmt="%H:%M:%S",
     )
     handler.setFormatter(formatter)

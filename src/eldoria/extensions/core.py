@@ -1,4 +1,5 @@
 import logging
+import time
 import discord
 from discord.ext import commands
 
@@ -27,15 +28,20 @@ class Core(commands.Cog):
         
         if getattr(self.bot, "_booted", False):
             return
-        self.bot._booted = True
+        setattr(self.bot, "_booted", True)
 
         try:
             await self.bot.sync_commands()
         except Exception:
             log.exception("Erreur lors de la synchronisation des commandes")
+        started_at = getattr(self.bot, "_started_at", time.perf_counter())
+        
+        discord_ms = (time.perf_counter() - started_at) * 1000
+        log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_ms)
 
         startup(self.bot)
-        log.info("🚀 Connecté en tant que %s (%d guilds)", self.bot.user, len(self.bot.guilds))
+        elapsed = (time.perf_counter() - started_at)
+        log.info("🚀 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", elapsed, self.bot.user, len(self.bot.guilds))
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()
