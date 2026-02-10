@@ -10,6 +10,7 @@ from eldoria.features.duel.games import init_games
 from eldoria.features.role.role_service import RoleService
 from eldoria.features.temp_voice.cleanup import cleanup_temp_channels
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
+from eldoria.features.welcome.welcome_service import WelcomeService
 from eldoria.features.xp.xp_service import XpService
 from eldoria.ui.duels import init_duel_ui
 
@@ -43,6 +44,7 @@ def init_services(bot: EldoriaBot):
         duel=DuelService(),
         role=RoleService(),
         temp_voice=TempVoiceService(),
+        welcome=WelcomeService(),
         xp=XpService(),
     )
 

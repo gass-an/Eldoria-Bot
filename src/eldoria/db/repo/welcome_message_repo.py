@@ -1,11 +1,13 @@
-# db/repo/wm_repo.py
-from ..connection import get_conn
+from __future__ import annotations
 
 import time
+from typing import Any, Dict, List, Optional
 
+from eldoria.db.connection import get_conn
 
 # ------------ Welcome message -----------
-def wm_ensure_defaults(guild_id: int, *, enabled: bool = False, channel_id: int = 0):
+
+def wm_ensure_defaults(guild_id: int, *, enabled: bool = False, channel_id: int = 0) -> None:
     """Crée la ligne de config si absente (valeurs par défaut côté code)."""
     with get_conn() as conn:
         conn.execute(
@@ -17,7 +19,7 @@ def wm_ensure_defaults(guild_id: int, *, enabled: bool = False, channel_id: int 
         )
 
 
-def wm_get_config(guild_id: int) -> dict:
+def wm_get_config(guild_id: int) -> Dict[str, Any]:
     """Retourne {"enabled": bool, "channel_id": int} et crée la config si absente."""
     with get_conn() as conn:
         row = conn.execute(
@@ -36,12 +38,12 @@ def wm_get_config(guild_id: int) -> dict:
 def wm_set_config(
     guild_id: int,
     *,
-    enabled: bool | None = None,
-    channel_id: int | None = None,
-):
+    enabled: Optional[bool] = None,
+    channel_id: Optional[int] = None,
+) -> None:
     """Update partiel (enabled et/ou channel_id). Crée la ligne si absente."""
-    sets = []
-    params = []
+    sets: List[str] = []
+    params: List[int] = []
 
     if enabled is not None:
         sets.append("enabled=?")
@@ -69,15 +71,18 @@ def wm_set_config(
         )
 
 
-def wm_set_enabled(guild_id: int, enabled: bool):
+def wm_set_enabled(guild_id: int, enabled: bool) -> None:
+    """Active/désactive le système de message de bienvenue pour une guild."""
     wm_set_config(guild_id, enabled=enabled)
 
 
-def wm_set_channel_id(guild_id: int, channel_id: int):
+def wm_set_channel_id(guild_id: int, channel_id: int) -> None:
+    """Définit le salon cible (channel_id) où envoyer les messages de bienvenue."""
     wm_set_config(guild_id, channel_id=channel_id)
 
 
 def wm_is_enabled(guild_id: int) -> bool:
+    """Indique si les messages de bienvenue sont activés pour une guild."""
     with get_conn() as conn:
         row = conn.execute(
             "SELECT enabled FROM welcome_config WHERE guild_id=?",
@@ -87,6 +92,7 @@ def wm_is_enabled(guild_id: int) -> bool:
 
 
 def wm_get_channel_id(guild_id: int) -> int:
+    """Retourne le channel_id configuré pour les messages de bienvenue (0 si non configuré)."""
     with get_conn() as conn:
         row = conn.execute(
             "SELECT channel_id FROM welcome_config WHERE guild_id=?",
@@ -95,14 +101,15 @@ def wm_get_channel_id(guild_id: int) -> int:
     return int(row[0]) if row else 0
 
 
-def wm_delete_config(guild_id: int):
+def wm_delete_config(guild_id: int) -> None:
     """Optionnel: reset complet de la config de bienvenue pour une guild."""
     with get_conn() as conn:
         conn.execute("DELETE FROM welcome_config WHERE guild_id=?", (guild_id,))
 
 
 # ------------ Welcome message history (anti-répétition) -----------
-def wm_get_recent_message_keys(guild_id: int, *, limit: int = 10) -> list[str]:
+
+def wm_get_recent_message_keys(guild_id: int, *, limit: int = 10) -> List[str]:
     """Retourne les dernières clés de messages tirées, du plus récent au plus ancien."""
     limit = max(0, int(limit))
     if limit == 0:
@@ -127,9 +134,9 @@ def wm_record_welcome_message(
     guild_id: int,
     message_key: str,
     *,
-    used_at: int | None = None,
+    used_at: Optional[int] = None,
     keep: int = 10,
-):
+) -> None:
     """Enregistre une clé de message tirée et conserve uniquement les `keep` plus récentes."""
     if not message_key:
         return

@@ -4,12 +4,11 @@ from discord.ext import commands
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.welcome.embeds import build_welcome_embed
 
-from ..db import database_manager
-
 
 class WelcomeMessage(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
+        self.welcome = self.bot.services.welcome
 
         # -------------------- Listener (optional but useful) --------------------
     @commands.Cog.listener()
@@ -18,7 +17,7 @@ class WelcomeMessage(commands.Cog):
             guild = member.guild
             guild_id = guild.id
 
-            cfg = database_manager.wm_get_config(guild_id)
+            cfg = self.welcome.get_config(guild_id)
             if not cfg.get("enabled"):
                 return
 
@@ -64,8 +63,8 @@ class WelcomeMessage(commands.Cog):
         guild_id = ctx.guild.id
 
         # channel_id est NOT NULL -> on s'assure que la ligne existe
-        database_manager.wm_ensure_defaults(guild_id)
-        database_manager.wm_set_config(guild_id, channel_id=channel.id, enabled=True)
+        self.welcome.ensure_defaults(guild_id)
+        self.welcome.set_config(guild_id, channel_id=channel.id, enabled=True)
 
         await ctx.followup.send(
             content=f"✅ Messages de bienvenue configurés dans {channel.mention} et **activés**.",
@@ -82,9 +81,9 @@ class WelcomeMessage(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        database_manager.wm_ensure_defaults(guild_id)
+        self.welcome.ensure_defaults(guild_id)
 
-        channel_id = database_manager.wm_get_channel_id(guild_id)
+        channel_id = self.welcome.get_channel_id(guild_id)
         if not channel_id:
             await ctx.followup.send(
                 content=(
@@ -94,7 +93,7 @@ class WelcomeMessage(commands.Cog):
             )
             return
 
-        database_manager.wm_set_enabled(guild_id, True)
+        self.welcome.set_enabled(guild_id, True)
         await ctx.followup.send(content="✅ Messages de bienvenue **activés**.")
 
     @commands.slash_command(name="welcome_disable", description="(Admin) Désactive les messages d'arrivée.")
@@ -107,8 +106,8 @@ class WelcomeMessage(commands.Cog):
             return
 
         guild_id = ctx.guild.id
-        database_manager.wm_ensure_defaults(guild_id)
-        database_manager.wm_set_enabled(guild_id, False)
+        self.welcome.ensure_defaults(guild_id)
+        self.welcome.set_enabled(guild_id, False)
         await ctx.followup.send(content="⛔ Messages de bienvenue **désactivés**.")
 
 
