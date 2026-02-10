@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from eldoria.db.repo import welcome_message_repo
+from eldoria.features.welcome._internal import welcome_getter
 
 @dataclass(slots=True)
 class WelcomeService:
@@ -63,3 +64,18 @@ class WelcomeService:
     ) -> None:
         """Enregistre une clé de message utilisée et ne conserve que les `keep` plus récentes."""
         return welcome_message_repo.wm_record_welcome_message(guild_id, message_key, used_at=used_at, keep=keep)
+    
+    def get_welcome_message(
+            self,
+            guild_id: int,
+            *,
+            user: str,
+            server: str,
+            recent_limit: int = 10,
+        ) -> tuple[str, str, list[str]]:
+        return welcome_getter.get_welcome_message(
+            guild_id=guild_id,
+            user=user,
+            server=server,
+            recent_limit=recent_limit,
+        )
