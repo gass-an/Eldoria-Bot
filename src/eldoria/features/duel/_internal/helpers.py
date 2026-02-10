@@ -2,7 +2,7 @@ from sqlite3 import Row
 from typing import cast
 import json
 
-from discord import Any
+from typing import Any
 
 from eldoria.db.connection import get_conn
 from eldoria.db.repo.duel_repo import get_duel_by_id, transition_status, update_duel_if_status

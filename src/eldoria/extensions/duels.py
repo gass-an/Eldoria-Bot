@@ -115,7 +115,7 @@ class Duels(commands.Cog):
 
         guild_id = guild.id
 
-        if not self.xp.xp_is_enabled(guild_id):
+        if not self.xp.is_enabled(guild_id):
             embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return

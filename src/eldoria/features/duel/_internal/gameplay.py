@@ -2,8 +2,8 @@ import json
 from sqlite3 import Row
 from typing import cast
 
-from discord import Any
-from eldoria.db.repo.xp_repo import xp_get_levels
+from typing import Any
+from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_role_ids
 from eldoria.exceptions.duel_exceptions import DuelAlreadyHandled, DuelNotFinishable, InvalidResult, WrongGameType
 from eldoria.features.duel._internal.helpers import build_snapshot, finish_duel, get_duel_or_raise, get_xp_for_players
 from eldoria.features.duel.games.registry import require_game
@@ -90,10 +90,12 @@ def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict
                         "new_level": new_lvl,
                     })
 
-
+        
+        role_ids = xp_get_role_ids(guild_id)
         effects = {
             "xp_changed": True,
             "sync_roles_user_ids": [player_a_id, player_b_id],
+            "xp_role_ids": role_ids,
         }
         if finished_now:
             effects["level_changes"] = level_changes

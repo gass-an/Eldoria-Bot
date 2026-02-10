@@ -1,10 +1,12 @@
 import discord
+from typing import Any
+
 from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids, xp_list_members
 from eldoria.features.xp.levels import compute_level
 from eldoria.utils.mentions import level_label
 
 
-def build_snapshot_for_xp_profile(guild: discord.Guild, user_id: int) -> dict[str, str]:
+def build_snapshot_for_xp_profile(guild: discord.Guild, user_id: int) -> dict[str, Any]:
     guild_id = guild.id
 
     xp, _ = xp_get_member(guild_id, user_id)

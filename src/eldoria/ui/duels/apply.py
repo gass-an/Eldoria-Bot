@@ -53,8 +53,10 @@ async def apply_duel_snapshot(
         member = guild.get_member(uid)
         if member is None:
             continue
+        
+        role_ids = effects.get("xp_role_ids") or {}
 
-        lvl_txt = level_mention(guild, new_lvl)
+        lvl_txt = level_mention(guild, new_lvl, role_ids)
         if new_lvl > old_lvl:
             lines.append(f"🎉 GG {member.mention} : tu atteins le rang  {lvl_txt} grâce au duel !")
         else:

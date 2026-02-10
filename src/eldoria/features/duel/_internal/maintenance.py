@@ -1,4 +1,4 @@
-from discord import Any
+from typing import Any
 
 from eldoria.db.connection import get_conn
 from eldoria.db.repo.duel_repo import (

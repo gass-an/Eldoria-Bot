@@ -56,7 +56,8 @@ class Core(commands.Cog):
                 if res is not None:
                     new_xp, new_lvl, old_lvl = res
                     if new_lvl > old_lvl:
-                        lvl_txt = level_mention(message.guild, new_lvl)
+                        role_ids = self.xp.get_role_ids(guild_id)
+                        lvl_txt = level_mention(message.guild, new_lvl, role_ids)
                         await message.reply(
                             f"🎉 Félicitations {message.author.mention}, tu passes {lvl_txt} !",
                             allowed_mentions=discord.AllowedMentions(

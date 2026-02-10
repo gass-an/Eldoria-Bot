@@ -64,9 +64,9 @@ class XpVoice(commands.Cog):
     async def voice_xp_loop(self):
         for guild in list(getattr(self.bot, "guilds", []) or []):
             try:
-                self.xp.xp_ensure_defaults(guild.id)
+                self.xp.ensure_defaults(guild.id)
 
-                cfg = self.xp.xp_get_config(guild.id)
+                cfg = self.xp.get_config(guild.id)
                 if not bool(cfg.get("enabled", False)) or not bool(cfg.get("voice_enabled", True)):
                     continue
 
@@ -84,7 +84,7 @@ class XpVoice(commands.Cog):
                         # coupe le compteur pour éviter d'accumuler du temps "solo"
                         for m in active_members:
                             try:
-                                self.xp.xp_voice_upsert_progress(
+                                self.xp.voice_upsert_progress(
                                     guild.id,
                                     m.id,
                                     last_tick_ts=now,
@@ -113,8 +113,9 @@ class XpVoice(commands.Cog):
                                 perms = txt_channel.permissions_for(me)
                                 if not perms.send_messages:
                                     continue
-
-                            lvl_txt = level_mention(guild, new_lvl)
+                            
+                            role_ids = self.xp.get_role_ids(guild.id)
+                            lvl_txt = level_mention(guild, new_lvl, role_ids)
 
                             await txt_channel.send(
                                 f"🎉 Félicitations {member.mention}, tu passes {lvl_txt} grâce à ta présence dans un salon vocal !",
@@ -156,12 +157,12 @@ class XpVoice(commands.Cog):
 
         try:
             # Assure la config (au cas où la guild vient d'être join)
-            self.xp.xp_ensure_defaults(member.guild.id)
+            self.xp.ensure_defaults(member.guild.id)
 
             now = now_ts()  # helper interne (UTC)
 
             # On met juste à jour last_tick_ts; le calcul réel est fait par la loop.
-            self.xp.xp_voice_upsert_progress(
+            self.xp.voice_upsert_progress(
                 member.guild.id,
                 member.id,
                 last_tick_ts=now,

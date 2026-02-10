@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import discord
 
@@ -23,7 +23,7 @@ class XpService:
     def compute_level(self, xp: int, level: Iterable[tuple[int, int]]) -> int:
         return levels.compute_level(xp, level)
     
-    def build_snapshot_for_xp_profile(self, guild: discord.Guild, user_id: int) -> dict[str, str]: 
+    def build_snapshot_for_xp_profile(self, guild: discord.Guild, user_id: int) -> dict[str, Any]: 
         return snapshot.build_snapshot_for_xp_profile(guild, user_id)
         
     def get_leaderboard_items(self, guild: discord.Guild, *, limit: int = 200, offset: int = 0) -> list[tuple[int, int, int, str]]:

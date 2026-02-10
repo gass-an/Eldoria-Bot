@@ -2,12 +2,12 @@ import json
 from sqlite3 import Row
 from typing import Any
 
+from eldoria.db.repo.duel_repo import update_payload_if_unchanged
 from eldoria.features.duel._internal.helpers import assert_duel_not_expired, build_snapshot, dump_payload, get_duel_or_raise
 from eldoria.features.duel.games.protocol import DuelGame
 
 from ...constants import *
 from .rps_constants import *
-from .....db.database_manager import *
 from .....exceptions.duel_exceptions import *
 
 
