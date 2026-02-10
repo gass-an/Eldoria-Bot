@@ -8,6 +8,7 @@ from eldoria.db.schema import init_db
 from eldoria.features.duel.duel_service import DuelService
 from eldoria.features.duel.games import init_games
 from eldoria.features.role.role_service import RoleService
+from eldoria.features.save.save_service import SaveService
 from eldoria.features.temp_voice.cleanup import cleanup_temp_channels
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
 from eldoria.features.welcome.welcome_service import WelcomeService
@@ -43,6 +44,7 @@ def init_services(bot: EldoriaBot):
     bot.services = Services(
         duel=DuelService(),
         role=RoleService(),
+        save=SaveService(),
         temp_voice=TempVoiceService(),
         welcome=WelcomeService(),
         xp=XpService(),

@@ -35,3 +35,7 @@ class TempVoiceService:
     def list_parents(self, guild_id: int) -> List[Tuple[int, int]]:
         """Liste tous les parents de salons vocaux temporaires configurés pour un serveur."""
         return temp_voice_repo.tv_list_parents(guild_id)
+    
+    def list_active_all(guild_id: int) -> List[Tuple[int, int]]:
+        """Liste tous les salons vocaux temporaires actifs d'un serveur (parent_channel_id, channel_id)."""
+        return temp_voice_repo.tv_list_active_all(guild_id)

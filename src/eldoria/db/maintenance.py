@@ -2,7 +2,7 @@
 import os, sqlite3,  shutil, errno
 from .connection import DB_PATH, _DB_LOCK
 
-def backup_to_file(dst_path: str):
+def backup_to_file(dst_path: str) -> None:
     """
     Exporte une copie cohérente de la DB vers dst_path.
     Le verrou empêche toute écriture/lecture concurrente via get_conn().
@@ -22,7 +22,7 @@ def backup_to_file(dst_path: str):
             bck.close()
             conn.close()
 
-def replace_db_file(new_db_path: str):
+def replace_db_file(new_db_path: str) -> None:
     with _DB_LOCK:
         test = sqlite3.connect(new_db_path)
         try:

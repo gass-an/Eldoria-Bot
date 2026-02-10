@@ -8,15 +8,15 @@ from discord.ext import commands
 from discord.ext import tasks
 
 from eldoria.app.bot import EldoriaBot
-
-from ..config import AUTO_SAVE_TIME, AUTO_SAVE_TZ, MY_ID, SAVE_GUILD_ID, SAVE_CHANNEL_ID
-from ..db import database_manager
-from ..utils.db_validation import is_valid_sqlite_db
+from eldoria.config import AUTO_SAVE_TIME, AUTO_SAVE_TZ, MY_ID, SAVE_GUILD_ID, SAVE_CHANNEL_ID
+from eldoria.utils.db_validation import is_valid_sqlite_db
 
 
 class Saves(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
+        self.save = self.bot.services.save
+        self.temp_voice = self.bot.services.temp_voice
 
         # Démarre l'auto-save si configuré
         if self._enabled() and self._auto_enabled():
@@ -46,12 +46,12 @@ class Saves(commands.Cog):
 
     async def _send_db_backup(self, *, channel: discord.abc.Messageable, reason: str):
         """Fait une sauvegarde temporaire et envoie le .db dans le channel."""
-        if not os.path.exists(database_manager.DB_PATH):
+        if not os.path.exists(self.save.get_db_path()):
             await channel.send("Fichier DB introuvable !")
             return
 
         tmp_backup = "./temp_eldoria_backup.db"
-        await asyncio.to_thread(database_manager.backup_to_file, tmp_backup)
+        await asyncio.to_thread(self.save.backup_to_file, tmp_backup)
 
         filename = f"Eldoria_{datetime.now().strftime('%Y%m%d')}.db"
         with open(tmp_backup, "rb") as f:
@@ -120,7 +120,7 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="❌ Channel de save introuvable.")
             return
 
-        if not os.path.exists(database_manager.DB_PATH):
+        if not os.path.exists(self.save.get_db_path()):
             await channel.send("Fichier DB introuvable !")
             await ctx.followup.send(content="❌ DB introuvable.")
             return
@@ -174,15 +174,15 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="❌ Le fichier fourni n'est pas une base de données SQLite valide (.db).")
             return
 
-        data_dir = os.path.dirname(database_manager.DB_PATH)  # "./data"
+        data_dir = os.path.dirname(self.save.get_db_path())  # "./data"
         os.makedirs(data_dir, exist_ok=True)
 
         tmp_new = os.path.join(data_dir, f"temp_{attachment.filename}")
         await attachment.save(tmp_new)
 
         try:
-            await asyncio.to_thread(database_manager.replace_db_file, tmp_new)
-            database_manager.init_db()
+            await asyncio.to_thread(self.save.replace_db_file, tmp_new)
+            self.save.init_db()
         except Exception as e:
             try:
                 if os.path.exists(tmp_new):
@@ -194,10 +194,10 @@ class Saves(commands.Cog):
 
         # Suppression en base des channels temporaires inexistant
         for guild in self.bot.guilds:
-                    rows = database_manager.tv_list_active_all(guild.id)
+                    rows = self.temp_voice.list_active_all(guild.id)
                     for parent_id, channel_id in rows:
                         if guild.get_channel(channel_id) is None:
-                            database_manager.tv_remove_active(guild.id, parent_id, channel_id)
+                            self.temp_voice.remove_active(guild.id, parent_id, channel_id)
         
         await ctx.followup.send(content="✅ Base de données remplacée avec succès.")
 

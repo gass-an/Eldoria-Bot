@@ -42,7 +42,7 @@ def migrate_db():
             conn.execute("UPDATE xp_config SET voice_daily_cap_xp=COALESCE(voice_daily_cap_xp, 100);")
             conn.execute("UPDATE xp_config SET voice_levelup_channel_id=COALESCE(voice_levelup_channel_id, 0);")
 
-def init_db():
+def init_db() -> None:
     with get_conn() as conn:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS reaction_roles (
