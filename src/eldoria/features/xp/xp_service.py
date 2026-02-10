@@ -32,7 +32,7 @@ class XpService:
     def is_enabled(self, guild_id: int) -> bool:
         return xp_repo.xp_is_enabled(guild_id)
     
-    def ensure_defaults(sefl, guild_id: int, default_levels: dict[int, int] | None = None) -> None:
+    def ensure_defaults(self, guild_id: int, default_levels: dict[int, int] | None = None) -> None:
         return xp_repo.xp_ensure_defaults(guild_id, default_levels)
     
     def get_config(self, guild_id: int) -> dict:
@@ -50,10 +50,11 @@ class XpService:
     def upsert_role_id(self, guild_id: int, level: int, role_id: int) -> None:
         return xp_repo.xp_upsert_role_id(guild_id, level, role_id)
     
-    def get_levels(guild_id: int) -> list[tuple[int, int]]:
+    def get_levels(self, guild_id: int) -> list[tuple[int, int]]:
         return xp_repo.xp_get_levels(guild_id)
 
     def add_xp(
+        self,
         guild_id: int,
         user_id: int,
         delta: int,
@@ -91,6 +92,7 @@ class XpService:
         )
     
     def set_config(
+        self,
         guild_id: int,
         *,
         enabled: bool | None = None,
