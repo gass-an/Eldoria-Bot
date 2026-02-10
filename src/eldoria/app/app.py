@@ -1,12 +1,11 @@
 import logging
+
 import discord
 
+from eldoria.app.banner import startup_banner
 from eldoria.app.bot import EldoriaBot
 from eldoria.app.startup import startup
-
-
-from ..config import TOKEN
-from .banner import startup_banner
+from eldoria.config import TOKEN
 
 log = logging.getLogger(__name__)
 

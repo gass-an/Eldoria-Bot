@@ -1,4 +1,5 @@
 from typing import cast
+
 import discord
 
 from eldoria.app.bot import EldoriaBot

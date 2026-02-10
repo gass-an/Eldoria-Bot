@@ -1,5 +1,4 @@
 import discord
-from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.features.xp.roles import get_xp_role_ids

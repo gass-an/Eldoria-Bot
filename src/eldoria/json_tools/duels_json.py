@@ -1,14 +1,14 @@
 import json
-from typing import Any, Dict, Tuple
+from typing import Any
 
 
-def load_duels_json() -> Dict[str, Any]:
+def load_duels_json() -> dict[str, Any]:
     """
     Charge le fichier resources/json/duels.json.
     Renvoie le JSON brut (dict).
     """
     try:
-        with open("./resources/json/duels.json", "r", encoding="utf-8") as file:
+        with open("./resources/json/duels.json", encoding="utf-8") as file:
             data = json.load(file)
             return data if isinstance(data, dict) else {}
     except FileNotFoundError:
@@ -17,7 +17,7 @@ def load_duels_json() -> Dict[str, Any]:
         return {}
 
 
-def get_duel_embed_data() -> Dict[str, Any]:
+def get_duel_embed_data() -> dict[str, Any]:
     """
     Retourne un dict NORMALISÉ, directement exploitable pour les embeds :
 
@@ -53,7 +53,7 @@ def get_duel_embed_data() -> Dict[str, Any]:
 
     # ---- games
     games_raw = data.get("games", {})
-    games: Dict[str, Dict[str, str]] = {}
+    games: dict[str, dict[str, str]] = {}
 
     if isinstance(games_raw, dict):
         for game_key, g in games_raw.items():
@@ -94,7 +94,7 @@ def get_duel_embed_data() -> Dict[str, Any]:
         "games": games,
     }
 
-def get_game_text(game_key: str) -> Tuple[str, str]:
+def get_game_text(game_key: str) -> tuple[str, str]:
     """
     Retourne (game_name, game_description) pour un game_key (ex: 'RPS').
 

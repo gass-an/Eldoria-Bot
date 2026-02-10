@@ -1,4 +1,4 @@
-from .connection import get_conn
+from eldoria.db.connection import get_conn
 
 
 def _table_columns(conn, table: str) -> set[str]:

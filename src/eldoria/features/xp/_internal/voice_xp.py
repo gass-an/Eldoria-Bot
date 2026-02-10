@@ -1,12 +1,11 @@
-from typing import Optional
 import discord
 
-from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_config, xp_get_levels, xp_get_member, xp_voice_get_progress, xp_voice_upsert_progress
+from eldoria.db.repo import xp_repo
 from eldoria.features.xp._internal.config import XpConfig
-from eldoria.features.xp.levels import compute_level
-from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
 from eldoria.features.xp._internal.time import _day_key_utc
+from eldoria.features.xp.levels import compute_level
+from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.utils.timestamp import now_ts
 
 
@@ -34,11 +33,11 @@ def is_voice_eligible_in_channel(member: discord.Member, active_count: int) -> b
     return active_count >= 2
 
 
-async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member) -> Optional[tuple[int, int, int]]:
+async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member) -> tuple[int, int, int] | None:
     if member.bot:
         return None
 
-    config_raw = xp_get_config(guild.id)
+    config_raw = xp_repo.xp_get_config(guild.id)
     config = XpConfig(**config_raw)
 
     if not config.enabled or not config.voice_enabled:
@@ -47,7 +46,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     now = now_ts()
     day_key = _day_key_utc(now)
 
-    prog = xp_voice_get_progress(guild.id, member.id)
+    prog = xp_repo.xp_voice_get_progress(guild.id, member.id)
 
     # Reset journalier + persistance immédiate
     if prog.get("day_key") != day_key:
@@ -58,7 +57,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
             "bonus_cents": 0,
             "xp_today": 0,
         }
-        xp_voice_upsert_progress(
+        xp_repo.xp_voice_upsert_progress(
             guild.id,
             member.id,
             day_key=day_key,
@@ -70,12 +69,12 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
 
     last_tick = int(prog.get("last_tick_ts", 0) or 0)
     if last_tick <= 0:
-        xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        xp_repo.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     # L'éligibilité salon est gérée par la loop; ici seulement l'état du membre
     if not is_voice_member_active(member):
-        xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        xp_repo.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     # Bornage delta (anti-jump)
@@ -86,18 +85,18 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     buffer_seconds = int(prog.get("buffer_seconds", 0) or 0) + delta
 
     if config.voice_daily_cap_xp <= 0 or config.voice_interval_seconds <= 0 or config.voice_xp_per_interval <= 0:
-        xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
+        xp_repo.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now)
         return None
 
     xp_today = int(prog.get("xp_today", 0) or 0)
     if xp_today >= config.voice_daily_cap_xp:
-        xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=0)
+        xp_repo.xp_voice_upsert_progress(guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=0)
         return None
 
     intervals = buffer_seconds // config.voice_interval_seconds
     base_gain = int(intervals * config.voice_xp_per_interval)
     if base_gain <= 0:
-        xp_voice_upsert_progress(
+        xp_repo.xp_voice_upsert_progress(
             guild.id, member.id, day_key=day_key, last_tick_ts=now, buffer_seconds=buffer_seconds
         )
         return None
@@ -118,7 +117,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
         total_gain = cap_left
 
     new_xp_today = xp_today + int(total_gain)
-    xp_voice_upsert_progress(
+    xp_repo.xp_voice_upsert_progress(
         guild.id,
         member.id,
         day_key=day_key,
@@ -131,10 +130,10 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     if total_gain <= 0:
         return None
 
-    old_xp, _ = xp_get_member(guild.id, member.id)
-    new_xp = xp_add_xp(guild.id, member.id, int(total_gain))
+    old_xp, _ = xp_repo.xp_get_member(guild.id, member.id)
+    new_xp = xp_repo.xp_add_xp(guild.id, member.id, int(total_gain))
 
-    levels = xp_get_levels(guild.id)
+    levels = xp_repo.xp_get_levels(guild.id)
     old_lvl = compute_level(old_xp, levels)
     new_lvl = compute_level(new_xp, levels)
 

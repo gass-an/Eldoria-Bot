@@ -1,5 +1,6 @@
-import discord
 from typing import Any
+
+import discord
 
 from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids, xp_list_members
 from eldoria.features.xp.levels import compute_level

@@ -1,14 +1,15 @@
-from typing import Optional
+
 import discord
+
 from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_config, xp_get_levels, xp_get_member
 from eldoria.features.xp._internal.config import XpConfig
+from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
-from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
 from eldoria.utils.timestamp import now_ts
 
 
-async def handle_message_xp(message: discord.Message) -> Optional[tuple[int, int, int]]:
+async def handle_message_xp(message: discord.Message) -> tuple[int, int, int] | None:
     """Attribue l'XP d'un message si le cooldown est passé.
 
     Retourne (new_xp, new_level, old_level) si XP ajouté, sinon None.

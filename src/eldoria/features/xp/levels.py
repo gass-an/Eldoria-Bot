@@ -1,4 +1,4 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def compute_level(xp: int, levels: Iterable[tuple[int, int]]) -> int:

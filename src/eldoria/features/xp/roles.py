@@ -1,4 +1,3 @@
-from typing import Dict
 import discord
 
 from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids, xp_is_enabled
@@ -53,7 +52,7 @@ async def sync_xp_roles_for_users(guild: discord.Guild, user_ids: list[int]) -> 
         except Exception:
             continue
 
-def get_xp_role_ids(guild_id: int | None) -> Dict[int, int]:
+def get_xp_role_ids(guild_id: int | None) -> dict[int, int]:
     """
     Retourne le mapping {level: role_id} pour un serveur XP.
     Si guild_id est None ou invalide, retourne un dict vide.

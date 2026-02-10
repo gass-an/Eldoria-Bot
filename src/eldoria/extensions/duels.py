@@ -1,6 +1,5 @@
 import discord
-from discord.ext import commands
-from discord.ext import tasks
+from discord.ext import commands, tasks
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
@@ -10,7 +9,6 @@ from eldoria.ui.duels.result.expired import build_expired_duels_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
 from eldoria.utils.timestamp import now_ts
-
 
 
 def require_guild_ctx(ctx: discord.ApplicationContext):

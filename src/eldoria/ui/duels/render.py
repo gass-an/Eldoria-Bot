@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Optional
+
 import discord
 
 from eldoria.features.xp.roles import sync_xp_roles_for_users
-from .registry import require_renderer
+from eldoria.ui.duels.registry import require_renderer
 
 
 async def render_duel_message(
@@ -11,7 +11,7 @@ async def render_duel_message(
     snapshot: dict,
     guild: discord.Guild,
     bot: object,
-) -> tuple[discord.Embed, list[discord.File], Optional[discord.ui.View]]:
+) -> tuple[discord.Embed, list[discord.File], discord.ui.View | None]:
     """Point d'entrée unique pour rendre un duel (embed + fichiers + view) depuis un snapshot."""
     
     # ✅ 0) Appliquer les effets “hors rendu” (ex: sync roles XP)

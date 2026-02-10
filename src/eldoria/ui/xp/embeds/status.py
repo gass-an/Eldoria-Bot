@@ -1,5 +1,4 @@
 import discord
-from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY

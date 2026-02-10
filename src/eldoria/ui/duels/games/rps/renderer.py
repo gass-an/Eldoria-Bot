@@ -1,30 +1,18 @@
 from __future__ import annotations
-from typing import Optional
+
 import discord
 
 import eldoria.features.duel.constants as constants
-from eldoria.features.duel.games.rps.rps_constants import (
-    RPS_DICT_RESULT,
-    RPS_DICT_STATE,
-    RPS_PAYLOAD_A_MOVE,
-    RPS_PAYLOAD_B_MOVE,
-    RPS_STATE_FINISHED,
-    RPS_STATE_WAITING,
-    RPS_MOVE_PAPER,
-    RPS_MOVE_ROCK,
-    RPS_MOVE_SCISSORS,
-)
+from eldoria.features.duel.games.rps import rps_constants as rps
 from eldoria.ui.duels.common import build_game_base_embed
+from eldoria.ui.duels.games.rps.view import RpsView
 from eldoria.ui.duels.result.finished import build_game_result_base_embed
 from eldoria.utils.discord_utils import get_member_by_id_or_raise
 
-from .view import RpsView
-
-
 MOVE_EMOJI = {
-    RPS_MOVE_ROCK: "🪨 Pierre",
-    RPS_MOVE_PAPER: "📄 Papier",
-    RPS_MOVE_SCISSORS: "✂️ Ciseaux",
+    rps.RPS_MOVE_ROCK: "🪨 Pierre",
+    rps.RPS_MOVE_PAPER: "📄 Papier",
+    rps.RPS_MOVE_SCISSORS: "✂️ Ciseaux",
 }
 
 def _move_label(move: str | None) -> str:
@@ -48,7 +36,7 @@ async def render_rps(
     snapshot: dict,
     guild: discord.Guild,
     bot: object,
-) -> tuple[discord.Embed, list[discord.File], Optional[discord.ui.View]]:
+) -> tuple[discord.Embed, list[discord.File], discord.ui.View | None]:
     duel = snapshot["duel"]
     player_a_id = duel["player_a"]
     player_b_id = duel["player_b"]
@@ -63,9 +51,9 @@ async def render_rps(
     
 
     game = snapshot.get("game") or {}
-    state = game.get(RPS_DICT_STATE)
+    state = game.get(rps.RPS_DICT_STATE)
 
-    if state == RPS_STATE_WAITING or state is None:
+    if state == rps.RPS_STATE_WAITING or state is None:
 
         # base embed de la partie
         embed, files = await build_game_base_embed(
@@ -90,7 +78,7 @@ async def render_rps(
         return embed, files, RpsView(bot=bot, duel_id=duel["id"])
 
     
-    if state == RPS_STATE_FINISHED:
+    if state == rps.RPS_STATE_FINISHED:
 
         embed, files = await build_game_result_base_embed(
             player_a=player_a,
@@ -99,11 +87,11 @@ async def render_rps(
             game_type=game_type,
         )
         
-        result = str(game.get(RPS_DICT_RESULT, "UNKNOWN"))
+        result = str(game.get(rps.RPS_DICT_RESULT, "UNKNOWN"))
         embed.add_field(name="Résultat", value=_result_label(result, player_a, player_b) + "\n\u200b\n", inline=False)
 
-        a_move = game.get(RPS_PAYLOAD_A_MOVE)
-        b_move = game.get(RPS_PAYLOAD_B_MOVE)
+        a_move = game.get(rps.RPS_PAYLOAD_A_MOVE)
+        b_move = game.get(rps.RPS_PAYLOAD_B_MOVE)
         embed.add_field(
             name="Coups joués",
             value=(

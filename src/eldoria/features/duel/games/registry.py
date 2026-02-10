@@ -1,7 +1,6 @@
-from typing import Dict
-from .protocol import DuelGame
+from eldoria.features.duel.games.protocol import DuelGame
 
-_REGISTRY: Dict[str, DuelGame] = {}
+_REGISTRY: dict[str, DuelGame] = {}
 
 def register_game(game: DuelGame) -> None:
     _REGISTRY[game.GAME_KEY] = game

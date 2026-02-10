@@ -1,5 +1,7 @@
 import subprocess
+
 from src.eldoria.version import VERSION
+
 
 def run(cmd):
     subprocess.run(cmd, check=True)

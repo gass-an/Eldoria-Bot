@@ -1,6 +1,6 @@
 import sys
-from datetime import datetime
 import textwrap
+from datetime import datetime
 
 import discord
 

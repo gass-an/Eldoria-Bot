@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 from eldoria.db.connection import get_conn
-
 
 # ---------- Secret roles ----------
 
@@ -26,7 +23,7 @@ def sr_delete(guild_id: int, channel_id: int, phrase: str) -> None:
         """, (guild_id, channel_id, phrase))
 
 
-def sr_match(guild_id: int, channel_id: int, phrase: str) -> Optional[int]:
+def sr_match(guild_id: int, channel_id: int, phrase: str) -> int | None:
     """Retourne l'identifiant du rôle associé à une phrase si elle existe, sinon None."""
     with get_conn() as conn:
         row = conn.execute("""
@@ -36,7 +33,7 @@ def sr_match(guild_id: int, channel_id: int, phrase: str) -> Optional[int]:
     return row[0] if row else None
 
 
-def sr_list_messages(guild_id: int, channel_id: int) -> List[str]:
+def sr_list_messages(guild_id: int, channel_id: int) -> list[str]:
     """Liste toutes les phrases configurées pour les rôles secrets d'un salon, triées alphabétiquement."""
     with get_conn() as conn:
         rows = conn.execute("""
@@ -48,7 +45,7 @@ def sr_list_messages(guild_id: int, channel_id: int) -> List[str]:
     return [r[0] for r in rows]
 
 
-def sr_list_by_guild_grouped(guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
+def sr_list_by_guild_grouped(guild_id: int) -> list[tuple[str, dict[str, int]]]:
     """
     Retourne les rôles secrets d'un serveur, groupés par salon.
 
@@ -69,7 +66,7 @@ def sr_list_by_guild_grouped(guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
             ORDER BY channel_id
         """, (guild_id,)).fetchall()
 
-    grouped: Dict[str, Dict[str, int]] = {}
+    grouped: dict[str, dict[str, int]] = {}
     for channel_id, phrase, role_id in rows:
         grouped.setdefault(str(channel_id), {})[phrase] = role_id
 

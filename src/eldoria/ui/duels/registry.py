@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Optional, Protocol
+from collections.abc import Awaitable, Callable
 
 import discord
 
 # render returns (embed, files, view)
-RenderFn = Callable[[dict, discord.Guild, object], Awaitable[tuple[discord.Embed, list[discord.File], Optional[discord.ui.View]]]]
+RenderFn = Callable[[dict, discord.Guild, object], Awaitable[tuple[discord.Embed, list[discord.File], discord.ui.View | None]]]
 
 _RENDERERS: dict[str, RenderFn] = {}
 

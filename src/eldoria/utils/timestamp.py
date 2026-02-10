@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 
 def now_ts() -> int:
-    return int(datetime.now(timezone.utc).timestamp())
+    return int(datetime.now(UTC).timestamp())
 
 def add_duration(timestamp:int, *, seconds:int = 0, minutes:int = 0, hours:int = 0, days:int = 0) -> int:
 

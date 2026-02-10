@@ -6,6 +6,7 @@ from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.autocompletion import message_secret_role_autocomplete
 from eldoria.ui.roles.embeds import build_list_secret_roles_embed
 
+
 class SecretRoles(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot

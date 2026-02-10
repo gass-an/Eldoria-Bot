@@ -1,5 +1,6 @@
 import discord
 
+
 def level_mention(guild: discord.Guild, level: int, role_ids: dict[int, int]) -> str:
     """Retourne la mention du rôle du niveau si configuré, sinon 'levelX'."""
     rid = role_ids.get(level) if role_ids else None

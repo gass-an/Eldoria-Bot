@@ -1,6 +1,5 @@
 from typing import Final
 
-
 STAKE_XP_DEFAULTS: Final[list[int]] = [
     5,
     10,

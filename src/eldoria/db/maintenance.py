@@ -1,6 +1,11 @@
 # src/eldoria/db/maintenance.py
-import os, sqlite3,  shutil, errno
-from .connection import DB_PATH, _DB_LOCK
+import errno
+import os
+import shutil
+import sqlite3
+
+from eldoria.db.connection import _DB_LOCK, DB_PATH
+
 
 def backup_to_file(dst_path: str) -> None:
     """

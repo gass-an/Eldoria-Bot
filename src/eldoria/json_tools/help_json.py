@@ -1,8 +1,8 @@
 import json
-from typing import Any, Dict, Tuple
+from typing import Any
 
 
-def load_help_json() -> Dict[str, Any]:
+def load_help_json() -> dict[str, Any]:
     """Charge le fichier resources/json/help.json.
 
     Le format du fichier peut évoluer : cette fonction renvoie simplement le JSON brut.
@@ -10,13 +10,13 @@ def load_help_json() -> Dict[str, Any]:
     utilise : `load_help_config()`.
     """
     try:
-        with open("./resources/json/help.json", "r", encoding="utf-8") as file:
+        with open("./resources/json/help.json", encoding="utf-8") as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
 
 
-def load_help_config() -> Tuple[Dict[str, str], Dict[str, list[str]], Dict[str, str]]:
+def load_help_config() -> tuple[dict[str, str], dict[str, list[str]], dict[str, str]]:
     """Normalise la config help depuis help.json.
 
     Retourne:
@@ -37,9 +37,9 @@ def load_help_config() -> Tuple[Dict[str, str], Dict[str, list[str]], Dict[str, 
     if isinstance(help_data, dict) and "categories" in help_data and isinstance(help_data.get("categories"), dict):
         cats_obj = help_data.get("categories", {})
         structured = True
-        help_infos: Dict[str, str] = {}
-        categories: Dict[str, list[str]] = {}
-        cat_desc: Dict[str, str] = {}
+        help_infos: dict[str, str] = {}
+        categories: dict[str, list[str]] = {}
+        cat_desc: dict[str, str] = {}
 
         for cat_name, cat_payload in cats_obj.items():
             if not isinstance(cat_payload, dict):

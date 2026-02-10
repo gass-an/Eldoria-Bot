@@ -1,7 +1,8 @@
 from sqlite3 import Connection
 
-from ..connection import get_conn
-from ...defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
+from eldoria.db.connection import get_conn
+from eldoria.defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
+
 
 # ------------ XP system -----------
 def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None) -> None:

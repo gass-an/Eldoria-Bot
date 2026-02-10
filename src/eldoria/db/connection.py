@@ -1,5 +1,7 @@
 # src/eldoria/db/connection.py
-import os, sqlite3, threading
+import os
+import sqlite3
+import threading
 from contextlib import contextmanager
 
 DB_PATH = "./data/eldoria.db"

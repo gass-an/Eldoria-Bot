@@ -1,4 +1,5 @@
 import re
+
 import discord
 from discord.ext import commands
 
@@ -10,7 +11,6 @@ from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
 from eldoria.utils.mentions import level_label
-
 
 LEVEL_RE = re.compile(r"^level\s*(\d+)\b", re.IGNORECASE)
 

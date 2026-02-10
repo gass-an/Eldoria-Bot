@@ -55,15 +55,15 @@ class InvalidGameType(DuelError):
 
 class MissingMessageId(DuelError):
     def __init__(self):
-        super().__init__(f"Le message_id est manquant.")
+        super().__init__("Le message_id est manquant.")
 
 class ConfigurationIncomplete(DuelError):
     def __init__(self):
-        super().__init__(f"Le duel est mal configuré.")
+        super().__init__("Le duel est mal configuré.")
 
 class ConfigurationError(DuelError):
     def __init__(self):
-        super().__init__(f"Un problème est survenu lors de la configuration.")
+        super().__init__("Un problème est survenu lors de la configuration.")
 
 class InvalidResult(DuelError):
     def __init__(self, result: str):
@@ -89,15 +89,15 @@ class WrongGameType(DuelError):
 
 class InvalidMove(DuelError):
     def __init__(self):
-        super().__init__(f"Le coup joué n'est pas un coup valide.")
+        super().__init__("Le coup joué n'est pas un coup valide.")
 
 class AlreadyPlayed(DuelError):
     def __init__(self):
-        super().__init__(f"Le joueur a déjà joué.")
+        super().__init__("Le joueur a déjà joué.")
 
 class PayloadError(DuelError):
     def __init__(self):
-        super().__init__(f"Erreur lors de la persistance du payload.")
+        super().__init__("Erreur lors de la persistance du payload.")
 
 class ExpiredDuel(DuelError):
     def __init__(self, duel_id: int):

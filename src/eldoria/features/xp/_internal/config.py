@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from eldoria.defaults import XP_CONFIG_DEFAULTS
 
+
 @dataclass(frozen=True)
 class XpConfig:
     enabled: bool = bool(XP_CONFIG_DEFAULTS["enabled"])

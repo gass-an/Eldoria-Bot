@@ -1,7 +1,9 @@
-import discord
 import re
 
+import discord
+
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, UserRequired
+
 
 def extract_id_from_link(link: str):
     ids_match = re.match(r"https://discord\.com/channels/(\d+)/(\d+)/(\d+)", link)

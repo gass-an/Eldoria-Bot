@@ -1,15 +1,19 @@
 import discord
-from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
+from eldoria.json_tools.duels_json import get_game_text
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
-from eldoria.json_tools.duels_json import get_game_text
 from eldoria.ui.duels.render import render_duel_message
 from eldoria.ui.duels.result.refuse import build_refuse_duels_embed
-from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel, require_guild, require_user_id
+from eldoria.utils.discord_utils import (
+    get_member_by_id_or_raise,
+    get_text_or_thread_channel,
+    require_guild,
+    require_user_id,
+)
 
 
 async def build_invite_duels_embed(
@@ -22,7 +26,7 @@ async def build_invite_duels_embed(
         ):
 
     embed = discord.Embed(
-        title=f"Invitation à un duel",
+        title="Invitation à un duel",
         description=f"Cette invitation expire <t:{expires_at}:R>\n**{player_b.display_name}** est provoqué en duel par **{player_a.display_name}**\n\u200b\n",
         colour=EMBED_COLOUR_PRIMARY
     )
@@ -71,7 +75,7 @@ class InviteView(discord.ui.View):
 
         try:
             snapshot = self.duel.accept_duel(duel_id=self.duel_id, user_id=require_user_id(interaction=interaction))
-            duel= snapshot.get("duel")
+            snapshot.get("duel")
         except DuelError as e:
             await interaction.followup.send(content=duel_error_message(e), ephemeral=True)
             return
@@ -115,4 +119,4 @@ class InviteView(discord.ui.View):
         channel = await get_text_or_thread_channel(bot=self.bot, channel_id=channel_id)
         message = await channel.fetch_message(message_id) 
 
-        await message.edit( content=f"", embed=embed, view=None)
+        await message.edit( content="", embed=embed, view=None)

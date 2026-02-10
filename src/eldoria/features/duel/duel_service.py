@@ -3,6 +3,7 @@ from typing import Any
 
 from eldoria.features.duel._internal import flow, gameplay, helpers, maintenance
 
+
 @dataclass(slots=True)
 class DuelService:
     def new_duel(self, guild_id: int, channel_id: int, player_a_id: int, player_b_id: int) -> dict[str, Any]:

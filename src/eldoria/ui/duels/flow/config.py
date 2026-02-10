@@ -1,23 +1,23 @@
 import discord
-from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-
 from eldoria.features.duel.constants import STAKE_XP_DEFAULTS
-
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
-
 from eldoria.ui.duels.flow.invite import InviteView, build_invite_duels_embed
-from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel, require_guild
+from eldoria.utils.discord_utils import (
+    get_member_by_id_or_raise,
+    get_text_or_thread_channel,
+    require_guild,
+)
 
 
 async def build_config_stake_duels_embed(expires_at: int):
 
     embed = discord.Embed(
-        title=f"Configuration du pari en XP",
+        title="Configuration du pari en XP",
         description=f"La configuration expire <t:{expires_at}:R>\n\n> Choisi un valeur d'XP que tu souhaites parier.",
         colour=EMBED_COLOUR_PRIMARY
     )

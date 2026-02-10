@@ -1,9 +1,7 @@
 import discord
 
 from eldoria.app.bot import EldoriaBot
-
-from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
-from ..common.embeds.images import common_files, decorate
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 
 
 async def build_welcome_embed(guild_id: int, member: discord.Member, bot: EldoriaBot):

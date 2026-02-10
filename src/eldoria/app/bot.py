@@ -1,7 +1,9 @@
 import time
+
 from discord.ext import commands
 
 from eldoria.app.services import Services
+
 
 class EldoriaBot(commands.Bot):
     def __init__(self, *args, **kwargs):

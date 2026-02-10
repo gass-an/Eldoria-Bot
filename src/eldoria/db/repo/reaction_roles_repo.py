@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 from eldoria.db.connection import get_conn
-
 
 # ---------- Reaction roles --------
 
@@ -35,7 +32,7 @@ def rr_delete_message(guild_id: int, message_id: int) -> None:
         """, (guild_id, message_id))
 
 
-def rr_get_role_id(guild_id: int, message_id: int, emoji: str) -> Optional[int]:
+def rr_get_role_id(guild_id: int, message_id: int, emoji: str) -> int | None:
     """Retourne l'identifiant du rôle associé à un emoji sur un message, ou None s'il n'existe pas."""
     with get_conn() as conn:
         row = conn.execute("""
@@ -45,7 +42,7 @@ def rr_get_role_id(guild_id: int, message_id: int, emoji: str) -> Optional[int]:
     return row[0] if row else None
 
 
-def rr_list_by_message(guild_id: int, message_id: int) -> Dict[str, int]:
+def rr_list_by_message(guild_id: int, message_id: int) -> dict[str, int]:
     """Retourne toutes les règles de rôles par réaction d'un message sous forme {emoji: role_id}."""
     with get_conn() as conn:
         rows = conn.execute("""
@@ -56,7 +53,7 @@ def rr_list_by_message(guild_id: int, message_id: int) -> Dict[str, int]:
     return {emoji: role_id for (emoji, role_id) in rows}
 
 
-def rr_list_by_guild_grouped(guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
+def rr_list_by_guild_grouped(guild_id: int) -> list[tuple[str, dict[str, int]]]:
     """
     Retourne les rôles par réaction d'un serveur, groupés par message.
 
@@ -77,7 +74,7 @@ def rr_list_by_guild_grouped(guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
             ORDER BY message_id
         """, (guild_id,)).fetchall()
 
-    grouped: Dict[str, Dict[str, int]] = {}
+    grouped: dict[str, dict[str, int]] = {}
     for message_id, emoji, role_id in rows:
         grouped.setdefault(str(message_id), {})[emoji] = role_id
 

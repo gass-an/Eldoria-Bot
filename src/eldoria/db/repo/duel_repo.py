@@ -1,5 +1,6 @@
-from sqlite3 import Row, Connection
-from ..connection import get_conn
+from sqlite3 import Connection, Row
+
+from eldoria.db.connection import get_conn
 
 
 def _execute_in_conn(conn: Connection, sql: str, params: tuple = ()):  # tiny helper
@@ -191,7 +192,7 @@ def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection |
     if conn is None:
         with get_conn() as conn2:
             return cleanup_duels(cutoff_short, cutoff_finished, conn=conn2)
-    rows = _execute_in_conn(conn, """
+    _execute_in_conn(conn, """
         DELETE FROM duels
         WHERE finished_at IS NOT NULL
           AND (

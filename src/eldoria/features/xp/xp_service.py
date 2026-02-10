@@ -1,17 +1,19 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import Any, Iterable, Optional
+from typing import Any
 
 import discord
 
 from eldoria.db.repo import xp_repo
+from eldoria.features.xp import levels, roles
 from eldoria.features.xp._internal import (
     message_xp,
     setup,
-    snapshot, 
+    snapshot,
     voice_xp,
-    )
-from eldoria.features.xp import levels, roles
+)
+
 
 @dataclass(slots=True)
 class XpService:
@@ -124,7 +126,7 @@ class XpService:
     
 
     # -------------------------- fonctions asynchrone --------------------------
-    async def handle_message_xp(self, message: discord.Message) -> Optional[tuple[int, int, int]]:
+    async def handle_message_xp(self, message: discord.Message) -> tuple[int, int, int] | None:
         return await message_xp.handle_message_xp(message)
         
     async def sync_xp_roles_for_users(self, guild: discord.Guild, user_ids: list[int]) -> None:
@@ -133,7 +135,7 @@ class XpService:
     async def sync_member_level_roles(self, guild: discord.Guild, member: discord.Member, *, xp: int | None = None) -> None:
         return await roles.sync_member_level_roles(guild, member, xp=xp)
 
-    async def tick_voice_xp_for_member(self, guild: discord.Guild, member: discord.Member) -> Optional[tuple[int, int, int]]:
+    async def tick_voice_xp_for_member(self, guild: discord.Guild, member: discord.Member) -> tuple[int, int, int] | None:
         return await voice_xp.tick_voice_xp_for_member(guild, member)
     
     async def ensure_guild_xp_setup(self, guild: discord.Guild) -> None:

@@ -1,6 +1,8 @@
 from __future__ import annotations
-from typing import Protocol, Any
+
 from sqlite3 import Row
+from typing import Any, Protocol
+
 
 class DuelGame(Protocol):
     GAME_KEY: str  # ex "RPS"

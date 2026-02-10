@@ -1,6 +1,8 @@
+from math import ceil
+
 import discord
 from discord.ui import Button, View
-from math import ceil
+
 
 class Paginator(View):
     def __init__(self, items, embed_generator=None, identifiant_for_embed=None, bot=None):

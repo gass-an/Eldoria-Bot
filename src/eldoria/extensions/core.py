@@ -1,5 +1,6 @@
 import logging
 import time
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +10,6 @@ from eldoria.ui.help.view import send_help_menu
 from eldoria.ui.version.embeds import build_version_embed
 from eldoria.utils.interactions import reply_ephemeral
 from eldoria.utils.mentions import level_mention
-
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class Core(commands.Cog):
             return
 
         user_message = message.content or ""
-
+        guild_id = message.guild.id
         # ---- XP: on compte aussi les messages avec pièces jointes (même sans texte)
         try:
             if user_message or message.attachments:
@@ -71,7 +71,6 @@ class Core(commands.Cog):
 
         # ---- Secret roles (message exact dans un salon)
         try:
-            guild_id = message.guild.id
             channel_id = message.channel.id
 
             role_id = self.role.sr_match(guild_id, channel_id, str(user_message))

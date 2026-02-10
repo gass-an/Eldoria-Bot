@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from eldoria.db import connection, maintenance, schema
 
+
 @dataclass(slots=True)
 class SaveService:
     def get_db_path(self) ->str:

@@ -1,6 +1,5 @@
 from typing import Final
 
-
 EXTENSIONS: Final[tuple[str, ...]] = (
     "eldoria.extensions.core",
     "eldoria.extensions.xp",

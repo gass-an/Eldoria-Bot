@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Final
 
-
 # -------------------- XP system --------------------
 
 # Doit rester cohérent avec les DEFAULT du schéma SQL (xp_config).

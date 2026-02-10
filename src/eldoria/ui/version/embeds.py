@@ -1,8 +1,9 @@
+from xml.etree.ElementTree import VERSION
+
 import discord
 
-from ...version import VERSION
-from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
-from ..common.embeds.images import common_files, decorate
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
+from eldoria.ui.common.embeds.images import common_files, decorate
 
 
 async def build_version_embed():

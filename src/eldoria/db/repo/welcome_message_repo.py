@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from eldoria.db.connection import get_conn
 
@@ -19,7 +19,7 @@ def wm_ensure_defaults(guild_id: int, *, enabled: bool = False, channel_id: int 
         )
 
 
-def wm_get_config(guild_id: int) -> Dict[str, Any]:
+def wm_get_config(guild_id: int) -> dict[str, Any]:
     """Retourne {"enabled": bool, "channel_id": int} et crée la config si absente."""
     with get_conn() as conn:
         row = conn.execute(
@@ -38,12 +38,12 @@ def wm_get_config(guild_id: int) -> Dict[str, Any]:
 def wm_set_config(
     guild_id: int,
     *,
-    enabled: Optional[bool] = None,
-    channel_id: Optional[int] = None,
+    enabled: bool | None = None,
+    channel_id: int | None = None,
 ) -> None:
     """Update partiel (enabled et/ou channel_id). Crée la ligne si absente."""
-    sets: List[str] = []
-    params: List[int] = []
+    sets: list[str] = []
+    params: list[int] = []
 
     if enabled is not None:
         sets.append("enabled=?")
@@ -109,7 +109,7 @@ def wm_delete_config(guild_id: int) -> None:
 
 # ------------ Welcome message history (anti-répétition) -----------
 
-def wm_get_recent_message_keys(guild_id: int, *, limit: int = 10) -> List[str]:
+def wm_get_recent_message_keys(guild_id: int, *, limit: int = 10) -> list[str]:
     """Retourne les dernières clés de messages tirées, du plus récent au plus ancien."""
     limit = max(0, int(limit))
     if limit == 0:
@@ -134,7 +134,7 @@ def wm_record_welcome_message(
     guild_id: int,
     message_key: str,
     *,
-    used_at: Optional[int] = None,
+    used_at: int | None = None,
     keep: int = 10,
 ) -> None:
     """Enregistre une clé de message tirée et conserve uniquement les `keep` plus récentes."""

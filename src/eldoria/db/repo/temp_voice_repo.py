@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, List, Tuple
-
 from eldoria.db.connection import get_conn
-
-
 
 # ---------- Temp voice ------------
 
@@ -18,7 +14,7 @@ def tv_upsert_parent(guild_id: int, parent_channel_id: int, user_limit: int) -> 
         """, (guild_id, parent_channel_id, user_limit))
 
 
-def tv_get_parent(guild_id: int, parent_channel_id: int) -> Optional[int]:
+def tv_get_parent(guild_id: int, parent_channel_id: int) -> int | None:
     """Récupère la limite d'utilisateurs d'un parent de salons temporaires ; None si non configuré."""
     with get_conn() as conn:
         row = conn.execute("""
@@ -28,7 +24,7 @@ def tv_get_parent(guild_id: int, parent_channel_id: int) -> Optional[int]:
     return row[0] if row else None
 
 
-def tv_find_parent_of_active(guild_id: int, channel_id: int) -> Optional[int]:
+def tv_find_parent_of_active(guild_id: int, channel_id: int) -> int | None:
     """Retourne l'identifiant du parent associé à un salon temporaire actif ; None si introuvable."""
     with get_conn() as conn:
         row = conn.execute("""
@@ -57,7 +53,7 @@ def tv_remove_active(guild_id: int, parent_channel_id: int, channel_id: int) -> 
         """, (guild_id, parent_channel_id, channel_id))
 
 
-def tv_list_active(guild_id: int, parent_channel_id: int) -> List[int]:
+def tv_list_active(guild_id: int, parent_channel_id: int) -> list[int]:
     """Liste les identifiants des salons vocaux temporaires actifs pour un parent donné."""
     with get_conn() as conn:
         rows = conn.execute("""
@@ -67,7 +63,7 @@ def tv_list_active(guild_id: int, parent_channel_id: int) -> List[int]:
     return [r[0] for r in rows]
 
 
-def tv_list_active_all(guild_id: int) -> List[Tuple[int, int]]:
+def tv_list_active_all(guild_id: int) -> list[tuple[int, int]]:
     """Liste tous les salons vocaux temporaires actifs d'un serveur (parent_channel_id, channel_id)."""
     with get_conn() as conn:
         return conn.execute("""
@@ -86,7 +82,7 @@ def tv_delete_parent(guild_id: int, parent_channel_id: int) -> None:
         """, (guild_id, parent_channel_id))
 
 
-def tv_list_parents(guild_id: int) -> List[Tuple[int, int]]:
+def tv_list_parents(guild_id: int) -> list[tuple[int, int]]:
     """Liste les parents de salons vocaux temporaires configurés (parent_channel_id, user_limit)."""
     with get_conn() as conn:
         rows = conn.execute("""

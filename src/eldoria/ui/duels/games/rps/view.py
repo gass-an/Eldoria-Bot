@@ -35,7 +35,6 @@ class RpsView(discord.ui.View):
             return
 
         # re-render the same message
-        from eldoria.ui.duels.render import render_duel_message  # local import to avoid cycles
         await apply_duel_snapshot(interaction=interaction, snapshot=snapshot, bot=self.bot)
 
     @discord.ui.button(label="🪨 Pierre", style=discord.ButtonStyle.secondary)

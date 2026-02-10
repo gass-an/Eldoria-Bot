@@ -1,5 +1,5 @@
 import eldoria.features.duel.constants as constants
-from .renderer import render_rps
+from eldoria.ui.duels.games.rps.renderer import render_rps
 
 
 def register() -> None:

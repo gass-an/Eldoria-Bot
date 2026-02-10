@@ -1,16 +1,12 @@
-from sqlite3 import Row
-from typing import cast
 import json
-
-from typing import Any
+from sqlite3 import Row
+from typing import Any, cast
 
 from eldoria.db.connection import get_conn
 from eldoria.db.repo.duel_repo import get_duel_by_id, transition_status, update_duel_if_status
 from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_member
-from eldoria.exceptions.duel_exceptions import DuelAlreadyHandled, DuelNotFinishable, DuelNotFinished, DuelNotFound, ExpiredDuel, InvalidResult, WrongGameType
+from eldoria.exceptions import duel_exceptions as exc
 from eldoria.features.duel import constants
-from eldoria.features.duel.constants import DUEL_RESULTS, DUEL_STATUS_ACTIVE, DUEL_STATUS_CONFIG, DUEL_STATUS_FINISHED, GAME_TYPES, STAKE_XP_DEFAULTS
-
 from eldoria.utils.timestamp import now_ts
 
 
@@ -19,12 +15,12 @@ def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
     if not ignore_expired:
         assert_duel_not_expired(duel)
     
-    if result not in DUEL_RESULTS:
-        raise InvalidResult(result)
+    if result not in constants.DUEL_RESULTS:
+        raise exc.InvalidResult(result)
     
     status = duel["status"]
-    if status != DUEL_STATUS_ACTIVE:
-        raise DuelNotFinishable(status)
+    if status != constants.DUEL_STATUS_ACTIVE:
+        raise exc.DuelNotFinishable(status)
     
     guild_id = duel["guild_id"]
     player_a_id = duel["player_a_id"]
@@ -35,12 +31,12 @@ def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
     with get_conn() as conn:
         if not transition_status(
             duel_id,
-            from_status=DUEL_STATUS_ACTIVE,
-            to_status=DUEL_STATUS_FINISHED,
+            from_status=constants.DUEL_STATUS_ACTIVE,
+            to_status=constants.DUEL_STATUS_FINISHED,
             expires_at=None,
             conn=conn,
         ):
-            raise DuelAlreadyHandled(duel_id, DUEL_STATUS_ACTIVE)
+            raise exc.DuelAlreadyHandled(duel_id, constants.DUEL_STATUS_ACTIVE)
 
         match result:
             case constants.DUEL_RESULT_DRAW:
@@ -53,15 +49,15 @@ def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
                 xp_add_xp(guild_id, player_b_id, 2 * stake_xp, conn=conn)
 
             case _:
-                raise InvalidResult(result)
+                raise exc.InvalidResult(result)
 
         if not update_duel_if_status(
             duel_id,
-            required_status=DUEL_STATUS_FINISHED,
+            required_status=constants.DUEL_STATUS_FINISHED,
             finished_at=now_ts(),
             conn=conn,
         ):
-            raise DuelNotFinished(duel_id, DUEL_STATUS_FINISHED)
+            raise exc.DuelNotFinished(duel_id, constants.DUEL_STATUS_FINISHED)
         
 
 
@@ -93,7 +89,7 @@ def _get_allowed_stakes_from_duel(duel: Row) -> list[int]:
     player_b_xp = xp_get_member(guild_id, player_b_id)[0]
 
     return [stake_xp 
-            for stake_xp in STAKE_XP_DEFAULTS 
+            for stake_xp in constants.STAKE_XP_DEFAULTS 
             if (player_a_xp >= stake_xp and player_b_xp >= stake_xp)
     ]
 
@@ -112,9 +108,9 @@ def is_configuration_available(duel_id: int) -> bool:
     status = duel["status"]
 
     return (
-        game_type in GAME_TYPES and 
+        game_type in constants.GAME_TYPES and 
         stake_xp in _get_allowed_stakes_from_duel(duel) and 
-        status == DUEL_STATUS_CONFIG
+        status == constants.DUEL_STATUS_CONFIG
     )
 
 def modify_xp_for_players(
@@ -134,12 +130,12 @@ def modify_xp_for_players(
 def assert_duel_not_expired(duel: Row): 
     expires_at = duel["expires_at"]
     if expires_at is not None and expires_at <= now_ts():
-        raise ExpiredDuel(duel["duel_id"])
+        raise exc.ExpiredDuel(duel["duel_id"])
     
 def get_duel_or_raise(duel_id: int) -> Row:
     duel = get_duel_by_id(duel_id)
     if not duel:
-        raise DuelNotFound(duel_id)
+        raise exc.DuelNotFound(duel_id)
     return duel
 
 def get_xp_for_players(guild_id: int, player_a_id: int, player_b_id: int, *,conn=None) -> dict[int, int]:

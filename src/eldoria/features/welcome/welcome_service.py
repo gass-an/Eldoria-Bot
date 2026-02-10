@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from eldoria.db.repo import welcome_message_repo
 from eldoria.features.welcome._internal import welcome_getter
+
 
 @dataclass(slots=True)
 class WelcomeService:
@@ -14,7 +15,7 @@ class WelcomeService:
         """Crée la configuration de bienvenue si elle n'existe pas (avec des valeurs par défaut)."""
         return welcome_message_repo.wm_ensure_defaults(guild_id, enabled=enabled, channel_id=channel_id)
 
-    def get_config(self, guild_id: int) -> Dict[str, Any]:
+    def get_config(self, guild_id: int) -> dict[str, Any]:
         """Retourne la configuration de bienvenue (enabled + channel_id), en la créant si absente."""
         return welcome_message_repo.wm_get_config(guild_id)
 
@@ -22,8 +23,8 @@ class WelcomeService:
         self,
         guild_id: int,
         *,
-        enabled: Optional[bool] = None,
-        channel_id: Optional[int] = None,
+        enabled: bool | None = None,
+        channel_id: int | None = None,
     ) -> None:
         """Met à jour partiellement la configuration (enabled et/ou channel_id)."""
         return welcome_message_repo.wm_set_config(guild_id, enabled=enabled, channel_id=channel_id)
@@ -50,7 +51,7 @@ class WelcomeService:
 
     # ------------ Historique (anti-répétition) -----------
 
-    def get_recent_message_keys(self, guild_id: int, *, limit: int = 10) -> List[str]:
+    def get_recent_message_keys(self, guild_id: int, *, limit: int = 10) -> list[str]:
         """Retourne les dernières clés de messages utilisées, du plus récent au plus ancien."""
         return welcome_message_repo.wm_get_recent_message_keys(guild_id, limit=limit)
 
@@ -59,7 +60,7 @@ class WelcomeService:
         guild_id: int,
         message_key: str,
         *,
-        used_at: Optional[int] = None,
+        used_at: int | None = None,
         keep: int = 10,
     ) -> None:
         """Enregistre une clé de message utilisée et ne conserve que les `keep` plus récentes."""

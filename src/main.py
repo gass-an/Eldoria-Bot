@@ -5,9 +5,9 @@ Lance le bot en important l'application (setup + events + commandes) depuis eldo
 
 import logging
 import time
+
 from eldoria.app.app import main
 from eldoria.utils.logging import setup_logging
-
 
 if __name__ == "__main__":
     started_at = time.perf_counter()

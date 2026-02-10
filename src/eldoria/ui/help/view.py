@@ -5,7 +5,6 @@ from eldoria.ui.common.embeds.images import common_files, decorate
 from eldoria.ui.help.embeds import build_category_embed, build_home_embed
 
 
-
 class HelpMenuView(discord.ui.View):
     """Menu de help interactif (embeds + boutons).
 

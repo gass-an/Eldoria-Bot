@@ -7,7 +7,7 @@ from eldoria.ui.common.embeds.images import common_thumb, decorate_thumb_only
 async def build_refuse_duels_embed(player_b: discord.Member):
 
     embed = discord.Embed(
-        title=f"Invitation à un duel",
+        title="Invitation à un duel",
         description=f"L'invitation à été refusée par {player_b.display_name}.\nL'XP n'a pas été modifié.",
         colour=EMBED_COLOUR_ERROR
     )

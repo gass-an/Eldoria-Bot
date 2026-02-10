@@ -1,4 +1,5 @@
 import discord
+
 from eldoria.db.repo.xp_repo import xp_ensure_defaults, xp_get_role_ids, xp_upsert_role_id
 from eldoria.defaults import XP_LEVELS_DEFAULTS
 

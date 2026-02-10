@@ -1,11 +1,10 @@
 import discord
-from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
+from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
+from eldoria.ui.common.embeds.images import common_files, decorate
+from eldoria.utils.discord_utils import find_channel_id
 
-from ...utils import discord_utils
-from ..common.embeds.images import common_files, decorate
-from ..common.embeds.colors import EMBED_COLOUR_PRIMARY
 
 async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot: EldoriaBot):
     nb_roles = 0
@@ -17,7 +16,7 @@ async def build_list_roles_embed(roles, current_page, total_pages, guild_id, bot
 
     for message_id in roles:
         # message_id = (message_id_str, {emoji: role_id})
-        channel_id = await discord_utils.find_channel_id(bot=bot, message_id=message_id[0], guild_id=guild_id)
+        channel_id = await find_channel_id(bot=bot, message_id=message_id[0], guild_id=guild_id)
         nb_roles += len(message_id[1])
 
         list_roles = ""

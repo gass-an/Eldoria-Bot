@@ -1,6 +1,5 @@
 from typing import Final
 
-
 RPS_MOVE_ROCK: Final[str] = "ROCK"
 RPS_MOVE_PAPER: Final[str] = "PAPER"
 RPS_MOVE_SCISSORS: Final[str] = "SCISSORS"

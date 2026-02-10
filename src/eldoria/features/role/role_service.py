@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
-from eldoria.db.repo import secret_roles_repo, reaction_roles_repo
+from eldoria.db.repo import reaction_roles_repo, secret_roles_repo
 
 
 @dataclass(slots=True)
@@ -10,11 +9,11 @@ class RoleService:
 
     # ---------- Secret roles ----------
 
-    def sr_match(self, guild_id: int, channel_id: int, phrase: str) -> Optional[int]:
+    def sr_match(self, guild_id: int, channel_id: int, phrase: str) -> int | None:
         """Retourne l'ID du rôle associé à une phrase secrète si elle existe."""
         return secret_roles_repo.sr_match(guild_id, channel_id, phrase)
     
-    def sr_list_messages(self, guild_id: int, channel_id: int) -> List[str]:
+    def sr_list_messages(self, guild_id: int, channel_id: int) -> list[str]:
         """Liste toutes les phrases secrètes configurées pour un salon."""
         return secret_roles_repo.sr_list_messages(guild_id, channel_id)
     
@@ -26,7 +25,7 @@ class RoleService:
         """Supprime une règle de rôle secret."""
         return secret_roles_repo.sr_delete(guild_id, channel_id, phrase)
     
-    def sr_list_by_guild_grouped(self, guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
+    def sr_list_by_guild_grouped(self, guild_id: int) -> list[tuple[str, dict[str, int]]]:
         """Liste les rôles secrets d'un serveur, groupés par salon."""
         return secret_roles_repo.sr_list_by_guild_grouped(guild_id)
 
@@ -44,14 +43,14 @@ class RoleService:
         """Supprime toutes les règles de rôles par réaction associées à un message."""
         return reaction_roles_repo.rr_delete_message(guild_id, message_id)
     
-    def rr_get_role_id(self, guild_id: int, message_id: int, emoji: str) -> Optional[int]:
+    def rr_get_role_id(self, guild_id: int, message_id: int, emoji: str) -> int | None:
         """Retourne l'ID du rôle associé à un emoji sur un message."""
         return reaction_roles_repo.rr_get_role_id(guild_id, message_id, emoji)
     
-    def rr_list_by_message(self, guild_id: int, message_id: int) -> Dict[str, int]:
+    def rr_list_by_message(self, guild_id: int, message_id: int) -> dict[str, int]:
         """Liste les rôles par réaction d'un message sous forme {emoji: role_id}."""
         return reaction_roles_repo.rr_list_by_message(guild_id, message_id)
     
-    def rr_list_by_guild_grouped(self, guild_id: int) -> List[Tuple[str, Dict[str, int]]]:
+    def rr_list_by_guild_grouped(self, guild_id: int) -> list[tuple[str, dict[str, int]]]:
         """Liste les rôles par réaction d'un serveur, groupés par message."""
         return reaction_roles_repo.rr_list_by_guild_grouped(guild_id)
