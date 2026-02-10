@@ -40,7 +40,7 @@ def load_extensions(bot: EldoriaBot) -> int:
         count += 1
     return count
 
-def init_services(bot: EldoriaBot):
+def init_services(bot: EldoriaBot) -> int:
     bot.services = Services(
         duel=DuelService(),
         role=RoleService(),
@@ -49,6 +49,7 @@ def init_services(bot: EldoriaBot):
         welcome=WelcomeService(),
         xp=XpService(),
     )
+    return len(bot.services)
 
 def startup(bot: EldoriaBot) -> None:
     step("Initialisation des services", lambda: init_services(bot), critical=False)

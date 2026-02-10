@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 from eldoria.features.duel.duel_service import DuelService
 from eldoria.features.role.role_service import RoleService
@@ -16,3 +16,6 @@ class Services:
     temp_voice: TempVoiceService
     welcome: WelcomeService
     xp: XpService
+
+    def __len__(self) -> int:
+        return len(fields(self))
