@@ -5,10 +5,7 @@ from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
-from eldoria.features.duel.games import init_games
-from eldoria.features.xp.message_xp import handle_message_xp
 from eldoria.ui.version.embeds import build_version_embed
-from eldoria.ui.duels import init_duel_ui
 
 
 from ..db import database_manager
@@ -21,6 +18,7 @@ log = logging.getLogger(__name__)
 class Core(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
+        self.xp = self.bot.services.xp
 
     # -------------------- Lifecycle --------------------
     @commands.Cog.listener()
@@ -40,7 +38,7 @@ class Core(commands.Cog):
         log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_ms)
 
         elapsed = (time.perf_counter() - started_at)
-        log.info("🚀 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", elapsed, self.bot.user, len(self.bot.guilds))
+        log.info("🤖 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", elapsed, self.bot.user, len(self.bot.guilds))
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()
@@ -55,7 +53,7 @@ class Core(commands.Cog):
         # ---- XP: on compte aussi les messages avec pièces jointes (même sans texte)
         try:
             if user_message or message.attachments:
-                res = await handle_message_xp(message)
+                res = await self.xp.handle_message_xp(message)
                 if res is not None:
                     new_xp, new_lvl, old_lvl = res
                     if new_lvl > old_lvl:

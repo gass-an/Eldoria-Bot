@@ -3,10 +3,8 @@ from discord.ext import commands
 from discord.ext import tasks
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.db import database_manager
 from eldoria.exceptions.duel_exceptions import DuelError
 from eldoria.exceptions.duel_ui_errors import duel_error_message
-from eldoria.features.xp.role_sync import sync_xp_roles_for_users
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed
@@ -26,6 +24,8 @@ class Duels(commands.Cog):
         self.clear_expired_duels_loop.start()
         self.maintenance_cleanup.start()
         self.duel = self.bot.services.duel
+        self.xp = self.bot.services.xp
+
 
     # -------------------- Loops --------------------
     @tasks.loop(hours=24)
@@ -48,7 +48,7 @@ class Duels(commands.Cog):
                 guild = self.bot.get_guild(info["guild_id"])
                 if guild is None:
                     continue
-                await sync_xp_roles_for_users(guild, info.get("sync_roles_user_ids", []))
+                await self.xp.sync_xp_roles_for_users(guild, info.get("sync_roles_user_ids", []))
 
 
     @maintenance_cleanup.before_loop
@@ -115,7 +115,7 @@ class Duels(commands.Cog):
 
         guild_id = guild.id
 
-        if not database_manager.xp_is_enabled(guild_id):
+        if not self.xp.xp_is_enabled(guild_id):
             embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
@@ -125,13 +125,13 @@ class Duels(commands.Cog):
         player_b_id = member.id
 
         try:
-            data_for_embed = self.duel.new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
+            snapshot = self.duel.new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
         except DuelError as e:
             await ctx.followup.send(duel_error_message(e), ephemeral=True)
             return
         
-        expires_at = data_for_embed["duel"]["expires_at"]
-        duel_id = data_for_embed["duel"]["id"]
+        expires_at = snapshot["duel"]["expires_at"]
+        duel_id = snapshot["duel"]["id"]
         embed, files = await build_home_duels_embed(expires_at)
         await ctx.followup.send(embed=embed, files=files, view=HomeView(bot=self.bot, duel_id=duel_id), ephemeral=True)
 

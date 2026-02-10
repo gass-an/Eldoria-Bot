@@ -2,11 +2,8 @@ import discord
 from discord.ext import commands, tasks
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.features.xp.voice_xp import is_voice_member_active, tick_voice_xp_for_member
+from eldoria.utils.mentions import level_mention
 from eldoria.utils.timestamp import now_ts
-
-from ..db import database_manager
-from ..utils.mentions import level_mention
 
 
 def _pick_voice_levelup_text_channel(guild: discord.Guild, cfg: dict) -> discord.TextChannel | None:
@@ -55,6 +52,7 @@ class XpVoice(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
         self.voice_xp_loop.start()
+        self.xp = self.bot.services.xp
 
     def cog_unload(self):
         try:
@@ -66,9 +64,9 @@ class XpVoice(commands.Cog):
     async def voice_xp_loop(self):
         for guild in list(getattr(self.bot, "guilds", []) or []):
             try:
-                database_manager.xp_ensure_defaults(guild.id)
+                self.xp.xp_ensure_defaults(guild.id)
 
-                cfg = database_manager.xp_get_config(guild.id)
+                cfg = self.xp.xp_get_config(guild.id)
                 if not bool(cfg.get("enabled", False)) or not bool(cfg.get("voice_enabled", True)):
                     continue
 
@@ -79,14 +77,14 @@ class XpVoice(commands.Cog):
                     if not members:
                         continue
 
-                    active_members = [m for m in members if is_voice_member_active(m)]
+                    active_members = [m for m in members if self.xp.is_voice_member_active(m)]
                     active_count = len(active_members)
 
                     if active_count < 2:
                         # coupe le compteur pour éviter d'accumuler du temps "solo"
                         for m in active_members:
                             try:
-                                database_manager.xp_voice_upsert_progress(
+                                self.xp.xp_voice_upsert_progress(
                                     guild.id,
                                     m.id,
                                     last_tick_ts=now,
@@ -97,7 +95,7 @@ class XpVoice(commands.Cog):
 
                     for member in active_members:
                         try:
-                            res = await tick_voice_xp_for_member(guild, member)
+                            res = await self.xp.tick_voice_xp_for_member(guild, member)
                             if res is None:
                                 continue
 
@@ -158,12 +156,12 @@ class XpVoice(commands.Cog):
 
         try:
             # Assure la config (au cas où la guild vient d'être join)
-            database_manager.xp_ensure_defaults(member.guild.id)
+            self.xp.xp_ensure_defaults(member.guild.id)
 
             now = now_ts()  # helper interne (UTC)
 
             # On met juste à jour last_tick_ts; le calcul réel est fait par la loop.
-            database_manager.xp_voice_upsert_progress(
+            self.xp.xp_voice_upsert_progress(
                 member.guild.id,
                 member.id,
                 last_tick_ts=now,

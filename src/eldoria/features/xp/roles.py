@@ -1,12 +1,13 @@
 from typing import Dict
 import discord
 
-from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids
+from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids, xp_is_enabled
 from eldoria.defaults import XP_LEVELS_DEFAULTS
 from eldoria.features.xp.levels import compute_level
+from eldoria.utils.discord_utils import get_member_by_id_or_raise
 
 
-async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, *, xp: int | None = None):
+async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, *, xp: int | None = None) -> None:
     """Met à jour les rôles lvlX d'un membre en fonction de son XP."""
     if member.bot:
         return
@@ -40,6 +41,17 @@ async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, 
     except discord.Forbidden:
         return
     
+async def sync_xp_roles_for_users(guild: discord.Guild, user_ids: list[int]) -> None:
+    # Si ton système XP peut être OFF par guilde
+    if not xp_is_enabled(guild.id):
+        return
+
+    for uid in user_ids:
+        try:
+            member = await get_member_by_id_or_raise(guild=guild, member_id=uid)
+            await sync_member_level_roles(guild, member)  # xp=None => relit en DB
+        except Exception:
+            continue
 
 def get_xp_role_ids(guild_id: int | None) -> Dict[int, int]:
     """

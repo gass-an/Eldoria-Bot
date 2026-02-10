@@ -3,7 +3,7 @@ from eldoria.db.repo.xp_repo import xp_ensure_defaults, xp_get_role_ids, xp_upse
 from eldoria.defaults import XP_LEVELS_DEFAULTS
 
 
-async def ensure_guild_xp_setup(guild: discord.Guild):
+async def ensure_guild_xp_setup(guild: discord.Guild) -> None:
     """Crée la config + niveaux par défaut + rôles level5..level1 (si absents),
     sans jamais toucher aux positions (création uniquement).
     """

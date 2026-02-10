@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional
 import discord
 
-from eldoria.features.xp.role_sync import sync_xp_roles_for_users
+from eldoria.features.xp.roles import sync_xp_roles_for_users
 from .registry import require_renderer
 
 

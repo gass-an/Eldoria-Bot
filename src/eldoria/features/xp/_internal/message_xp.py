@@ -1,10 +1,10 @@
 from typing import Optional
 import discord
 from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_config, xp_get_levels, xp_get_member
-from eldoria.features.xp.config import XpConfig
+from eldoria.features.xp._internal.config import XpConfig
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
-from eldoria.features.xp.tags import _has_active_server_tag_for_guild
+from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
 from eldoria.utils.timestamp import now_ts
 
 

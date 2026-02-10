@@ -3,48 +3,21 @@ import discord
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.features.xp.levels import compute_level
-from eldoria.features.xp.roles import sync_member_level_roles
-from eldoria.features.xp.setup import ensure_guild_xp_setup
+from eldoria.ui.common.pagination import Paginator
+from eldoria.ui.xp.autocompletion import xp_level_role_autocomplete
 from eldoria.ui.xp.embeds.leaderboard import build_list_xp_embed
 from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
-
-from ..db import database_manager
-from ..utils.mentions import level_label
+from eldoria.utils.mentions import level_label
 
 
 LEVEL_RE = re.compile(r"^level\s*(\d+)\b", re.IGNORECASE)
 
-# -------------------- Fonctions pour l'autocompletion --------------------
-async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext):
-    user_input = (interaction.value or "").lower()
-    guild = interaction.interaction.guild
-    if guild is None:
-        return []
-
-    guild_id = guild.id
-    role_ids = database_manager.xp_get_role_ids(guild_id)  # dict[level]=role_id
-    if not role_ids:
-        return []
-
-    results = []
-    for level, rid in sorted(role_ids.items()):
-        role = guild.get_role(rid)
-        if role is None:
-            continue
-        label = f"Level {level} — {role.name}"
-        if user_input and user_input not in label.lower():
-            continue
-        results.append(label)
-        if len(results) >= 25:
-            break
-    return results
-
 class Xp(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
+        self.xp = self.bot.services.xp
 
     # ---------- XP system ----------
     @commands.slash_command(name="xp_enable", description="(Admin) Active le système d'XP sur ce serveur.")
@@ -57,8 +30,8 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        await ensure_guild_xp_setup(guild)
-        database_manager.xp_set_config(guild.id, enabled=True)
+        await self.xp.ensure_guild_xp_setup(guild)
+        self.xp.set_config(guild.id, enabled=True)
 
         await ctx.followup.send(content="✅ Système d'XP **activé** sur ce serveur.")
 
@@ -72,23 +45,20 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        database_manager.xp_ensure_defaults(guild.id)
-        database_manager.xp_set_config(guild.id, enabled=False)
+        self.xp.ensure_defaults(guild.id)
+        self.xp.set_config(guild.id, enabled=False)
 
         await ctx.followup.send(content="⛔ Système d'XP **désactivé** sur ce serveur.")
 
     @commands.slash_command(name="xp_status", description="Affiche l'état du système d'XP sur ce serveur.")
     async def xp_status(self, ctx: discord.ApplicationContext):
+        await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
-            await ctx.respond(
-                "Commande uniquement disponible sur un serveur.",
-                ephemeral=True,
-            )
+            await ctx.followup.send("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
-        await ctx.defer(ephemeral=True)
 
-        cfg = database_manager.xp_get_config(guild.id)
+        cfg = self.xp.get_config(guild.id)
         embed, files = await build_xp_status_embed(cfg=cfg, guild_id=guild.id, bot=self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
@@ -104,36 +74,23 @@ class Xp(commands.Cog):
         user = ctx.user
         user_id = user.id
 
-        if not database_manager.xp_is_enabled(guild_id):
+        if not self.xp.is_enabled(guild_id):
             embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
-        database_manager.xp_ensure_defaults(guild_id)
+        self.xp.ensure_defaults(guild_id)
 
-        xp, _ = database_manager.xp_get_member(guild_id, user_id)
-        levels = database_manager.xp_get_levels(guild_id)
-        lvl = compute_level(xp, levels)
-
-        role_ids = database_manager.xp_get_role_ids(guild_id)
-        lvl_label = level_label(guild, role_ids, lvl)
-
-        next_req = None
-        next_label = None
-        for level, req in levels:
-            if level == lvl + 1:
-                next_req = req
-                next_label = level_label(guild, role_ids, lvl + 1)
-                break
+        snapshot = self.xp.build_snapshot_for_xp_profile(guild, user_id)
 
         embed, files = await build_xp_profile_embed(
             guild_id=guild_id,
             user=user,
-            xp=xp,
-            level=lvl,
-            level_label=lvl_label,
-            next_level_label=next_label,
-            next_xp_required=next_req,
+            xp=snapshot["xp"],
+            level=snapshot["level"],
+            level_label=snapshot["level_label"],
+            next_level_label=snapshot["next_level_label"],
+            next_xp_required=snapshot["next_xp_required"],
             bot=self.bot,
         )
 
@@ -149,14 +106,14 @@ class Xp(commands.Cog):
         guild = ctx.guild
         guild_id = guild.id
 
-        if not database_manager.xp_is_enabled(guild_id):
+        if not self.xp.is_enabled(guild_id):
             embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
-        database_manager.xp_ensure_defaults(guild_id)
+        self.xp.ensure_defaults(guild_id)
 
-        levels_with_roles = database_manager.xp_get_levels_with_roles(guild_id)
+        levels_with_roles = self.xp.get_levels_with_roles(guild_id)
         embed, files = await build_xp_roles_embed(levels_with_roles, guild_id, self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
@@ -170,25 +127,16 @@ class Xp(commands.Cog):
         guild = ctx.guild
         guild_id = guild.id
 
-        if not database_manager.xp_is_enabled(guild_id):
+        if not self.xp.is_enabled(guild_id):
             embed, files = await build_xp_disable_embed(guild_id, self.bot)
             await ctx.followup.send(embed=embed, files=files, ephemeral=True)
             return
 
-        database_manager.xp_ensure_defaults(guild_id)
+        self.xp.ensure_defaults(guild_id)
 
-        rows = database_manager.xp_list_members(guild_id, limit=200, offset=0)
-        levels = database_manager.xp_get_levels(guild_id)
-        role_ids = database_manager.xp_get_role_ids(guild_id)
+        items = self.xp.get_leaderboard_items(guild, limit=200, offset=0)
 
-        items = []
-        for (uid, xp) in rows:
-            lvl = compute_level(xp, levels)
-            lbl = level_label(guild, role_ids, lvl)
-            items.append((uid, xp, lvl, lbl))
-
-        from ..ui.common import pagination  # import local pour éviter cycles
-        paginator = pagination.Paginator(
+        paginator = Paginator(
             items=items,
             embed_generator=build_list_xp_embed,
             identifiant_for_embed=guild_id,
@@ -209,16 +157,16 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        database_manager.xp_ensure_defaults(guild.id)
-        database_manager.xp_set_level_threshold(guild.id, level, xp_required)
+        self.xp.ensure_defaults(guild.id)
+        self.xp.set_level_threshold(guild.id, level, xp_required)
 
-        role_ids = database_manager.xp_get_role_ids(guild.id)
-        lbl = level_label(guild, role_ids, level)
-        await ctx.followup.send(content=f"✅ Seuil mis à jour : **{lbl}** = **{xp_required} XP**.")
+        role_ids = self.xp.get_role_ids(guild.id)
+        label = level_label(guild, role_ids, level)
+        await ctx.followup.send(content=f"✅ Seuil mis à jour : **{label}** = **{xp_required} XP**.")
 
         try:
-            for m in guild.members:
-                await sync_member_level_roles(guild, m)
+            for member in guild.members:
+                await self.xp.sync_member_level_roles(guild, member)
         except Exception:
             pass
 
@@ -253,7 +201,7 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        database_manager.xp_ensure_defaults(guild.id)
+        self.xp.ensure_defaults(guild.id)
 
         if all(v is None for v in (
             points_per_message, cooldown_seconds, bonus_percent, karuta_k_small_percent,
@@ -263,7 +211,7 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="INFO: Aucun champ fourni : aucune modification appliquée.")
             return
 
-        database_manager.xp_set_config(
+        self.xp.set_config(
             guild.id,
             points_per_message=points_per_message,
             cooldown_seconds=cooldown_seconds,
@@ -295,8 +243,6 @@ class Xp(commands.Cog):
             parts.append(f"cap vocal **{voice_daily_cap_xp} XP/jour**")
         if voice_levelup_channel is not None:
             parts.append(f"annonces vocal dans {voice_levelup_channel.mention}")
-        if voice_levelup_channel is not None:
-            parts.append(f"annonces vocal → {voice_levelup_channel.mention}")
 
         await ctx.followup.send(content="✅ Config XP mise à jour : " + ", ".join(parts) + ".")
 
@@ -318,7 +264,7 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        database_manager.xp_ensure_defaults(guild.id)
+        self.xp.ensure_defaults(guild.id)
         
         m = LEVEL_RE.search(from_role.strip())
         if not m:
@@ -327,7 +273,7 @@ class Xp(commands.Cog):
         
         level = int(m.group(1))
 
-        role_ids = database_manager.xp_get_role_ids(guild.id)  # dict[level] = role_id
+        role_ids = self.xp.get_role_ids(guild.id)  # dict[level] = role_id
         if not role_ids:
             await ctx.followup.send(content="❌ Aucun rôle XP enregistré en base.")
             return
@@ -361,8 +307,8 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="⚠️ `from_role` et `to_role` sont identiques, aucune modification.")
             return
 
-        # 3) Update DB (il te faut une fonction qui set le role_id d'un level)
-        database_manager.xp_upsert_role_id(guild.id, level, to_role.id)
+        # 3) Update DB
+        self.xp.upsert_role_id(guild.id, level, to_role.id)
 
         # 4) Migration: uniquement les membres qui avaient l'ancien rôle
         affected = [mem for mem in guild.members if (not mem.bot and from_role_obj in mem.roles)]
@@ -371,7 +317,7 @@ class Xp(commands.Cog):
         for mem in affected:
             try:
                 await mem.remove_roles(from_role_obj, reason="XP role setup: replace role mapping")
-                await sync_member_level_roles(guild, mem)
+                await self.xp.sync_member_level_roles(guild, mem)
             except discord.Forbidden:
                 failed += 1
             except Exception:
@@ -400,14 +346,14 @@ class Xp(commands.Cog):
             await ctx.followup.send(content="❌ Impossible de modifier l'XP d'un bot.")
             return
 
-        database_manager.xp_ensure_defaults(guild.id)
-        new_xp = database_manager.xp_add_xp(guild.id, member.id, delta)
-        levels = database_manager.xp_get_levels(guild.id)
-        lvl = compute_level(new_xp, levels)
+        self.xp.ensure_defaults(guild.id)
+        new_xp = self.xp.add_xp(guild.id, member.id, delta)
+        levels = self.xp.get_levels(guild.id)
+        lvl = self.xp.compute_level(new_xp, levels)
 
-        await sync_member_level_roles(guild, member, xp=new_xp)
+        await self.xp.sync_member_level_roles(guild, member, xp=new_xp)
 
-        role_ids = database_manager.xp_get_role_ids(guild.id)
+        role_ids = self.xp.get_role_ids(guild.id)
         lbl = level_label(guild, role_ids, lvl)
 
         await ctx.followup.send(content=f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lbl}**).")

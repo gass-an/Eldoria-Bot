@@ -9,6 +9,7 @@ from eldoria.db.repo.temp_voice_repo import tv_list_active_all, tv_remove_active
 from eldoria.db.schema import init_db
 from eldoria.features.duel.duel_service import DuelService
 from eldoria.features.duel.games import init_games
+from eldoria.features.xp.xp_service import XpService
 from eldoria.ui.duels import init_duel_ui
 
 log = logging.getLogger(__name__)
@@ -45,7 +46,8 @@ def cleanup_temp_channels(bot: EldoriaBot):
 
 def init_services(bot: EldoriaBot):
     bot.services = Services(
-        duel=DuelService()
+        duel=DuelService(),
+        xp=XpService(),
     )
 
 def startup(bot):

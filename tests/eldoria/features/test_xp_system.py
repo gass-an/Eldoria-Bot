@@ -1,9 +1,9 @@
 import pytest
 
 from eldoria.features.xp.levels import compute_level
-from eldoria.features.xp.message_xp import handle_message_xp
-from eldoria.features.xp.tags import _has_active_server_tag_for_guild
-from eldoria.features.xp.voice_xp import is_voice_eligible_in_channel, is_voice_member_active, tick_voice_xp_for_member
+from eldoria.features.xp._internal.message_xp import handle_message_xp
+from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
+from eldoria.features.xp._internal.voice_xp import is_voice_eligible_in_channel, is_voice_member_active, tick_voice_xp_for_member
 from tests.conftest import (
     FakeGuild,
     FakeMember,

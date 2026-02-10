@@ -4,7 +4,7 @@ from ..connection import get_conn
 from ...defaults import XP_CONFIG_DEFAULTS, XP_LEVELS_DEFAULTS
 
 # ------------ XP system -----------
-def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None):
+def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = None) -> None:
     """Crée la config et les niveaux par défaut si absents.
 
     ⚠️ Aucune migration automatique n'est effectuée ici.
@@ -137,7 +137,7 @@ def xp_set_config(
     voice_interval_seconds: int | None = None,
     voice_daily_cap_xp: int | None = None,
     voice_levelup_channel_id: int | None = None,
-):
+) -> None:
     sets = []
     params = []
     if enabled is not None:
@@ -250,7 +250,7 @@ def xp_voice_upsert_progress(
     buffer_seconds: int | None = None,
     bonus_cents: int | None = None,
     xp_today: int | None = None,
-):
+) -> None:
     sets = []
     params: list[object] = []
     if day_key is not None:
@@ -308,7 +308,7 @@ def xp_get_levels_with_roles(guild_id: int) -> list[tuple[int, int, int | None]]
     return [(int(l), int(x), (int(r) if r is not None else None)) for (l, x, r) in rows]
 
 
-def xp_set_level_threshold(guild_id: int, level: int, xp_required: int):
+def xp_set_level_threshold(guild_id: int, level: int, xp_required: int) -> None:
     with get_conn() as conn:
         conn.execute(
             """
@@ -320,7 +320,7 @@ def xp_set_level_threshold(guild_id: int, level: int, xp_required: int):
         )
 
 
-def xp_upsert_role_id(guild_id: int, level: int, role_id: int):
+def xp_upsert_role_id(guild_id: int, level: int, role_id: int) -> None:
     """
     Lie (ou met à jour) le role_id pour un niveau.
     Si la ligne du niveau n'existe pas encore, on la crée avec xp_required=0 (à ajuster ensuite).
