@@ -12,7 +12,7 @@ async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext):
     bot = cast(EldoriaBot, interaction.interaction.client)
     xp = bot.services.xp
 
-    role_ids = xp.xp_get_role_ids(guild.id)
+    role_ids = xp.get_role_ids(guild.id)
     if not role_ids:
         return []
 

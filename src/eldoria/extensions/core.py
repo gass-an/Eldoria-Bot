@@ -5,13 +5,11 @@ from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
+from eldoria.ui.help.view import send_help_menu
 from eldoria.ui.version.embeds import build_version_embed
+from eldoria.utils.interactions import reply_ephemeral
+from eldoria.utils.mentions import level_mention
 
-
-from ..db import database_manager
-from ..ui.help.view import send_help_menu
-from ..utils.mentions import level_mention
-from ..utils.interactions import reply_ephemeral
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +17,7 @@ class Core(commands.Cog):
     def __init__(self, bot: EldoriaBot):
         self.bot = bot
         self.xp = self.bot.services.xp
+        self.role = self.bot.services.role
 
     # -------------------- Lifecycle --------------------
     @commands.Cog.listener()
@@ -74,7 +73,7 @@ class Core(commands.Cog):
             guild_id = message.guild.id
             channel_id = message.channel.id
 
-            role_id = database_manager.sr_match(guild_id, channel_id, str(user_message))
+            role_id = self.role.sr_match(guild_id, channel_id, str(user_message))
             if role_id is not None:
                 # On supprime le message pour garder le "secret"
                 try:
