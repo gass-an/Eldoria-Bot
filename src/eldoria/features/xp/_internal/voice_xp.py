@@ -1,9 +1,11 @@
+"""Module de logique métier pour la fonctionnalité d'XP par message."""
+
 import discord
 
 from eldoria.db.repo import xp_repo
 from eldoria.features.xp._internal.config import XpConfig
-from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
-from eldoria.features.xp._internal.time import _day_key_utc
+from eldoria.features.xp._internal.tags import has_active_server_tag_for_guild
+from eldoria.features.xp._internal.time import day_key_utc
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.utils.timestamp import now_ts
@@ -34,6 +36,10 @@ def is_voice_eligible_in_channel(member: discord.Member, active_count: int) -> b
 
 
 async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member) -> tuple[int, int, int] | None:
+    """Attribue l'XP vocale à un membre si les conditions sont remplies.
+
+    Retourne (new_xp, new_level, old_level) si XP ajouté, sinon None.
+    """
     if member.bot:
         return None
 
@@ -44,7 +50,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
         return None
 
     now = now_ts()
-    day_key = _day_key_utc(now)
+    day_key = day_key_utc(now)
 
     prog = xp_repo.xp_voice_get_progress(guild.id, member.id)
 
@@ -106,7 +112,7 @@ async def tick_voice_xp_for_member(guild: discord.Guild, member: discord.Member)
     total_gain = base_gain
     bonus_cents = int(prog.get("bonus_cents", 0) or 0)
 
-    if config.bonus_percent > 0 and _has_active_server_tag_for_guild(member, guild):
+    if config.bonus_percent > 0 and has_active_server_tag_for_guild(member, guild):
         bonus_cents += base_gain * int(config.bonus_percent)
         extra = bonus_cents // 100
         bonus_cents %= 100

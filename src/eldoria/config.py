@@ -1,3 +1,8 @@
+"""Module de configuration pour le bot Eldoria, chargé de lire les variables d'environnement nécessaires au fonctionnement du bot.
+
+Comme le token Discord, les IDs pour la sauvegarde, et les paramètres de sauvegarde automatique.
+"""
+
 import os
 from typing import Final
 

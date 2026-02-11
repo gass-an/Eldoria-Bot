@@ -1,9 +1,13 @@
+"""Module de logique métier pour la fonctionnalité d'XP par message.
+
+Gère l'attribution d'XP lors de la création d'un message, en fonction de la configuration du serveur et du cooldown.
+"""
 
 import discord
 
 from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_config, xp_get_levels, xp_get_member
 from eldoria.features.xp._internal.config import XpConfig
-from eldoria.features.xp._internal.tags import _has_active_server_tag_for_guild
+from eldoria.features.xp._internal.tags import has_active_server_tag_for_guild
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
 from eldoria.utils.timestamp import now_ts
@@ -41,7 +45,7 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int, int] | 
 
     # Bonus: si le membre affiche le Server Tag de cette guilde sur son profil.
     # Si bonus_percent == 0, cela désactive de fait le bonus.
-    if config.bonus_percent > 0 and _has_active_server_tag_for_guild(member, guild):
+    if config.bonus_percent > 0 and has_active_server_tag_for_guild(member, guild):
         gained = int(round(gained * (1 + config.bonus_percent / 100)))
 
     # Malus "anti-karuta" : les messages très courts qui commencent par "k"/"K" ne donnent

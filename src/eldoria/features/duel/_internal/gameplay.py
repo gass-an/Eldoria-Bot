@@ -1,3 +1,8 @@
+"""Module interne gérant la logique de gameplay d'un duel, c'est à dire l'appel au jeu configuré pour faire avancer le duel.
+
+Vérifie si les conditions de fin sont remplies, et résoudre le résultat du duel en fonction du jeu.
+"""
+
 import json
 from sqlite3 import Row
 from typing import Any, cast
@@ -10,8 +15,8 @@ from eldoria.features.xp.levels import compute_level
 
 
 def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict[str, Any]:
-    """
-    Appelle le bon jeu via le registry, puis si FINISHED => finish_duel.
+    """Appelle le bon jeu via le registry, puis si FINISHED => finish_duel.
+    
     Retourne un snapshot prêt pour l'UI (avec xp si fini).
     """
     duel = helpers.get_duel_or_raise(duel_id)
@@ -106,6 +111,7 @@ def play_game_action(duel_id: int, user_id: int, action: dict[str, Any]) -> dict
     return snapshot
 
 def is_duel_complete_for_game(duel: Row) -> bool:
+    """Retourne True si le duel est dans un état considéré comme "complet" pour le jeu configuré, c'est à dire que les conditions de victoire/défaite sont remplies et que le duel peut être fini."""
     game_key = duel["game_type"]
     if not game_key:
         return False
@@ -119,6 +125,7 @@ def is_duel_complete_for_game(duel: Row) -> bool:
 
 
 def resolve_duel_for_game(duel: Row) -> str:
+    """Retourne le résultat du duel pour le jeu configuré, en supposant que le duel est dans un état "complet" (conditions de victoire/défaite remplies)."""
     game_key = duel["game_type"]
     if not game_key:
         raise exc.WrongGameType(game_key, "UNKNOWN")

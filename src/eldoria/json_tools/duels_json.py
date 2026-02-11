@@ -1,10 +1,12 @@
+"""Module de gestion du JSON de configuration des duels."""
+
 import json
 from typing import Any
 
 
 def load_duels_json() -> dict[str, Any]:
-    """
-    Charge le fichier resources/json/duels.json.
+    """Charge le fichier resources/json/duels.json.
+    
     Renvoie le JSON brut (dict).
     """
     try:
@@ -18,8 +20,7 @@ def load_duels_json() -> dict[str, Any]:
 
 
 def get_duel_embed_data() -> dict[str, Any]:
-    """
-    Retourne un dict NORMALISÉ, directement exploitable pour les embeds :
+    """Retourne un dict NORMALISÉ, directement exploitable pour les embeds de duels, à partir du contenu de duels.json.
 
     {
         "title": str,
@@ -95,8 +96,7 @@ def get_duel_embed_data() -> dict[str, Any]:
     }
 
 def get_game_text(game_key: str) -> tuple[str, str]:
-    """
-    Retourne (game_name, game_description) pour un game_key (ex: 'RPS').
+    """Retourne (game_name, game_description) pour un game_key (ex: 'RPS').
 
     Fallback safe si le jeu n'existe pas.
     """

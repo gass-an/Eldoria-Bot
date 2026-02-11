@@ -1,3 +1,5 @@
+"""Module de logique métier pour la fonctionnalité de messages de bienvenue."""
+
 from eldoria.db.repo import welcome_message_repo
 from eldoria.features.welcome._internal.welcome_picker import pick_welcome_message
 from eldoria.json_tools.welcome_json import load_welcome_json
@@ -10,13 +12,7 @@ def get_welcome_message(
         server: str,
         recent_limit: int = 10,
     ) -> tuple[str, str, list[str]]:
-        """
-        Retourne (title, message, emojis)
-        - lecture JSON
-        - évite les répétitions récentes
-        - enregistre le tirage en DB
-        """
-
+        """Retourne un message de bienvenue à envoyer pour un nouvel arrivant, en fonction de la configuration JSON et de l'historique récent."""
         # 1) Charger le JSON
         data = load_welcome_json()
 

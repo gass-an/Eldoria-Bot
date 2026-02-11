@@ -1,3 +1,5 @@
+"""Module principal de l'application EldoriaBot."""
+
 import logging
 
 import discord
@@ -12,6 +14,7 @@ log = logging.getLogger(__name__)
 
 
 def create_bot() -> EldoriaBot:
+    """Crée et retourne une instance du bot Discord avec les intentions nécessaires."""
     intents = discord.Intents.default()
     intents.message_content = True
     intents.guilds = True
@@ -21,7 +24,8 @@ def create_bot() -> EldoriaBot:
     return bot
 
 
-def main(started_at: float):
+def main(started_at: float) -> None:
+    """Démarre le bot Discord avec le token d'authentification."""
     if not TOKEN:
         raise RuntimeError("discord_token manquant dans le .env")
 
@@ -29,6 +33,6 @@ def main(started_at: float):
     bot = create_bot()
     startup(bot)
 
-    bot._started_at = started_at
+    bot.set_started_at(started_at)
     log.info("⏳ Connexion à Discord…")
     bot.run(TOKEN)

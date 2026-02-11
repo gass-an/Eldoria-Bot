@@ -1,3 +1,9 @@
+"""Module de gestion du système d'XP.
+
+Contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et supprimer les configurations d'XP,
+les niveaux et les progrès vocaux dans la base de données.
+"""
+
 from sqlite3 import Connection
 
 from eldoria.db.connection import get_conn
@@ -63,6 +69,10 @@ def xp_ensure_defaults(guild_id: int, default_levels: dict[int, int] | None = No
 
 
 def xp_get_config(guild_id: int) -> dict:
+    """Retourne la configuration d'XP d'une guild sous forme de dict.
+    
+    Si la config n'existe pas encore, elle est créée avec les valeurs par défaut et retournée.
+    """
     with get_conn() as conn:
         row = conn.execute(
             """
@@ -139,6 +149,7 @@ def xp_set_config(
     voice_daily_cap_xp: int | None = None,
     voice_levelup_channel_id: int | None = None,
 ) -> None:
+    """Update partiel de la configuration d'XP. Crée la config si absente."""
     sets = []
     params = []
     if enabled is not None:
@@ -216,6 +227,10 @@ def xp_set_config(
 
 # ------------ Vocal XP progress -----------
 def xp_voice_get_progress(guild_id: int, user_id: int) -> dict:
+    """Retourne le progrès vocal d'un utilisateur sous forme de dict.
+    
+    Si aucun progrès n'existe encore pour cet utilisateur, retourne des valeurs par défaut.
+    """
     with get_conn() as conn:
         row = conn.execute(
             """
@@ -252,6 +267,7 @@ def xp_voice_upsert_progress(
     bonus_cents: int | None = None,
     xp_today: int | None = None,
 ) -> None:
+    """Update partiel du progrès vocal d'un utilisateur. Crée la ligne si absente."""
     sets = []
     params: list[object] = []
     if day_key is not None:
@@ -282,6 +298,7 @@ def xp_voice_upsert_progress(
             )
 
 def xp_is_enabled(guild_id: int) -> bool:
+    """Retourne True si le système d'XP est activé pour la guild, ou False sinon."""
     with get_conn() as conn:
         row = conn.execute(
             "SELECT enabled FROM xp_config WHERE guild_id=?",
@@ -310,6 +327,10 @@ def xp_get_levels_with_roles(guild_id: int) -> list[tuple[int, int, int | None]]
 
 
 def xp_set_level_threshold(guild_id: int, level: int, xp_required: int) -> None:
+    """Lie (ou met à jour) le xp_required pour un niveau donné.
+    
+    Si la ligne du niveau n'existe pas encore, on la crée avec role_id=NULL (à ajuster ensuite si besoin).
+    """
     with get_conn() as conn:
         conn.execute(
             """
@@ -322,8 +343,8 @@ def xp_set_level_threshold(guild_id: int, level: int, xp_required: int) -> None:
 
 
 def xp_upsert_role_id(guild_id: int, level: int, role_id: int) -> None:
-    """
-    Lie (ou met à jour) le role_id pour un niveau.
+    """Lie (ou met à jour) le role_id pour un niveau.
+    
     Si la ligne du niveau n'existe pas encore, on la crée avec xp_required=0 (à ajuster ensuite).
     """
     with get_conn() as conn:
@@ -358,7 +379,8 @@ def xp_get_member(guild_id: int, user_id: int, *, conn: Connection | None = None
     return (int(row[0]), int(row[1])) if row else (0, 0)
 
 
-def xp_set_member(guild_id: int, user_id: int, *, xp: int | None = None, last_xp_ts: int | None = None):
+def xp_set_member(guild_id: int, user_id: int, *, xp: int | None = None, last_xp_ts: int | None = None) -> None:
+    """Update partiel de l'XP et du timestamp d'un membre. Crée la ligne si absente."""
     sets = []
     params = []
     if xp is not None:

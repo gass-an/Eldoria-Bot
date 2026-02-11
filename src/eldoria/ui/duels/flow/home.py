@@ -1,3 +1,5 @@
+"""Module de configuration du type de jeu pour les duels."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -9,7 +11,8 @@ from eldoria.ui.common.embeds.images import common_files, decorate
 from eldoria.ui.duels.flow.config import StakeXpView, build_config_stake_duels_embed
 
 
-async def build_home_duels_embed(expires_at: int):
+async def build_home_duels_embed(expires_at: int) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed de configuration du type de jeu."""
     duel_data = get_duel_embed_data()
 
     title = duel_data["title"]
@@ -38,7 +41,10 @@ async def build_home_duels_embed(expires_at: int):
 
 
 class HomeView(discord.ui.View):
-    def __init__(self, bot: EldoriaBot, duel_id: int):
+    """View pour la configuration du type de jeu du duel."""
+
+    def __init__(self, bot: EldoriaBot, duel_id: int) -> None:
+        """Initialise la view avec les boutons de choix du type de jeu."""
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
@@ -56,7 +62,8 @@ class HomeView(discord.ui.View):
             )
 
             # IMPORTANT: on capture game_key avec une valeur par défaut
-            async def on_click(interaction: discord.Interaction, gk=game_key):
+            async def on_click(interaction: discord.Interaction, gk: str = game_key) -> None:
+                """Gère le clic sur un bouton de type de jeu."""
                 await interaction.response.defer()
                 try : 
                     snapshot = self.duel.configure_game_type(self.duel_id, gk)
@@ -67,7 +74,7 @@ class HomeView(discord.ui.View):
                 expires_at = snapshot["duel"]["expires_at"]
                 embed, files = await build_config_stake_duels_embed(expires_at)
                 await interaction.edit_original_response(
-                    embed=embed, files=files, view=StakeXpView(duel_id=duel_id, bot=bot)
+                    embed=embed, files=files, view=StakeXpView(duel_id=self.duel_id, bot=self.bot)
                     )
                 
 

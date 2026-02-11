@@ -1,3 +1,5 @@
+"""Module de configuration d'XP pour un serveur, avec des valeurs par défaut provenant de XP_CONFIG_DEFAULTS."""
+
 from dataclasses import dataclass
 
 from eldoria.defaults import XP_CONFIG_DEFAULTS
@@ -5,6 +7,8 @@ from eldoria.defaults import XP_CONFIG_DEFAULTS
 
 @dataclass(frozen=True)
 class XpConfig:
+    """Configuration d'XP pour un serveur, avec des valeurs par défaut provenant de XP_CONFIG_DEFAULTS."""
+
     enabled: bool = bool(XP_CONFIG_DEFAULTS["enabled"])
     points_per_message: int = int(XP_CONFIG_DEFAULTS["points_per_message"])
     cooldown_seconds: int = int(XP_CONFIG_DEFAULTS["cooldown_seconds"])

@@ -1,9 +1,16 @@
+"""Module `duel_ui_errors`.
+
+Contient des fonctions pour convertir les exceptions de duel en messages d'erreur "membre-friendly" à afficher dans l'interface utilisateur,
+afin de fournir des retours clairs et compréhensibles aux utilisateurs lorsqu'une action liée au duel échoue.
+"""
+
 from __future__ import annotations
 
 from eldoria.exceptions import duel_exceptions as exc
 
 
 def duel_error_message(e: exc.DuelError) -> str:
+    """Retourne un message d'erreur "membre-friendly" à partir d'une exception de duel."""
     # Messages “membre-friendly” (pas trop techniques)
     match e:
         case exc.SamePlayerDuel():

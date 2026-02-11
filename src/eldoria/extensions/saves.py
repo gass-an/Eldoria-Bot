@@ -1,3 +1,9 @@
+"""Cog de gestion des sauvegardes de la base de données SQLite.
+
+Permet d'envoyer une copie du fichier .db dans un channel Discord à la demande ou automatiquement à un horaire défini.
+Inclut des commandes pour faire une sauvegarde manuelle et pour remplacer la base de données par un fichier .db fourni via un message Discord.
+"""
+
 import asyncio
 import os
 from datetime import datetime, time
@@ -12,7 +18,17 @@ from eldoria.utils.db_validation import is_valid_sqlite_db
 
 
 class Saves(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de gestion des sauvegardes de la base de données SQLite.
+
+    Permet d'envoyer une copie du fichier .db dans un channel Discord à la demande ou automatiquement à un horaire défini.
+    Inclut des commandes pour faire une sauvegarde manuelle et pour remplacer la base de données par un fichier .db fourni via un message Discord.
+    """
+
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog Saves avec une référence au bot et à ses services de sauvegarde et de gestion des channels temporaires.
+    
+        Démarre l'auto-save si la fonctionnalité est configurée.
+        """
         self.bot = bot
         self.save = self.bot.services.save
         self.temp_voice = self.bot.services.temp_voice
@@ -43,7 +59,7 @@ class Saves(commands.Cog):
             # En cas de config invalide, on désactive l'auto-save sans casser le bot.
             return None
 
-    async def _send_db_backup(self, *, channel: discord.abc.Messageable, reason: str):
+    async def _send_db_backup(self, *, channel: discord.abc.Messageable, reason: str) -> None:
         """Fait une sauvegarde temporaire et envoie le .db dans le channel."""
         if not os.path.exists(self.save.get_db_path()):
             await channel.send("Fichier DB introuvable !")
@@ -65,7 +81,7 @@ class Saves(commands.Cog):
             pass
 
     @tasks.loop(minutes=1)
-    async def auto_save(self):
+    async def auto_save(self) -> None:
         """Envoie automatiquement la DB une fois par jour à l'heure configurée."""
         if not self._enabled() or not self._auto_enabled():
             return
@@ -97,12 +113,16 @@ class Saves(commands.Cog):
         self._last_auto_save_date = now.date()
 
     @auto_save.before_loop
-    async def _wait_until_ready(self):
+    async def _wait_until_ready(self) -> None:
         await self.bot.wait_until_ready()
 
     @commands.slash_command(name="manual_save", description="Envoie la base SQLite (.db) dans un channel précis", 
                             guild_ids=[SAVE_GUILD_ID] if SAVE_GUILD_ID else None)
-    async def manual_save_command(self, ctx: discord.ApplicationContext):
+    async def manual_save_command(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /manual_save : envoie une copie du fichier .db dans un channel Discord défini.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, et la présence du fichier .db avant d'envoyer la sauvegarde.
+        """
         await ctx.defer(ephemeral=True)
 
         if not self._enabled():
@@ -131,7 +151,8 @@ class Saves(commands.Cog):
 
         await ctx.followup.send(content="✅ DB bien envoyée !")
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
+        """Arrête la loop d'auto-save lors du déchargement du cog."""
         try:
             self.auto_save.cancel()
         except Exception:
@@ -140,7 +161,12 @@ class Saves(commands.Cog):
     @commands.slash_command(name="insert_db", description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)", 
                             guild_ids=[SAVE_GUILD_ID] if SAVE_GUILD_ID else None,)
     @discord.option("message_id", str, description="Id du message contenant le fichier .db")
-    async def insert_db_command(self, ctx: discord.ApplicationContext, message_id: str):
+    async def insert_db_command(self, ctx: discord.ApplicationContext, message_id: str) -> None:
+        """Commande slash /insert_db : remplace la base de données SQLite par un fichier .db fourni via un message Discord.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, la validité du message et du fichier attaché,
+        puis remplace la base de données par le nouveau fichier après vérification qu'il s'agit d'une base de données SQLite valide.
+        """
         await ctx.defer(ephemeral=True)
 
         if not self._enabled():
@@ -201,5 +227,6 @@ class Saves(commands.Cog):
         await ctx.followup.send(content="✅ Base de données remplacée avec succès.")
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction de setup pour ajouter le cog Saves au bot."""
     bot.add_cog(Saves(bot))

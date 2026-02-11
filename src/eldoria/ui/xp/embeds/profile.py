@@ -1,3 +1,5 @@
+"""Module des embeds pour le profil XP."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -15,8 +17,8 @@ async def build_xp_profile_embed(
     next_level_label: str | None,
     next_xp_required: int | None,
     bot: EldoriaBot,
-    ):
-    
+    ) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed du profil XP d'un utilisateur."""
     guild = bot.get_guild(guild_id)
 
     embed = discord.Embed(

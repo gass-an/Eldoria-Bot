@@ -1,9 +1,12 @@
+"""Script de release pour le bot Eldoria, qui crée un tag Git avec la version actuelle et pousse le commit et le tag vers le dépôt distant."""
+
 import subprocess
 
 from src.eldoria.version import VERSION
 
 
-def run(cmd):
+def run(cmd: list[str]) -> None:
+    """Exécute une commande shell et affiche la sortie, en levant une exception en cas d'erreur."""
     subprocess.run(cmd, check=True)
 
 # Vérifie que le repo est clean

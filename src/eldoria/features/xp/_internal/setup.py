@@ -1,3 +1,8 @@
+"""Module de logique métier pour la fonctionnalité d'XP par message.
+
+Gère l'attribution d'XP lors de la création d'un message, en fonction de la configuration du serveur et du cooldown.
+"""
+
 import discord
 
 from eldoria.db.repo.xp_repo import xp_ensure_defaults, xp_get_role_ids, xp_upsert_role_id
@@ -5,9 +10,7 @@ from eldoria.defaults import XP_LEVELS_DEFAULTS
 
 
 async def ensure_guild_xp_setup(guild: discord.Guild) -> None:
-    """Crée la config + niveaux par défaut + rôles level5..level1 (si absents),
-    sans jamais toucher aux positions (création uniquement).
-    """
+    """Assure que les rôles de niveaux XP existent sur le serveur et que leur ID est enregistré en base de données."""
     xp_ensure_defaults(guild.id, XP_LEVELS_DEFAULTS)
 
     role_ids = xp_get_role_ids(guild.id)

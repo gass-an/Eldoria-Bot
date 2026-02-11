@@ -1,3 +1,5 @@
+"""Service métier pour la gestion des messages de bienvenue et de l'historique anti-répétition."""
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -74,6 +76,7 @@ class WelcomeService:
             server: str,
             recent_limit: int = 10,
         ) -> tuple[str, str, list[str]]:
+        """Retourne un message de bienvenue à envoyer pour un nouvel arrivant, en fonction de la configuration JSON et de l'historique récent."""
         return welcome_getter.get_welcome_message(
             guild_id=guild_id,
             user=user,

@@ -1,3 +1,10 @@
+"""Cog de gestion de l'XP vocale, attribuant de l'XP aux membres présents dans les salons vocaux selon certaines règles (1 XP / 3 minutes, cap journalier, etc.).
+
+Inclut une boucle de vérification régulière pour attribuer l'XP 
+et un listener pour détecter les changements d'état vocal des membres
+afin de gérer les périodes inéligibles.
+"""
+
 import discord
 from discord.ext import commands, tasks
 
@@ -49,19 +56,27 @@ class XpVoice(commands.Cog):
     - Le cooldown ne s'applique PAS (cooldown réservé aux messages)
     """
 
-    def __init__(self, bot: EldoriaBot):
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog XpVoice avec une référence au bot et à son service d'XP, et démarre la boucle de vérification régulière pour attribuer l'XP vocal."""
         self.bot = bot
         self.voice_xp_loop.start()
         self.xp = self.bot.services.xp
 
-    def cog_unload(self):
+    def cog_unload(self) -> None:
+        """Arrête la boucle de vérification régulière pour l'XP vocal lors du déchargement du cog."""
         try:
             self.voice_xp_loop.cancel()
         except Exception:
             pass
 
     @tasks.loop(minutes=1)
-    async def voice_xp_loop(self):
+    async def voice_xp_loop(self) -> None:
+        """Boucle régulière pour attribuer de l'XP aux membres présents dans les salons vocaux.
+        
+        Pour chaque serveur, vérifie la configuration de l'XP vocale, parcourt les salons vocaux et leurs membres,
+        et attribue de l'XP aux membres éligibles (pas seuls, pas mute/deaf). Si un membre atteint un nouveau niveau,
+        envoie un message de félicitations dans le salon texte approprié.
+        """
         for guild in list(getattr(self.bot, "guilds", []) or []):
             try:
                 self.xp.ensure_defaults(guild.id)
@@ -131,11 +146,12 @@ class XpVoice(commands.Cog):
 
 
     @voice_xp_loop.before_loop
-    async def _wait_until_ready(self):
+    async def _wait_until_ready(self) -> None:
+        """Attente que le bot soit prêt avant de démarrer la boucle de vérification de l'XP vocale."""
         await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
         """Évite les gains pendant les périodes inéligibles.
 
         On "coupe" le compteur dès qu'il y a un changement (move/join/leave/mute/deaf),
@@ -171,5 +187,6 @@ class XpVoice(commands.Cog):
             return
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation du cog XpVoice, appelée par le bot lors du chargement de l'extension."""
     bot.add_cog(XpVoice(bot))

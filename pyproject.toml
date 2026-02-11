@@ -7,7 +7,19 @@ select = [
   "F",   # erreurs (imports inutilisés, etc.)
   "I",   # tri des imports
   "UP",  # modernisation + future annotations
+  "ANN",  # annotations de types
+  "D",   # docstrings
+]
+
+ignore = [
+  "ANN401", # Any implicite
+  "D401", # impératif dans les docstrings
 ]
 
 [tool.ruff.lint.pyupgrade]
 keep-runtime-typing = false
+
+
+# [tool.pyright]
+# typeCheckingMode = "basic"
+# reportOptionalReturn = "error"

@@ -1,3 +1,8 @@
+"""Module de gestion des rôles secrets.
+
+Contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et supprimer les règles de rôles secrets dans la base de données.
+"""
+
 from __future__ import annotations
 
 from eldoria.db.connection import get_conn
@@ -34,7 +39,7 @@ def sr_match(guild_id: int, channel_id: int, phrase: str) -> int | None:
 
 
 def sr_list_messages(guild_id: int, channel_id: int) -> list[str]:
-    """Liste toutes les phrases configurées pour les rôles secrets d'un salon, triées alphabétiquement."""
+    """Lister toutes les phrases configurées pour les rôles secrets d'un salon, triées alphabétiquement."""
     with get_conn() as conn:
         rows = conn.execute("""
             SELECT phrase
@@ -46,8 +51,7 @@ def sr_list_messages(guild_id: int, channel_id: int) -> list[str]:
 
 
 def sr_list_by_guild_grouped(guild_id: int) -> list[tuple[str, dict[str, int]]]:
-    """
-    Retourne les rôles secrets d'un serveur, groupés par salon.
+    """Retourne les rôles secrets d'un serveur, groupés par salon.
 
     Format:
         [

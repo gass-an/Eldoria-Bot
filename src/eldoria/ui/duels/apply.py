@@ -1,3 +1,5 @@
+"""Module pour appliquer un snapshot de duel sur le message courant."""
+
 from __future__ import annotations
 
 import discord
@@ -11,8 +13,8 @@ async def apply_duel_snapshot(
     snapshot: dict,
     bot: object,
 ) -> None:
-    """
-    Applique un snapshot sur le message courant:
+    """Applique un snapshot sur le message courant.
+    
     - render via render_duel_message (inclut déjà le sync roles XP chez toi)
     - edit du message
     - annonce level up/down si présent dans snapshot.effects.level_changes

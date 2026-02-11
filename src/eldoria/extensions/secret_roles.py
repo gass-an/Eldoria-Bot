@@ -1,3 +1,9 @@
+"""Cog de gestion des rôles secrets.
+
+Permet d'attribuer un rôle à un utilisateur lorsqu'il envoie un message spécifique dans un channel spécifique.
+Inclut des commandes pour ajouter, supprimer et lister les rôles secrets configurés sur le serveur.
+"""
+
 import discord
 from discord.ext import commands
 
@@ -8,7 +14,14 @@ from eldoria.ui.roles.embeds import build_list_secret_roles_embed
 
 
 class SecretRoles(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de gestion des rôles secrets.
+
+    Permet d'attribuer un rôle à un utilisateur lorsqu'il envoie un message spécifique dans un channel spécifique.
+    Inclut des commandes pour ajouter, supprimer et lister les rôles secrets configurés sur le serveur.
+    """
+
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog SecretRoles avec une référence au bot et à son service de gestion des rôles."""
         self.bot = bot
         self.role = self.bot.services.role
 
@@ -21,7 +34,13 @@ class SecretRoles(commands.Cog):
     @discord.option("role", discord.Role, description="Le rôle attribué.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def add_secret_role(self, ctx: discord.ApplicationContext, message: str, channel: discord.TextChannel, role: discord.Role):
+    async def add_secret_role(self, ctx: discord.ApplicationContext, message: str, channel: discord.TextChannel, role: discord.Role) -> None:
+        """Commande slash /add_secret_role : attribue un role défini si l'utilisateur entre le bon message dans le bon channel.
+        
+        Vérifie les permissions du bot, la configuration de la fonctionnalité, et
+        ajoute une règle de rôle secret dans la base de données pour le message,
+        le channel et le rôle spécifiés.
+        """
         await ctx.defer(ephemeral=True)
 
         guild = ctx.guild
@@ -61,7 +80,12 @@ class SecretRoles(commands.Cog):
     @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.", autocomplete=message_secret_role_autocomplete)
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def delete_secret_role(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message: str):
+    async def delete_secret_role(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message: str)-> None:
+        """Commande slash /delete_secret_role : supprime l'atibution d'un secret_role déjà paramétré.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, et
+        supprime la règle de rôle secret correspondante de la base de données.
+        """
         await ctx.defer(ephemeral=True)
 
         if ctx.guild is None:
@@ -83,7 +107,11 @@ class SecretRoles(commands.Cog):
     @commands.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def list_of_secret_roles(self, ctx: discord.ApplicationContext):
+    async def list_of_secret_roles(self, ctx: discord.ApplicationContext)-> None:
+        """Commande slash /list_of_secret_roles : affiche la liste des tous les rôles attribués avec un message secret.
+        
+        Récupère les rôles secrets du serveur, les organise par channel et message, et affiche le tout dans un embed paginé.
+        """
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
@@ -102,5 +130,6 @@ class SecretRoles(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot)-> None:
+    """Fonction de setup pour ajouter le cog SecretRoles au bot."""
     bot.add_cog(SecretRoles(bot))

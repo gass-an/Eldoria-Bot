@@ -1,3 +1,8 @@
+"""Module de logique métier pour la fonctionnalité de messages de bienvenue.
+
+Notamment le choix d'un message à partir du JSON de configuration et de l'historique récent.
+"""
+
 from __future__ import annotations
 
 import random
@@ -12,12 +17,7 @@ def pick_welcome_message(
     recent_keys: list[str],
     recent_limit: int = 10,
 ) -> tuple[str, str, list[str], str]:
-    """
-    Retourne (title, message, emojis, chosen_key)
-    - data: JSON brut chargé
-    - recent_keys: clés récemment utilisées (depuis la DB), à éviter si possible
-    """
-
+    """Logique de choix d'un message de bienvenue à partir du JSON de configuration et de l'historique récent."""
     packs = data.get("packs", [])
     pool: dict[str, tuple[str, str, list[str]]] = {}
 

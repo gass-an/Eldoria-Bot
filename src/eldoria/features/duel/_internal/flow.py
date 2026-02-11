@@ -1,3 +1,5 @@
+"""Module interne gérant le flow de création et gestion d'un duel (création, configuration, invitation, acceptation, refus)."""
+
 from typing import Any
 
 from eldoria.db.connection import get_conn
@@ -10,6 +12,12 @@ from eldoria.utils.timestamp import add_duration, now_ts
 
 
 def new_duel(guild_id: int, channel_id: int, player_a_id: int, player_b_id: int) -> dict[str, Any]:
+    """Démarre la création d'un duel entre deux joueurs, avec une configuration initiale (status=CONFIG).
+    
+    Vérifie que les joueurs sont différents et qu'ils ne sont pas déjà engagés dans un duel actif
+    Puis crée une entrée de duel dans la base de données avec les informations fournies et des timestamps de création et d'expiration. 
+    Retourne un snapshot du duel nouvellement créé.
+    """
     if player_a_id == player_b_id:
         raise exc.SamePlayerDuel(player_a_id, player_b_id)
     
@@ -25,6 +33,12 @@ def new_duel(guild_id: int, channel_id: int, player_a_id: int, player_b_id: int)
 
 
 def configure_game_type(duel_id: int, game_type: str) -> dict[str, Any]:
+    """Configure le type de jeu pour un duel en cours de configuration.
+    
+    Vérifie que le duel existe, qu'il n'est pas expiré, et que le type de jeu spécifié est valide.
+    Puis met à jour la configuration du duel dans la base de données.
+    Retourne un snapshot du duel avec les informations mises à jour.
+    """
     duel = helpers.get_duel_or_raise(duel_id)
     helpers.assert_duel_not_expired(duel)
 
@@ -40,6 +54,12 @@ def configure_game_type(duel_id: int, game_type: str) -> dict[str, Any]:
 
 
 def configure_stake_xp(duel_id: int, stake_xp: int) -> dict[str, Any]:
+    """Configure la mise en XP pour un duel en cours de configuration.
+    
+    Vérifie que le duel existe, qu'il n'est pas expiré, et que la mise en XP spécifiée est valide et autorisée pour ce duel
+    Puis met à jour la configuration du duel dans la base de données. 
+    Retourne un snapshot du duel avec les informations mises à jour.
+    """
     duel = helpers.get_duel_or_raise(duel_id)
     helpers.assert_duel_not_expired(duel)
     
@@ -56,10 +76,13 @@ def configure_stake_xp(duel_id: int, stake_xp: int) -> dict[str, Any]:
     return helpers.build_snapshot(duel_row=duel)
 
 
-
-
-
 def send_invite(duel_id: int, message_id: int) ->  dict[str, Any]:
+    """Envoie l'invitation pour un duel configuré.
+    
+    Vérifie que le duel existe, qu'il n'est pas expiré, que la configuration est complète (type de jeu et mise en XP),
+    que le message_id de l'invitation est fourni, puis met à jour le statut du duel dans la base de données pour le faire passer à "INVITED" 
+    et enregistre le message_id de l'invitation. Retourne un snapshot du duel avec les informations mises à jour.
+    """
     duel = helpers.get_duel_or_raise(duel_id)
     helpers.assert_duel_not_expired(duel)
     
@@ -84,10 +107,13 @@ def send_invite(duel_id: int, message_id: int) ->  dict[str, Any]:
     return helpers.build_snapshot(duel_row=duel, xp=xp_dict)
 
 
-
-
-
 def accept_duel(duel_id: int, user_id: int)-> dict[str, Any]:
+    """Accepte une invitation à un duel.
+    
+    Vérifie que le duel existe, qu'il n'est pas expiré, que l'utilisateur est bien le joueur B invité, que le statut du duel est "INVITED",
+    et que la mise en XP est valide pour les joueurs impliqués, puis met à jour le statut du duel dans la base de données pour le faire passer à "ACTIVE",
+    enregistre le timestamp d'expiration de l'invitation, et débite la mise en XP des joueurs. Retourne un snapshot du duel avec les informations mises à jour.
+    """
     duel = helpers.get_duel_or_raise(duel_id)
     helpers.assert_duel_not_expired(duel)
     
@@ -143,6 +169,12 @@ def accept_duel(duel_id: int, user_id: int)-> dict[str, Any]:
 
 
 def refuse_duel(duel_id: int, user_id: int) -> dict[str, Any]:
+    """Refuse une invitation à un duel.
+    
+    Vérifie que le duel existe, qu'il n'est pas expiré, que l'utilisateur est bien le joueur B invité, que le statut du duel est "INVITED",
+    puis met à jour le statut du duel dans la base de données pour le faire passer à "CANCELLED", et enregistre la date de fin du duel.
+    Retourne un snapshot du duel avec les informations mises à jour.
+    """
     duel = helpers.get_duel_or_raise(duel_id)
     helpers.assert_duel_not_expired(duel)
     

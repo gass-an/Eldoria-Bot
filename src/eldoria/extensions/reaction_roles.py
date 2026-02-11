@@ -1,3 +1,8 @@
+"""Cog de gestion des rôles par réaction, permettant d'associer des réactions à des rôles sur des messages spécifiques.
+    
+Gère les événements de réaction pour attribuer ou retirer les rôles correspondants, et inclut des commandes pour ajouter,
+supprimer et lister les associations de réactions et de rôles.
+"""
 import discord
 from discord.ext import commands
 
@@ -8,13 +13,24 @@ from eldoria.utils.discord_utils import extract_id_from_link
 
 
 class ReactionRoles(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de gestion des rôles par réaction, permettant d'associer des réactions à des rôles sur des messages spécifiques.
+    
+    Gère les événements de réaction pour attribuer ou retirer les rôles correspondants, et inclut des commandes pour ajouter,
+    supprimer et lister les associations de réactions et de rôles.
+    """
+
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog ReactionRoles avec une référence au bot et à son service de rôle."""
         self.bot = bot
         self.role = self.bot.services.role
 
     # -------------------- Events --------------------
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        """Gère l'événement de réaction ajoutée.
+        
+        Vérifie si la réaction correspond à une règle de rôle par réaction, et si oui, attribue le rôle correspondant à l'utilisateur qui a réagi.
+        """
         guild = self.bot.get_guild(payload.guild_id)
         if guild is None:
             return
@@ -34,7 +50,12 @@ class ReactionRoles(commands.Cog):
                 pass
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        """Gère l'événement de réaction retirée.
+        
+        Vérifie si la réaction correspond à une règle de rôle par réaction, et si oui,
+        retire le rôle correspondant à l'utilisateur qui a retiré sa réaction.
+        """
         guild = self.bot.get_guild(payload.guild_id)
         if guild is None:
             return
@@ -58,7 +79,12 @@ class ReactionRoles(commands.Cog):
     @discord.option("role", discord.Role, description="Le rôle attribué.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def add_reaction_role(self, ctx: discord.ApplicationContext, message_link: str, emoji: str, role: discord.Role):
+    async def add_reaction_role(self, ctx: discord.ApplicationContext, message_link: str, emoji: str, role: discord.Role) -> None:
+        """Commande slash /add_reaction_role : associe une réaction sur un message défini à un rôle.
+        
+        Vérifie les permissions du bot, les conflits d'association existants, ajoute la réaction au message,
+        et enregistre la règle de rôle par réaction dans la base de données.
+        """
         await ctx.defer(ephemeral=True)
 
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
@@ -122,7 +148,12 @@ class ReactionRoles(commands.Cog):
     @discord.option("emoji", str, description="L'émoji de la réaction.")
     @discord.default_permissions(manage_roles=True, manage_messages=True)
     @commands.has_permissions(manage_roles=True, manage_messages=True)
-    async def remove_specific_reaction(self, ctx: discord.ApplicationContext, message_link: str, emoji: str):
+    async def remove_specific_reaction(self, ctx: discord.ApplicationContext, message_link: str, emoji: str) -> None:
+        """Commande slash /remove_specific_reaction : retire une réaction spécifique d'un message.
+        
+        Vérifie les permissions du bot, supprime la réaction du message,
+        et supprime la règle de rôle par réaction correspondante de la base de données.
+        """
         await ctx.defer(ephemeral=True)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
 
@@ -149,7 +180,12 @@ class ReactionRoles(commands.Cog):
     @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
     @discord.default_permissions(manage_roles=True, manage_messages=True)
     @commands.has_permissions(manage_roles=True, manage_messages=True)
-    async def remove_all_reactions(self, ctx: discord.ApplicationContext, message_link: str):
+    async def remove_all_reactions(self, ctx: discord.ApplicationContext, message_link: str) -> None:
+        """Commande slash /remove_all_reactions : retire toutes les réactions d'un message.
+        
+        Vérifie les permissions du bot,supprime toutes les réactions du message,
+        et supprime toutes les règles de rôle par réaction correspondantes de la base de données.
+        """
         await ctx.defer(ephemeral=True)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
 
@@ -176,7 +212,11 @@ class ReactionRoles(commands.Cog):
     @commands.slash_command(name="list_of_reaction_roles",description="Affiche la liste des tous les rôles attribués avec une réaction à un message.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def list_reaction_roles(self, ctx: discord.ApplicationContext):
+    async def list_reaction_roles(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /list_reaction_roles : affiche la liste des tous les rôles attribués avec une réaction à un message.
+        
+        Récupère les règles de rôle par réaction du serveur, les organise par message, et affiche le tout dans un embed paginé.
+        """
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
@@ -195,5 +235,6 @@ class ReactionRoles(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation du cog ReactionRoles, appelée lors du chargement de l'extension."""
     bot.add_cog(ReactionRoles(bot))

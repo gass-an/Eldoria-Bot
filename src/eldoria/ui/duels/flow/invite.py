@@ -1,3 +1,5 @@
+"""Module de gestion de l'invitation au duel."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -23,8 +25,8 @@ async def build_invite_duels_embed(
         stake_xp: int,
         expires_at: int,
         game_type: str,
-        ):
-
+        ) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed d'invitation au duel."""
     embed = discord.Embed(
         title="Invitation à un duel",
         description=f"Cette invitation expire <t:{expires_at}:R>\n**{player_b.display_name}** est provoqué en duel par **{player_a.display_name}**\n\u200b\n",
@@ -63,14 +65,18 @@ async def build_invite_duels_embed(
 
 
 class InviteView(discord.ui.View):
-    def __init__(self, bot: EldoriaBot, duel_id: int):
+    """View pour l'invitation au duel, avec les boutons Accepter et Refuser."""
+
+    def __init__(self, bot: EldoriaBot, duel_id: int) -> None:
+        """Initialise la view avec les boutons Accepter et Refuser."""
         super().__init__(timeout=300)
         self.bot = bot
         self.duel_id = duel_id
         self.duel = bot.services.duel
         
     @discord.ui.button(label="✅ Accepter", style=discord.ButtonStyle.secondary)
-    async def accept(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def accept(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Accepter."""
         await interaction.response.defer()
 
         try:
@@ -94,7 +100,8 @@ class InviteView(discord.ui.View):
 
 
     @discord.ui.button(label="❌ Refuser", style=discord.ButtonStyle.secondary)
-    async def refuse(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def refuse(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Refuser."""
         await interaction.response.defer()
 
         try:

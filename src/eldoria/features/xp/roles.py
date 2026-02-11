@@ -1,3 +1,5 @@
+"""Module de logique métier pour la fonctionnalité de gestion des rôles de niveau XP."""
+
 import discord
 
 from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_member, xp_get_role_ids, xp_is_enabled
@@ -41,6 +43,11 @@ async def sync_member_level_roles(guild: discord.Guild, member: discord.Member, 
         return
     
 async def sync_xp_roles_for_users(guild: discord.Guild, user_ids: list[int]) -> None:
+    """Met à jour les rôles de niveau XP pour une liste d'utilisateurs.
+    
+    Utilisé notamment après un changement de configuration (paliers, rôles associés, etc)
+    pour appliquer rétroactivement les changements à tous les membres.
+    """
     # Si ton système XP peut être OFF par guilde
     if not xp_is_enabled(guild.id):
         return
@@ -53,8 +60,8 @@ async def sync_xp_roles_for_users(guild: discord.Guild, user_ids: list[int]) -> 
             continue
 
 def get_xp_role_ids(guild_id: int | None) -> dict[int, int]:
-    """
-    Retourne le mapping {level: role_id} pour un serveur XP.
+    """Retourne le mapping {level: role_id} pour un serveur XP.
+    
     Si guild_id est None ou invalide, retourne un dict vide.
     """
     if not guild_id:

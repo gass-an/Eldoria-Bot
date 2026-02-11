@@ -1,3 +1,5 @@
+"""Utilitaires pour la gestion des mentions de rôles de niveau, permettant d'obtenir une mention ou un label humain pour un niveau donné en fonction de la configuration du serveur."""
+
 import discord
 
 

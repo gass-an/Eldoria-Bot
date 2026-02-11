@@ -1,3 +1,5 @@
+"""Module de gestion du JSON de configuration du message de bienvenue."""
+
 import json
 from typing import Any
 

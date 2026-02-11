@@ -1,3 +1,5 @@
+"""Module définissant les extensions à charger pour le bot Eldoria."""
+
 from typing import Final
 
 EXTENSIONS: Final[tuple[str, ...]] = (

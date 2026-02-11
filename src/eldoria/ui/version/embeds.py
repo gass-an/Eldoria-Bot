@@ -1,3 +1,5 @@
+"""Module des embeds pour la version du bot."""
+
 from xml.etree.ElementTree import VERSION
 
 import discord
@@ -6,7 +8,8 @@ from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_version_embed():
+async def build_version_embed() -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed de la version du bot."""
     embed = discord.Embed(
         title="Eldoria",
         description="La version actuelle de votre bot préféré",

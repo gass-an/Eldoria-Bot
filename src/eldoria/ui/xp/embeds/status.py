@@ -1,3 +1,5 @@
+"""Module des embeds pour le statut du système XP."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -5,7 +7,8 @@ from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot):
+async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed affichant le statut et la configuration du système XP."""
     guild = bot.get_guild(guild_id)
     enabled = bool(cfg.get("enabled", False))
     
@@ -98,7 +101,8 @@ async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot):
     return embed, files
 
 
-async def build_xp_disable_embed(guild_id: int, bot: EldoriaBot):
+async def build_xp_disable_embed(guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed affichant que le système XP est désactivé."""
     guild = bot.get_guild(guild_id)
     embed = discord.Embed(
         title="Statut du système XP",

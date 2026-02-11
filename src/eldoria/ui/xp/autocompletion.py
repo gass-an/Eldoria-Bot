@@ -1,3 +1,5 @@
+"""Module d'autocomplétion pour les rôles de niveau XP."""
+
 from typing import cast
 
 import discord
@@ -5,7 +7,8 @@ import discord
 from eldoria.app.bot import EldoriaBot
 
 
-async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext):
+async def xp_level_role_autocomplete(interaction: discord.AutocompleteContext) -> list[str]:
+    """Autocomplétion pour les rôles de niveau XP."""
     guild = interaction.interaction.guild
     if guild is None:
         return []

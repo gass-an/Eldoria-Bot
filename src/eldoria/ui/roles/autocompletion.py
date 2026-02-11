@@ -1,3 +1,5 @@
+"""Module d'autocomplétion pour les rôles secrets."""
+
 from typing import cast
 
 import discord
@@ -5,8 +7,8 @@ import discord
 from eldoria.app.bot import EldoriaBot
 
 
-async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext):
-
+async def message_secret_role_autocomplete(interaction: discord.AutocompleteContext) -> list[str]:
+    """Autocomplétion pour les messages de rôle secret."""
     bot = cast(EldoriaBot, interaction.interaction.client)
     role = bot.services.role
     

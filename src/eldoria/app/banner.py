@@ -1,3 +1,5 @@
+"""Module pour afficher une bannière de démarrage du bot avec des informations utiles."""
+
 import sys
 import textwrap
 from datetime import datetime
@@ -8,6 +10,7 @@ from eldoria.version import VERSION
 
 
 def startup_banner(started_at: datetime | None = None) -> str:
+    """Génère une bannière de démarrage du bot avec des informations utiles."""
     started_at = started_at or datetime.now()
     now = started_at.strftime("%H:%M:%S %d/%m/%Y")
     py = sys.version.split()[0]
@@ -37,14 +40,14 @@ def startup_banner(started_at: datetime | None = None) -> str:
     sep = "╟" + "─" * w + "╢"
     bot = "╚" + "═" * w + "╝"
 
-    body = []
+    body: list[str] = []
     for i, line in enumerate(lines):
         if i == 1:
             body.append(sep)
             continue
         body.append(f"║ {line.ljust(w - 1)}║")
 
-    box = "\n".join([top, *body, bot])
+    box = "\n".join((top, *body, bot))
 
     return f"{logo}\n{box}\n"
 

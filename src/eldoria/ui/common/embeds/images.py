@@ -1,3 +1,5 @@
+"""Module de gestion des images pour les embeds."""
+
 import discord
 
 # ---------------------------------------------------------------------------

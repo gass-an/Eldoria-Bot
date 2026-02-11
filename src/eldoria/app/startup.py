@@ -1,5 +1,9 @@
+"""Module de démarrage du bot Eldoria, contenant les fonctions nécessaires pour initialiser les services, charger les extensions et préparer l'application avant de se connecter à Discord."""
+
 import logging
 import time
+from collections.abc import Callable
+from typing import Any
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.app.extensions import EXTENSIONS
@@ -18,12 +22,13 @@ from eldoria.ui.duels import init_duel_ui
 log = logging.getLogger(__name__)
 
 
-def step(name: str, fn, *, critical: bool = True, logger: logging.Logger | None = None):
+def step(name: str, action: Callable[[], Any], *, critical: bool = True, logger: logging.Logger | None = None) -> None:
+    """Exécute une étape de démarrage du bot en mesurant le temps d'exécution et en gérant les exceptions de manière centralisée."""
     start = time.perf_counter()
     if logger is None : 
         logger = log
     try:
-        result = fn()
+        result = action()
         ms = (time.perf_counter() - start) * 1000
         label = f"{name} ({result})" if result is not None else name
         logger.info("✅ %-53s %8.1f ms", label, ms)
@@ -34,6 +39,7 @@ def step(name: str, fn, *, critical: bool = True, logger: logging.Logger | None 
             raise
 
 def load_extensions(bot: EldoriaBot) -> int:
+    """Charge les extensions définies dans EXTENSIONS et retourne le nombre d'extensions chargées."""
     count = 0
     for ext in EXTENSIONS:
         bot.load_extension(ext)
@@ -41,6 +47,7 @@ def load_extensions(bot: EldoriaBot) -> int:
     return count
 
 def init_services(bot: EldoriaBot) -> int:
+    """Initialise les services utilisés par le bot et les assigne à l'attribut services du bot, puis retourne le nombre de services initialisés."""
     bot.services = Services(
         duel=DuelService(),
         role=RoleService(),
@@ -52,6 +59,7 @@ def init_services(bot: EldoriaBot) -> int:
     return len(bot.services)
 
 def startup(bot: EldoriaBot) -> None:
+    """Exécute les différentes étapes de démarrage du bot en utilisant la fonction step pour mesurer le temps d'exécution et gérer les exceptions."""
     step("Initialisation des services", lambda: init_services(bot), critical=False)
     step("Initialisation des extensions", lambda: load_extensions(bot))
     step("Initialisation de la base de données", init_db)

@@ -1,3 +1,9 @@
+"""Module de gestion des messages de bienvenue.
+
+Contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et supprimer les configurations de messages de bienvenue
+et leur historique dans la base de données.
+"""
+
 from __future__ import annotations
 
 import time

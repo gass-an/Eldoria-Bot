@@ -1,3 +1,5 @@
+"""Module pour construire les embeds de l'aide."""
+
 import discord
 
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
@@ -9,7 +11,7 @@ def build_home_embed(
     cat_descriptions: dict[str, str],
     thumb_url: str | None = None,
     banner_url: str | None = None,
-):
+) -> discord.Embed:
     """Build the help home page embed."""
     embed = discord.Embed(
         title="Centre d'aide",
@@ -33,7 +35,7 @@ def build_category_embed(
     cmd_map: dict[str, object],
     thumb_url: str | None = None,
     banner_url: str | None = None,
-):
+) -> discord.Embed:
     """Build a category page embed."""
     embed = discord.Embed(
         title=f"Aide • {cat}",

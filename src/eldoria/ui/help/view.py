@@ -187,7 +187,6 @@ class HelpMenuView(discord.ui.View):
 # -------------------- Slash command helper --------------------
 async def send_help_menu(ctx: discord.ApplicationContext, bot):
     """Send the interactive help menu (same logic as the original core /help)."""
-
     await ctx.defer(ephemeral=True)
 
     cmd_map = {c.name: c for c in bot.application_commands}

@@ -1,3 +1,5 @@
+"""Module de fonctions de maintenance pour les duels, notamment la gestion de l'expiration des duels et le nettoyage des anciens duels dans la base de données."""
+
 from typing import Any
 
 from eldoria.db.connection import get_conn
@@ -18,7 +20,6 @@ def cancel_expired_duels() -> list[dict[str, Any]]:
     Retourne une liste d'objets décrivant les duels effectivement passés en EXPIRED.
     Le Cog peut s'en servir pour éditer le message Discord associé (embed + suppression des boutons).
     """
-
     duels = duel_repo.list_expired_duels(now_ts())
     expired: list[dict[str, Any]] = []
 
@@ -114,6 +115,7 @@ def cancel_expired_duels() -> list[dict[str, Any]]:
 
 
 def cleanup_old_duels(now_ts: int) -> None:
+    """Supprime les duels expirés depuis plus de KEEP_EXPIRED_DAYS jours, et les duels finis depuis plus de KEEP_FINISHED_DAYS jours, afin de nettoyer la base de données."""
     cutoff_short = now_ts - (constants.KEEP_EXPIRED_DAYS * 86400)
     cutoff_finished = now_ts - (constants.KEEP_FINISHED_DAYS * 86400)
 

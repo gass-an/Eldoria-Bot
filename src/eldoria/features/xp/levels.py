@@ -1,3 +1,5 @@
+"""Module de logique métier pour la fonctionnalité de calcul de niveau à partir de l'XP."""
+
 from collections.abc import Iterable
 
 

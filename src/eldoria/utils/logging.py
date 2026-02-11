@@ -1,3 +1,5 @@
+"""Utilitaires pour la configuration du logging, avec un format lisible et une réduction du bruit des logs Discord."""
+
 from __future__ import annotations
 
 import logging
@@ -5,6 +7,7 @@ import sys
 
 
 def setup_logging(level: int = logging.INFO) -> None:
+    """Configure le logging pour afficher les messages de niveau INFO ou supérieur, avec un format lisible, et réduit le bruit des logs Discord."""
     root = logging.getLogger()
     root.setLevel(level)
     root.handlers.clear()

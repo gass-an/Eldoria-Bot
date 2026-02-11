@@ -1,3 +1,5 @@
+"""Module de définition des couleurs utilisées pour les embeds."""
+
 from typing import Final
 
 import discord

@@ -1,3 +1,8 @@
+"""Constantes utilisées dans le système de duels d'Eldoria.
+
+Notamment les valeurs par défaut pour les mises d'XP, les statuts de duel, les types de jeux et les résultats possibles.
+"""
+
 from typing import Final
 
 STAKE_XP_DEFAULTS: Final[list[int]] = [

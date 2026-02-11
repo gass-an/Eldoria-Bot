@@ -1,3 +1,9 @@
+"""Module de gestion des salons vocaux temporaires.
+
+Contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et supprimer les configurations de parents de salons vocaux temporaires
+et leurs salons actifs dans la base de données.
+"""
+
 from __future__ import annotations
 
 from eldoria.db.connection import get_conn
@@ -54,7 +60,7 @@ def tv_remove_active(guild_id: int, parent_channel_id: int, channel_id: int) -> 
 
 
 def tv_list_active(guild_id: int, parent_channel_id: int) -> list[int]:
-    """Liste les identifiants des salons vocaux temporaires actifs pour un parent donné."""
+    """Lister les identifiants des salons vocaux temporaires actifs pour un parent donné."""
     with get_conn() as conn:
         rows = conn.execute("""
             SELECT channel_id FROM temp_voice_active
@@ -64,7 +70,7 @@ def tv_list_active(guild_id: int, parent_channel_id: int) -> list[int]:
 
 
 def tv_list_active_all(guild_id: int) -> list[tuple[int, int]]:
-    """Liste tous les salons vocaux temporaires actifs d'un serveur (parent_channel_id, channel_id)."""
+    """Lister tous les salons vocaux temporaires actifs d'un serveur (parent_channel_id, channel_id)."""
     with get_conn() as conn:
         return conn.execute("""
             SELECT parent_channel_id, channel_id
@@ -83,7 +89,7 @@ def tv_delete_parent(guild_id: int, parent_channel_id: int) -> None:
 
 
 def tv_list_parents(guild_id: int) -> list[tuple[int, int]]:
-    """Liste les parents de salons vocaux temporaires configurés (parent_channel_id, user_limit)."""
+    """Lister les parents de salons vocaux temporaires configurés (parent_channel_id, user_limit)."""
     with get_conn() as conn:
         rows = conn.execute("""
             SELECT parent_channel_id, user_limit

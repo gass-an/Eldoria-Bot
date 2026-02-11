@@ -1,3 +1,5 @@
+"""Module de rendu pour les interfaces utilisateur de duels."""
+
 from __future__ import annotations
 
 import discord
@@ -13,7 +15,6 @@ async def render_duel_message(
     bot: object,
 ) -> tuple[discord.Embed, list[discord.File], discord.ui.View | None]:
     """Point d'entrée unique pour rendre un duel (embed + fichiers + view) depuis un snapshot."""
-    
     # ✅ 0) Appliquer les effets “hors rendu” (ex: sync roles XP)
     effects = snapshot.get("effects") or {}
     if effects.get("xp_changed"):

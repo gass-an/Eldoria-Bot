@@ -1,3 +1,5 @@
+"""Module de gestion du JSON de configuration de la commande help."""
+
 import json
 from typing import Any
 
@@ -23,14 +25,13 @@ def load_help_config() -> tuple[dict[str, str], dict[str, list[str]], dict[str, 
     - help_infos: {cmd_name: description}
     - categories: {category_name: [cmd_name, ...]}
     - category_descriptions: {category_name: description}
-
+    
     Formats supportés:
     1) Nouveau (recommandé):
        {"categories": {"Nom": {"description": "...", "commands": {"cmd": "desc"}}}}
     2) Ancien: {"commands": {...}, "categories": {...}, "category_descriptions": {...}}
     3) Très ancien: {"cmd_name": "description", ...}
     """
-
     help_data = load_help_json() or {}
 
     # 1) Format structuré

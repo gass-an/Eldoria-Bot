@@ -1,3 +1,9 @@
+"""Module `general_exceptions`.
+
+Contient des exceptions générales qui peuvent être utilisées dans différentes parties du bot pour signaler des erreurs courantes liées à l'interaction,
+telles que des interactions provenant de sources inattendues ou des éléments requis qui sont introuvables ou invalides.
+"""
+
 class GuildRequired(Exception):
     """L'interaction doit provenir d'un serveur."""
 

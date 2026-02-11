@@ -1,3 +1,8 @@
+"""Module de gestion des rôles par réaction.
+
+Contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et supprimer les règles de rôles par réaction dans la base de données.
+"""
+
 from __future__ import annotations
 
 from eldoria.db.connection import get_conn
@@ -54,15 +59,14 @@ def rr_list_by_message(guild_id: int, message_id: int) -> dict[str, int]:
 
 
 def rr_list_by_guild_grouped(guild_id: int) -> list[tuple[str, dict[str, int]]]:
-    """
-    Retourne les rôles par réaction d'un serveur, groupés par message.
+    """Retourne les rôles par réaction d'un serveur, groupés par message.
 
     Format:
         [
             (message_id, {emoji: role_id}),
             ...
         ]
-
+        
     Le message_id est retourné sous forme de chaîne afin d'être compatible
     avec le format JSON et les paginateurs/embeds existants.
     """

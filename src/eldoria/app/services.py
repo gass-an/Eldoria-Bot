@@ -1,3 +1,5 @@
+"""Module définissant les services utilisés par le bot Eldoria, regroupant les différentes fonctionnalités en un seul endroit pour une gestion centralisée."""
+
 from dataclasses import dataclass, fields
 
 from eldoria.features.duel.duel_service import DuelService
@@ -10,6 +12,8 @@ from eldoria.features.xp.xp_service import XpService
 
 @dataclass(slots=True) 
 class Services: 
+    """Classe regroupant les différents services utilisés par le bot Eldoria, facilitant l'accès et la gestion de ces fonctionnalités."""
+
     duel: DuelService
     role: RoleService
     save: SaveService
@@ -18,4 +22,5 @@ class Services:
     xp: XpService
 
     def __len__(self) -> int:
+        """Retourne le nombre de services définis dans cette classe."""
         return len(fields(self))

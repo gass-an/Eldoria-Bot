@@ -1,3 +1,5 @@
+"""Module des embeds pour les vocaux temporaires."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -5,11 +7,14 @@ from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_list_temp_voice_parents_embed(items, page: int, total_pages: int, identifiant_for_embed: int, bot: EldoriaBot):
-    """
-    items: list[(parent_channel_id, user_limit)] pour la page courante
-    identifiant_for_embed: guild_id
-    """
+async def build_list_temp_voice_parents_embed(
+        items: list[tuple[int, int]], 
+        page: int, 
+        total_pages: int, 
+        identifiant_for_embed: int,
+        bot: EldoriaBot
+    ) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed de la liste des salons parents pour les vocaux temporaires."""
     embed = discord.Embed(
         title="Salons pour la création de vocaux temporaires",
         description="Liste des salons configurés pour créer des salons vocaux temporaires.",

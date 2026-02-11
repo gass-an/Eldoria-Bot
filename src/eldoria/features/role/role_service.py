@@ -1,3 +1,5 @@
+"""Service métier regroupant la gestion des rôles secrets et des rôles par réaction."""
+
 from dataclasses import dataclass
 
 from eldoria.db.repo import reaction_roles_repo, secret_roles_repo

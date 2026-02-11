@@ -1,3 +1,10 @@
+"""Cog gérant les commandes liées au système d'XP (expérience) du bot Eldoria.
+    
+Ce module permet aux administrateurs de configurer le système d'XP, de définir les rôles associés aux niveaux,
+et aux utilisateurs de consulter leur profil d'XP, les rôles de niveau, et le classement des joueurs.
+Il inclut également une commande pour modifier manuellement l'XP d'un membre.
+Les commandes sont principalement destinées à être utilisées sur un serveur Discord, et certaines nécessitent des permissions d'administrateur
+"""
 import re
 
 import discord
@@ -15,7 +22,16 @@ from eldoria.utils.mentions import level_label
 LEVEL_RE = re.compile(r"^level\s*(\d+)\b", re.IGNORECASE)
 
 class Xp(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog gérant les commandes liées au système d'XP (expérience) du bot Eldoria.
+    
+    Ce module permet aux administrateurs de configurer le système d'XP, de définir les rôles associés aux niveaux,
+    et aux utilisateurs de consulter leur profil d'XP, les rôles de niveau, et le classement des joueurs.
+    Il inclut également une commande pour modifier manuellement l'XP d'un membre.
+    Les commandes sont principalement destinées à être utilisées sur un serveur Discord, et certaines nécessitent des permissions d'administrateur
+    """
+    
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog Xp avec une référence au bot et à son service d'XP."""
         self.bot = bot
         self.xp = self.bot.services.xp
 
@@ -23,7 +39,12 @@ class Xp(commands.Cog):
     @commands.slash_command(name="xp_enable", description="(Admin) Active le système d'XP sur ce serveur.")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_enable(self, ctx: discord.ApplicationContext):
+    async def xp_enable(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp_enable : active le système d'XP sur ce serveur.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, 
+        et met à jour la configuration dans la base de données pour activer le système d'XP.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -38,7 +59,13 @@ class Xp(commands.Cog):
     @commands.slash_command(name="xp_disable", description="(Admin) Désactive le système d'XP sur ce serveur.")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_disable(self, ctx: discord.ApplicationContext):
+    async def xp_disable(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp_disable : désactive le système d'XP sur ce serveur.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
+        et met à jour la configuration dans la base de données pour désactiver le système d'XP.
+        Note : les données d'XP ne sont pas supprimées, donc réactiver le système plus tard restaurera les XP précédents.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -51,7 +78,12 @@ class Xp(commands.Cog):
         await ctx.followup.send(content="⛔ Système d'XP **désactivé** sur ce serveur.")
 
     @commands.slash_command(name="xp_status", description="Affiche l'état du système d'XP sur ce serveur.")
-    async def xp_status(self, ctx: discord.ApplicationContext):
+    async def xp_status(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp_status : affiche l'état du système d'XP sur ce serveur.
+        
+        Vérifie la configuration de la fonctionnalité, et affiche un embed indiquant si le système d'XP est activé ou désactivé, 
+        ainsi que les paramètres de configuration actuels (points par message, cooldown, bonus, etc.).
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -63,7 +95,12 @@ class Xp(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @commands.slash_command(name="xp", description="Affiche ton XP et ton niveau.")
-    async def xp_me(self, ctx: discord.ApplicationContext):
+    async def xp_me(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp : affiche ton XP et ton niveau.
+        
+        Vérifie la configuration du système d'XP, récupère les données d'XP et de niveau pour l'utilisateur et 
+        affiche un embed avec les informations de profil d'XP (XP actuel, niveau actuel, XP requis pour le prochain niveau, etc.).
+        """
         await ctx.defer(ephemeral=True)
         if ctx.guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
@@ -97,7 +134,12 @@ class Xp(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @commands.slash_command(name="xp_roles", description="Affiche les rôles des niveaux et l'XP requis pour les obtenir.")
-    async def xp_roles(self, ctx: discord.ApplicationContext):
+    async def xp_roles(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp_roles : affiche les rôles des niveaux et l'XP requis pour les obtenir.
+        
+        Vérifie la configuration du système d'XP, récupère les rôles associés à chaque niveau et les seuils d'XP correspondants et 
+        affiche un embed avec les informations de rôles de niveau.
+        """
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
@@ -118,7 +160,12 @@ class Xp(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @commands.slash_command(name="xp_classement", description="Affiche le classement des joueurs en fonction de leurs XP.")
-    async def xp_list(self, ctx: discord.ApplicationContext):
+    async def xp_list(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /xp_classement : affiche le classement des joueurs en fonction de leurs XP.
+        
+        Vérifie la configuration du système d'XP, récupère les données de classement (XP et niveau) pour les membres du serveur et 
+        affiche un embed paginé avec le classement des joueurs.
+        """
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
@@ -150,7 +197,12 @@ class Xp(commands.Cog):
     @discord.option("xp_required", int, description="XP requis pour atteindre ce niveau", min_value=0)
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_set_level(self, ctx: discord.ApplicationContext, level: int, xp_required: int):
+    async def xp_set_level(self, ctx: discord.ApplicationContext, level: int, xp_required: int) -> None:
+        """Commande slash /xp_set_level : définit l'XP requis pour un niveau. Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité.
+        
+        Met à jour la configuration dans la base de données pour définir le seuil d'XP requis pour atteindre le niveau spécifié. 
+        Après la mise à jour, synchronise les rôles de niveau pour tous les membres du serveur afin de refléter les changements de seuils de niveau.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -194,7 +246,13 @@ class Xp(commands.Cog):
         voice_xp_per_interval: int | None = None,
         voice_daily_cap_xp: int | None = None,
         voice_levelup_channel: discord.TextChannel | None = None,
-    ):
+    ) -> None:
+        """Commande slash /xp_set_config : configure les paramètres du système XP (champs vides = inchangés).
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité et
+        met à jour la configuration dans la base de données pour les paramètres du système d'XP (points par message, cooldown, bonus, XP vocal, etc.). 
+        Affiche ensuite un message de confirmation avec les paramètres qui ont été modifiés.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -251,7 +309,7 @@ class Xp(commands.Cog):
     @discord.option("to_role", discord.Role, description="Nouveau rôle à utiliser à la place (ex: @dep)")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_role_setup(self, ctx: discord.ApplicationContext, from_role: str, to_role: discord.Role):
+    async def xp_role_setup(self, ctx: discord.ApplicationContext, from_role: str, to_role: discord.Role) -> None:
         """Permet de remplacer un rôle lvlX par un rôle existant.
 
         Exemple: /xp_role_setup @level1 @dep
@@ -336,7 +394,14 @@ class Xp(commands.Cog):
     @discord.option("delta", int, description="Nombre d'XP à ajouter (négatif = retirer)")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def xp_modify(self, ctx: discord.ApplicationContext, member: discord.Member, delta: int):
+    async def xp_modify(self, ctx: discord.ApplicationContext, member: discord.Member, delta: int) -> None:
+        """Commande slash /xp_modify : ajoute/retire des XP à un membre.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
+        met à jour les XP du membre dans la base de données en ajoutant le delta spécifié (positif ou négatif).
+        Après la mise à jour, synchronise les rôles de niveau du membre pour refléter les changements d'XP
+        et affiche un message de confirmation avec le nouveau total d'XP et le niveau du membre.
+        """
         await ctx.defer(ephemeral=True)
         guild = ctx.guild
         if guild is None:
@@ -359,5 +424,6 @@ class Xp(commands.Cog):
         await ctx.followup.send(content=f"✅ {member.mention} est maintenant à **{new_xp} XP** (**{lbl}**).")
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation du cog Xp, appelée par le bot lors du chargement de l'extension."""
     bot.add_cog(Xp(bot))

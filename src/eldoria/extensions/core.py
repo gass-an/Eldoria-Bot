@@ -1,3 +1,8 @@
+"""Cog de base pour le bot Eldoria.
+    
+Gère les événements fondamentaux tels que la connexion, les messages, les commandes de base (help, ping, version) et les erreurs d'application.
+"""
+
 import logging
 import time
 
@@ -14,15 +19,21 @@ from eldoria.utils.mentions import level_mention
 log = logging.getLogger(__name__)
 
 class Core(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de base pour le bot Eldoria.
+    
+    Gère les événements fondamentaux tels que la connexion, les messages, les commandes de base (help, ping, version) et les erreurs d'application.
+    """
+
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog Core avec une référence au bot et à ses services XP et rôle."""
         self.bot = bot
         self.xp = self.bot.services.xp
         self.role = self.bot.services.role
 
     # -------------------- Lifecycle --------------------
     @commands.Cog.listener()
-    async def on_ready(self):
-        
+    async def on_ready(self) -> None:
+        """Événement déclenché lorsque le bot est prêt et connecté à Discord. Synchronise les commandes et affiche les temps de chargement."""
         if getattr(self.bot, "_booted", False):
             return
         self.bot._booted = True
@@ -41,7 +52,12 @@ class Core(commands.Cog):
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def on_message(self, message: discord.Message) -> None:
+        """Événement déclenché à la réception d'un message.
+        
+        Gère l'attribution de XP pour les messages, les rôles secrets basés sur le contenu des messages,
+        et traite les commandes préfixées si nécessaire.
+        """
         if message.author == self.bot.user:
             return
         if message.guild is None:
@@ -95,17 +111,20 @@ class Core(commands.Cog):
 
     # -------------------- Basic commands --------------------
     @commands.slash_command(name="help", description="Affiche la liste des commandes disponible avec le bot")
-    async def help(self, ctx: discord.ApplicationContext):
+    async def help(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /help : affiche la liste des commandes disponible avec le bot, organisée par catégorie et avec des descriptions pour chaque commande."""
         await send_help_menu(ctx, self.bot)
 
     @commands.slash_command(name="ping", description="Ping-pong (pour vérifier que le bot est bien UP !)")
-    async def ping_command(self, ctx: discord.ApplicationContext):
+    async def ping_command(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /ping : répond "Pong" avec la latence du bot en millisecondes, pour vérifier que le bot est bien opérationnel et mesurer sa réactivité."""
         await ctx.defer(ephemeral=True)
         ws_latency = round(self.bot.latency * 1000)
         await ctx.followup.send(content=f"Pong 🏓\nLatence : `{ws_latency} ms`")
 
     @commands.slash_command(name="version", description="Affiche la version actuelle du bot")
-    async def version(self, ctx: discord.ApplicationContext):
+    async def version(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /version : affiche la version actuelle du bot, ainsi que des informations supplémentaires telles que les changements récents ou les liens utiles."""
         await ctx.defer(ephemeral=True)
         embed, files = await build_version_embed()
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
@@ -113,7 +132,12 @@ class Core(commands.Cog):
 
     # -------------------- Errors --------------------
     @commands.Cog.listener()
-    async def on_application_command_error(self, interaction: discord.Interaction, error):
+    async def on_application_command_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """Événement déclenché lorsqu'une erreur se produit lors de l'exécution d'une commande slash.
+        
+        Gère les erreurs courantes telles que les permissions manquantes, les rôles requis, les vérifications échouées,
+        et fournit des messages d'erreur clairs et adaptés à l'utilisateur.
+        """
         err = getattr(error, "original", error)
 
         if isinstance(err, GuildRequired):
@@ -154,5 +178,6 @@ class Core(commands.Cog):
         await reply_ephemeral(interaction, "❌ Une erreur est survenue lors de l'exécution de la commande.")
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation du cog Core, appelée lors du chargement de l'extension."""
     bot.add_cog(Core(bot))

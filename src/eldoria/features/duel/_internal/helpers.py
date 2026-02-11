@@ -1,5 +1,7 @@
+"""Module de fonctions utilitaires pour la gestion des duels, utilisées en interne dans les différentes étapes du processus de duel (configuration, résolution, etc.)."""
+
 import json
-from sqlite3 import Row
+from sqlite3 import Connection, Row
 from typing import Any, cast
 
 from eldoria.db.connection import get_conn
@@ -10,7 +12,11 @@ from eldoria.features.duel import constants
 from eldoria.utils.timestamp import now_ts
 
 
-def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
+def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False) -> bool:
+    """Finit un duel en mettant à jour son status, son résultat, et son timestamp de fin dans la base de données.
+    
+    Uniquement si le duel est actuellement actif et pas déjà fini, et retourne True si la mise à jour a été effectuée, ou False sinon.
+    """
     duel = get_duel_or_raise(duel_id)
     if not ignore_expired:
         assert_duel_not_expired(duel)
@@ -64,6 +70,10 @@ def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False):
 
 
 def load_payload_any(duel: Row) -> dict[str, Any]:
+    """Charge le contenu du champ payload d'un duel, qui est une chaîne JSON, et retourne un dictionnaire.
+    
+    En cas d'erreur (ex: JSON invalide), retourne un dictionnaire vide.
+    """
     try:
         raw = duel["payload"]
         if not raw:
@@ -73,6 +83,7 @@ def load_payload_any(duel: Row) -> dict[str, Any]:
         return {}
 
 def dump_payload(payload: dict[str, Any]) -> str:
+    """Sérialise un dictionnaire en une chaîne JSON à stocker dans le champ payload d'un duel."""
     return json.dumps(payload, separators=(",", ":"))
 
 
@@ -94,11 +105,16 @@ def _get_allowed_stakes_from_duel(duel: Row) -> list[int]:
     ]
 
 def get_allowed_stakes(duel_id: int) -> list[int]:
+    """Retourne la liste des mises en XP autorisées pour un duel donné, c'est à dire les mises pour lesquelles les 2 joueurs ont suffisamment d'XP."""
     duel = get_duel_by_id(duel_id)
     return _get_allowed_stakes_from_duel(duel)
     
 
 def is_configuration_available(duel_id: int) -> bool:
+    """Retourne True si la configuration du duel est disponible.
+    
+    C'est à dire que le duel existe, n'est pas expiré, et que son statut, son type de jeu et sa mise sont compatibles avec une configuration.
+    """
     duel = get_duel_by_id(duel_id)
     if not duel:
         return False
@@ -119,7 +135,7 @@ def modify_xp_for_players(
     player_b_id: int,
     xp: int,
     *,
-    conn=None,
+    conn: Connection | None =None,
 ) -> dict[int, int]:
     """Modifie l'XP des 2 joueurs et retourne {user_id: new_xp}."""
     new_xp_player_a = xp_add_xp(guild_id, player_a_id, xp, conn=conn)
@@ -127,29 +143,34 @@ def modify_xp_for_players(
     return {player_a_id: new_xp_player_a, player_b_id: new_xp_player_b}
 
 
-def assert_duel_not_expired(duel: Row): 
+def assert_duel_not_expired(duel: Row) -> None: 
+    """Lève une exception si le duel est expiré, c'est à dire que son timestamp d'expiration est dépassé."""
     expires_at = duel["expires_at"]
     if expires_at is not None and expires_at <= now_ts():
         raise exc.ExpiredDuel(duel["duel_id"])
     
 def get_duel_or_raise(duel_id: int) -> Row:
+    """Retourne la ligne de duel correspondante à l'identifiant fourni, ou lève une exception si aucun duel n'est trouvé."""
     duel = get_duel_by_id(duel_id)
     if not duel:
         raise exc.DuelNotFound(duel_id)
     return duel
 
-def get_xp_for_players(guild_id: int, player_a_id: int, player_b_id: int, *,conn=None) -> dict[int, int]:
+def get_xp_for_players(guild_id: int, player_a_id: int, player_b_id: int, *,conn: Connection | None = None) -> dict[int, int]:
+        """Retourne un dictionnaire {user_id: xp} avec l'XP actuel des 2 joueurs."""
         player_a_xp = xp_get_member(guild_id, player_a_id, conn=conn)[0]
         player_b_xp = xp_get_member(guild_id, player_b_id, conn=conn)[0]
         return {player_a_id: player_a_xp, player_b_id: player_b_xp}
 
-def build_snapshot(duel_row: Row, 
-                   *, 
-                   allowed_stakes: list[int] | None = None, 
-                   xp: dict[int, int] | None = None, 
-                   game_infos: dict[str, Any] | None = None, 
-                   effects: dict[str, Any] | None = None
-                   ) -> dict[str, Any]:
+def build_snapshot(
+        duel_row: Row, 
+        *, 
+        allowed_stakes: list[int] | None = None, 
+        xp: dict[int, int] | None = None, 
+        game_infos: dict[str, Any] | None = None, 
+        effects: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+    """Construit un snapshot du duel à partir de la ligne de duel et des informations fournies, dans un format prêt à être utilisé pour l'interface utilisateur."""
     id = duel_row["duel_id"]
     channel_id = duel_row["channel_id"]
     message_id = duel_row["message_id"]

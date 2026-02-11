@@ -1,3 +1,5 @@
+"""Module pour construire l'embed de résultat d'un duel terminé (victoire/défaite/égalité)."""
+
 from __future__ import annotations
 
 import discord
@@ -14,6 +16,7 @@ async def build_game_result_base_embed(
     stake_xp: int,
     game_type: str,
 ) -> tuple[discord.Embed, list[discord.File]]:
+    """Embed de base pour les résultats de jeu (victoire/défaite/égalité)."""
     game_name, _ = get_game_text(game_type)
 
     embed = discord.Embed(

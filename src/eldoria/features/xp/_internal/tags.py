@@ -1,7 +1,9 @@
+"""Module de logique métier pour la fonctionnalité d'XP par message."""
+
 import discord
 
 
-def _has_active_server_tag_for_guild(member: discord.abc.User, guild: discord.Guild) -> bool:
+def has_active_server_tag_for_guild(member: discord.abc.User, guild: discord.Guild) -> bool:
     """True si le membre affiche l'identité (Server Tag) de CETTE guilde sur son profil.
 
     Compatibilité: si la lib ne fournit pas ces champs, retourne False (pas de bonus plutôt que planter).

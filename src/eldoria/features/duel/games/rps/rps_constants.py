@@ -1,3 +1,5 @@
+"""Module de constantes pour le jeu de pierre-papier-ciseaux, utilisé dans les duels de type RPS."""
+
 from typing import Final
 
 RPS_MOVE_ROCK: Final[str] = "ROCK"

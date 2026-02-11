@@ -1,3 +1,5 @@
+"""Module de la view pour le jeu Pierre-Papier-Ciseaux dans les duels."""
+
 from __future__ import annotations
 
 import discord
@@ -15,7 +17,10 @@ from eldoria.utils.discord_utils import require_user_id
 
 
 class RpsView(discord.ui.View):
-    def __init__(self, *, bot: EldoriaBot, duel_id: int):
+    """View pour le jeu Pierre-Papier-Ciseaux dans les duels."""
+
+    def __init__(self, *, bot: EldoriaBot, duel_id: int) -> None:
+        """Initialise la view avec les boutons pour jouer au Pierre-Papier-Ciseaux."""
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
@@ -38,13 +43,16 @@ class RpsView(discord.ui.View):
         await apply_duel_snapshot(interaction=interaction, snapshot=snapshot, bot=self.bot)
 
     @discord.ui.button(label="🪨 Pierre", style=discord.ButtonStyle.secondary)
-    async def rock(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def rock(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Pierre."""
         await self._play(interaction, RPS_MOVE_ROCK)
 
     @discord.ui.button(label="📄 Feuille", style=discord.ButtonStyle.secondary)
-    async def paper(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def paper(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Feuille."""
         await self._play(interaction, RPS_MOVE_PAPER)
 
     @discord.ui.button(label="✂️ Ciseaux", style=discord.ButtonStyle.secondary)
-    async def scissors(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def scissors(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Ciseaux."""
         await self._play(interaction, RPS_MOVE_SCISSORS)

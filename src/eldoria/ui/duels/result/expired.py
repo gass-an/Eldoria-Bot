@@ -1,3 +1,5 @@
+"""Module pour construire l'embed de résultat d'un duel expiré."""
+
 from __future__ import annotations
 
 import discord
@@ -21,7 +23,6 @@ async def build_expired_duels_embed(
     - stake_xp : mise (peut être None en CONFIG)
     - game_type : clé du jeu (peut être vide en CONFIG)
     """
-
     prev = (previous_status or "").upper()
     stake = int(stake_xp or 0)
 

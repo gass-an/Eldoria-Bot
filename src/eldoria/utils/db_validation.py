@@ -1,10 +1,15 @@
+"""Utilitaires pour la validation de fichiers de base de données SQLite."""
+
 import os
 import sqlite3
 import tempfile
 import time
 
+import discord
 
-async def is_valid_sqlite_db(attachment) -> bool:
+
+async def is_valid_sqlite_db(attachment: discord.Attachment) -> bool:
+    """Vérifie si un fichier attaché est une base de données SQLite valide."""
     # 1) Vérification extension
     if not attachment.filename.lower().endswith(".db"):
         return False

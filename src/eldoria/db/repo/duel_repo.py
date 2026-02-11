@@ -1,9 +1,17 @@
-from sqlite3 import Connection, Row
+"""Module de gestion des duels, contenant les fonctions nécessaires pour créer, récupérer, mettre à jour et nettoyer les duels dans la base de données."""
+
+from sqlite3 import Connection, Cursor, Row
+from typing import Any
 
 from eldoria.db.connection import get_conn
 
 
-def _execute_in_conn(conn: Connection, sql: str, params: tuple = ()):  # tiny helper
+def _execute_in_conn(
+    conn: Connection,
+    sql: str,
+    params: tuple[Any, ...] = (),
+) -> Cursor:
+    """Exécute une requête SQL avec les paramètres spécifiés dans une connexion donnée, et retourne le curseur résultant."""
     return conn.execute(sql, params)
 
 
@@ -34,10 +42,12 @@ def create_duel(
             )
             VALUES (?, ?, NULL, ?, ?, NULL, NULL, 'CONFIG', ?, ?, NULL, NULL)
         """, (guild_id, channel_id, player_a_id, player_b_id, created_at, expires_at))
+        
         return cursor.lastrowid
 
 
 def get_duel_by_id(duel_id: int, *, conn: Connection | None = None) -> Row:
+    """Retourne les informations d'un duel à partir de son identifiant unique."""
     if conn is None:
         with get_conn() as conn2:
             return get_duel_by_id(duel_id, conn=conn2)
@@ -50,6 +60,7 @@ def get_duel_by_id(duel_id: int, *, conn: Connection | None = None) -> Row:
 
 
 def get_duel_by_message_id(guild_id: int, channel_id: int, message_id: int, *, conn: Connection | None = None) -> Row:
+    """Retourne les informations d'un duel à partir de l'identifiant du message associé dans Discord."""
     if conn is None:
         with get_conn() as conn2:
             return get_duel_by_message_id(guild_id, channel_id, message_id, conn=conn2)
@@ -65,6 +76,7 @@ def get_duel_by_message_id(guild_id: int, channel_id: int, message_id: int, *, c
 
 
 def get_active_duel_for_user(guild_id: int, user_id: int, *, conn: Connection | None = None) -> Row:
+    """Retourne les informations du duel actif (status INVITED ou ACTIVE) impliquant un utilisateur donné dans un serveur, ou None s'il n'y en a pas."""
     if conn is None:
         with get_conn() as conn2:
             return get_active_duel_for_user(guild_id, user_id, conn=conn2)
@@ -92,6 +104,7 @@ def update_duel_if_status(
     payload: str | None = None,
     conn: Connection | None = None,
 ) -> bool:
+    """Met à jour les informations d'un duel uniquement si son status correspond à celui requis, et retourne True si la mise à jour a été effectuée, ou False sinon."""
     if all(v is None for v in (message_id, game_type, stake_xp, expires_at, finished_at, payload)):
         return False
 
@@ -134,6 +147,7 @@ def transition_status(
     *,
     conn: Connection | None = None,
 ) -> bool:
+    """Fait la transition d'un duel d'un status à un autre uniquement si le status actuel correspond à celui attendu, et retourne True si la transition a été effectuée, ou False sinon."""
     if conn is None:
         with get_conn() as conn2:
             return transition_status(duel_id, from_status, to_status, expires_at, conn=conn2)
@@ -157,6 +171,7 @@ def update_payload_if_unchanged(
     *,
     conn: Connection | None = None,
 ) -> bool:
+    """Met à jour le champ payload d'un duel uniquement si sa valeur actuelle correspond à l'ancienne valeur attendue, et retourne True si la mise à jour a été effectuée, ou False sinon."""
     if conn is None:
         with get_conn() as conn2:
             return update_payload_if_unchanged(duel_id, old_payload_json, new_payload_json, conn=conn2)
@@ -174,6 +189,7 @@ def update_payload_if_unchanged(
 
 
 def list_expired_duels(now_ts: int, *, conn: Connection | None = None) -> list[Row]:
+    """Retourne la liste des duels dont la date d'expiration est dépassée et qui ne sont pas encore dans un status final (FINISHED, CANCELLED, EXPIRED)."""
     if conn is None:
         with get_conn() as conn2:
             return list_expired_duels(now_ts, conn=conn2)
@@ -189,6 +205,7 @@ def list_expired_duels(now_ts: int, *, conn: Connection | None = None) -> list[R
 
 
 def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection | None = None) -> list[Row]:
+    """Supprime les duels dont la date de fin est dépassée depuis longtemps, et retourne la liste des duels supprimés."""
     if conn is None:
         with get_conn() as conn2:
             return cleanup_duels(cutoff_short, cutoff_finished, conn=conn2)

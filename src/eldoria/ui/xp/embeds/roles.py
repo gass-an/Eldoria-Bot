@@ -1,3 +1,5 @@
+"""Module des embeds pour les rôles liés à l'XP."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -5,7 +7,7 @@ from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_xp_roles_embed(levels_with_roles, guild_id: int, bot: EldoriaBot):
+async def build_xp_roles_embed(levels_with_roles: list[tuple[int, int, int | None]], guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
     """Crée un embed listant les rôles liés aux niveaux et l'XP nécessaire.
 
     Paramètre attendu:

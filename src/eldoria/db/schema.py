@@ -1,20 +1,18 @@
+"""Module de définition du schéma de la base de données SQLite et de la logique de migration douce pour les anciennes versions."""
+
+from sqlite3 import Connection
+
 from eldoria.db.connection import get_conn
 
 
-def _table_columns(conn, table: str) -> set[str]:
+def _table_columns(conn: Connection, table: str) -> set[str]:
     """Retourne la liste des colonnes d'une table (SQLite)."""
     rows = conn.execute(f"PRAGMA table_info({table});").fetchall()
     return {str(r[1]) for r in rows}
 
 
-def migrate_db():
-    """Migration douce (sans perte) pour les anciennes DB.
-
-    Important : `CREATE TABLE IF NOT EXISTS` ne met *pas* à jour le schéma
-    d'une table existante. Donc si ton bot tourne déjà, il faut ajouter les
-    colonnes manquantes via `ALTER TABLE`.
-    """
-
+def migrate_db() -> None:
+    """Effectue les migrations nécessaires pour mettre à jour une base de données existante vers le schéma actuel, sans perdre les données."""
     with get_conn() as conn:
         # --- xp_config : ajout des colonnes vocal si elles n'existent pas ---
         cols = _table_columns(conn, "xp_config")
@@ -43,6 +41,7 @@ def migrate_db():
             conn.execute("UPDATE xp_config SET voice_levelup_channel_id=COALESCE(voice_levelup_channel_id, 0);")
 
 def init_db() -> None:
+    """Initialise la base de données en créant les tables nécessaires si elles n'existent pas, et effectue les migrations douces pour les anciennes versions."""
     with get_conn() as conn:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS reaction_roles (

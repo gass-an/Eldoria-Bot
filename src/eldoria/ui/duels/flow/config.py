@@ -1,3 +1,5 @@
+"""Module de configuration du pari en XP pour les duels."""
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -14,8 +16,8 @@ from eldoria.utils.discord_utils import (
 )
 
 
-async def build_config_stake_duels_embed(expires_at: int):
-
+async def build_config_stake_duels_embed(expires_at: int) -> tuple[discord.Embed, list[discord.File]]:
+    """Construit l'embed de configuration du pari en XP."""
     embed = discord.Embed(
         title="Configuration du pari en XP",
         description=f"La configuration expire <t:{expires_at}:R>\n\n> Choisi un valeur d'XP que tu souhaites parier.",
@@ -29,7 +31,10 @@ async def build_config_stake_duels_embed(expires_at: int):
 
 
 class StakeXpView(discord.ui.View):
-    def __init__(self, bot: EldoriaBot, duel_id: int):
+    """View pour la configuration du pari en XP."""
+
+    def __init__(self, bot: EldoriaBot, duel_id: int) -> None:
+        """Initialise la view avec les boutons de pari en XP."""
         super().__init__(timeout=600)
         self.bot = bot
         self.duel_id = duel_id
@@ -48,7 +53,8 @@ class StakeXpView(discord.ui.View):
                 disabled=disable
             )
 
-            async def on_click(interaction: discord.Interaction, stake=stake):
+            async def on_click(interaction: discord.Interaction, stake: int =stake) -> None:
+                """Gère le clic sur un bouton de pari en XP."""
                 await interaction.response.defer()
                 try : 
                     snapshot = self.duel.configure_stake_xp(self.duel_id, stake_xp=stake)

@@ -1,3 +1,8 @@
+"""Cog de gestion des salons vocaux temporaires.
+
+Permet aux utilisateurs de créer automatiquement un salon vocal temporaire en rejoignant un salon vocal parent spécifique.
+Inclut des commandes pour configurer les salons parents, supprimer la configuration et lister les salons parents configurés sur le serveur.
+"""
 import discord
 from discord.ext import commands
 
@@ -7,13 +12,25 @@ from eldoria.ui.temp_voice.embeds import build_list_temp_voice_parents_embed
 
 
 class TempVoice(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de gestion des salons vocaux temporaires.
+    
+    Permet aux utilisateurs de créer automatiquement un salon vocal temporaire en rejoignant un salon vocal parent spécifique.
+    Inclut des commandes pour configurer les salons parents, supprimer la configuration et lister les salons parents configurés sur le serveur.
+    """
+
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog TempVoice avec une référence au bot et à son service de gestion des salons vocaux temporaires."""
         self.bot = bot
         self.temp_voice = self.bot.services.temp_voice
 
     # -------------------- Events --------------------
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
+        """Événement déclenché lorsqu'un utilisateur rejoint, quitte ou se déplace entre des salons vocaux.
+        
+        Gère la création automatique de salons vocaux temporaires lorsqu'un utilisateur rejoint un salon vocal parent configuré,
+        et la suppression de ces salons temporaires lorsqu'ils deviennent vides.
+        """
         guild = member.guild
 
         # 1) DELETE d'abord : si on quitte un salon temporaire et qu'il devient vide
@@ -61,7 +78,12 @@ class TempVoice(commands.Cog):
     @discord.option("user_limit", int, description="Le nombre de personnes qui pourront rejoindre les salons créés", min_value=1, max_value=99)
     @discord.default_permissions(manage_channels=True)
     @commands.has_permissions(manage_channels=True)
-    async def init_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel, user_limit: int):
+    async def init_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel, user_limit: int)-> None:
+        """Commande slash /init_creation_voice_channel : défini le salon qui permettra à chacun de créer son propre salon vocal temporaire.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, 
+        et ajoute ou met à jour la configuration du salon parent dans la base de données avec la limite d'utilisateurs spécifiée.
+        """
         await ctx.defer(ephemeral=True)
         if ctx.guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
@@ -80,7 +102,11 @@ class TempVoice(commands.Cog):
     @discord.option("channel", discord.VoiceChannel, description="Le salon parent à désactiver")
     @discord.default_permissions(manage_channels=True)
     @commands.has_permissions(manage_channels=True)
-    async def remove_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel):
+    async def remove_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel) -> None:
+        """Commande slash /remove_creation_voice_channel : désactive la création automatique de salons vocaux temporaires pour un salon donné.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, et supprime la configuration du salon parent de la base de données.
+        """
         await ctx.defer(ephemeral=True)
 
         if ctx.guild is None:
@@ -104,7 +130,12 @@ class TempVoice(commands.Cog):
     )
     @discord.default_permissions(manage_channels=True)
     @commands.has_permissions(manage_channels=True)
-    async def list_creation_voice_channels(self, ctx: discord.ApplicationContext):
+    async def list_creation_voice_channels(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /list_creation_voice_channels : affiche la liste des salons parents qui créent des vocaux temporaires.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, récupère les salons parents configurés pour le serveur,
+        et affiche le tout dans un embed paginé.
+        """
         if ctx.guild is None:
             await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
@@ -123,5 +154,6 @@ class TempVoice(commands.Cog):
         await ctx.followup.send(embed=embed, files=files, view=paginator)
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation du cog TempVoice, appelée par le bot lors du chargement de l'extension."""
     bot.add_cog(TempVoice(bot))

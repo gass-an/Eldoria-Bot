@@ -1,3 +1,7 @@
+"""Module des embeds pour le classement XP."""
+
+from typing import TypeAlias
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -5,15 +9,15 @@ from eldoria.features.xp.roles import get_xp_role_ids
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
+XpLeaderboardItem: TypeAlias = tuple[int, int, int] | tuple[int, int, int, str]
 
-async def build_list_xp_embed(items, current_page: int, total_pages: int, guild_id: int, bot: EldoriaBot):
+async def build_list_xp_embed(items: list[XpLeaderboardItem], current_page: int, total_pages: int, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
     """Génère l'embed du classement XP.
 
     `items` peut être au format :
       - list[(user_id, xp, level)]
       - list[(user_id, xp, level, lvl_label)]  # si le label est pré-calculé côté commande
     """
-
     embed = discord.Embed(
         title="Classement XP",
         description="Liste des membres et de leurs XP.",

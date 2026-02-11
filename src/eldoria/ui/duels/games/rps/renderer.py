@@ -1,3 +1,5 @@
+"""Module de rendu pour le jeu Pierre-Papier-Ciseaux dans les duels."""
+
 from __future__ import annotations
 
 import discord
@@ -37,6 +39,7 @@ async def render_rps(
     guild: discord.Guild,
     bot: object,
 ) -> tuple[discord.Embed, list[discord.File], discord.ui.View | None]:
+    """Rend l'état actuel d'une partie de Pierre-Papier-Ciseaux sous forme d'embed et de view."""
     duel = snapshot["duel"]
     player_a_id = duel["player_a"]
     player_b_id = duel["player_b"]

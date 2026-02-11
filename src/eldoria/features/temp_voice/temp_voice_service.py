@@ -1,3 +1,5 @@
+"""Service métier pour la gestion des salons vocaux temporaires."""
+
 from dataclasses import dataclass
 
 from eldoria.db.repo import temp_voice_repo

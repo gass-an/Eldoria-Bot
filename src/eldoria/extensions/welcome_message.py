@@ -1,3 +1,8 @@
+"""Cog de gestion des messages de bienvenue, permettant d'envoyer un message personnalisé lorsqu'un nouveau membre rejoint un serveur.
+
+Inclut des commandes pour configurer le salon de bienvenue, activer ou désactiver les messages de bienvenue.
+"""
+
 import discord
 from discord.ext import commands
 
@@ -6,13 +11,25 @@ from eldoria.ui.welcome.embeds import build_welcome_embed
 
 
 class WelcomeMessage(commands.Cog):
-    def __init__(self, bot: EldoriaBot):
+    """Cog de gestion des messages de bienvenue, permettant d'envoyer un message personnalisé lorsqu'un nouveau membre rejoint un serveur.
+    
+    Inclut des commandes pour configurer le salon de bienvenue, activer ou désactiver les messages de bienvenue.
+    """
+    
+    def __init__(self, bot: EldoriaBot) -> None:
+        """Initialise le cog WelcomeMessage avec une référence au bot et à son service de gestion des messages de bienvenue."""
         self.bot = bot
         self.welcome = self.bot.services.welcome
 
         # -------------------- Listener (optional but useful) --------------------
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
+    async def on_member_join(self, member: discord.Member) -> None:
+        """Événement déclenché lorsqu'un nouveau membre rejoint un serveur.
+        
+        Vérifie la configuration des messages de bienvenue pour le serveur, et si activé,
+        envoie un message de bienvenue personnalisé dans le salon configuré,
+        avec une mention du membre et un embed contenant des informations sur le serveur et des réactions interactives.
+        """
         try:
             guild = member.guild
             guild_id = guild.id
@@ -54,7 +71,12 @@ class WelcomeMessage(commands.Cog):
     @discord.option("channel", discord.TextChannel, description="Salon où envoyer les messages de bienvenue")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def welcome_setup(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
+    async def welcome_setup(self, ctx: discord.ApplicationContext, channel: discord.TextChannel) -> None:
+        """Commande slash /welcome_setup : défini le salon des messages d'arrivée et active la fonctionnalité.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
+        et met à jour la configuration dans la base de données pour définir le salon de bienvenue et activer les messages de bienvenue.
+        """
         await ctx.defer(ephemeral=True)
         if ctx.guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
@@ -74,7 +96,13 @@ class WelcomeMessage(commands.Cog):
     @commands.slash_command(name="welcome_enable", description="(Admin) Active les messages d'arrivée.")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def welcome_enable(self, ctx: discord.ApplicationContext):
+    async def welcome_enable(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /welcome_enable : active les messages de bienvenue pour le serveur.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
+        et met à jour la configuration dans la base de données pour activer les messages de bienvenue.
+        Si aucun salon n'est configuré, invite l'utilisateur à utiliser /welcome_setup.
+        """
         await ctx.defer(ephemeral=True)
         if ctx.guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
@@ -99,7 +127,12 @@ class WelcomeMessage(commands.Cog):
     @commands.slash_command(name="welcome_disable", description="(Admin) Désactive les messages d'arrivée.")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def welcome_disable(self, ctx: discord.ApplicationContext):
+    async def welcome_disable(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /welcome_disable : désactive les messages de bienvenue pour le serveur.
+        
+        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
+        et met à jour la configuration dans la base de données pour désactiver les messages de bienvenue.
+        """
         await ctx.defer(ephemeral=True)
         if ctx.guild is None:
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
@@ -112,5 +145,6 @@ class WelcomeMessage(commands.Cog):
 
 
 
-def setup(bot: EldoriaBot):
+def setup(bot: EldoriaBot) -> None:
+    """Fonction d'initialisation de l'extension, appelée par le loader d'extensions du bot."""
     bot.add_cog(WelcomeMessage(bot))

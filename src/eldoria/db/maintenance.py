@@ -1,4 +1,4 @@
-# src/eldoria/db/maintenance.py
+"""Module de maintenance de la base de données SQLite, incluant des fonctions pour sauvegarder et remplacer le fichier de la base de données."""
 import errno
 import os
 import shutil
@@ -8,10 +8,7 @@ from eldoria.db.connection import _DB_LOCK, DB_PATH
 
 
 def backup_to_file(dst_path: str) -> None:
-    """
-    Exporte une copie cohérente de la DB vers dst_path.
-    Le verrou empêche toute écriture/lecture concurrente via get_conn().
-    """
+    """Crée une copie de la base de données SQLite à l'emplacement spécifié."""
     with _DB_LOCK:
         # checkpoint WAL au cas où
         conn = sqlite3.connect(DB_PATH)
@@ -28,6 +25,10 @@ def backup_to_file(dst_path: str) -> None:
             conn.close()
 
 def replace_db_file(new_db_path: str) -> None:
+    """Remplace le fichier de la base de données SQLite par celui spécifié.
+    
+    Effectue des vérifications pour s'assurer que le nouveau fichier est une base de données SQLite valide avant de remplacer l'ancien.
+    """
     with _DB_LOCK:
         test = sqlite3.connect(new_db_path)
         try:

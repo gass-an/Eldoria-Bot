@@ -1,3 +1,5 @@
+"""Module commun pour les interfaces utilisateur des duels."""
+
 from __future__ import annotations
 
 import discord
@@ -15,6 +17,7 @@ async def build_game_base_embed(
     expires_at: int,
     game_type: str,
 ) -> tuple[discord.Embed, list[discord.File]]:
+    """Embed de base pour les jeux de duel (configuration, invitation, actif)."""
     game_name, game_description = get_game_text(game_type)
 
     expire_line = f"Ce duel expire <t:{expires_at}:R>\n" if expires_at else ""
