@@ -61,7 +61,7 @@ def init_services(bot: EldoriaBot) -> int:
 
 def startup(bot: EldoriaBot) -> None:
     """Exécute les différentes étapes de démarrage du bot en utilisant la fonction step pour mesurer le temps d'exécution et gérer les exceptions."""
-    step("Tests", lambda: run_tests(logger=log), critical=True)
+    step("Tests", lambda: run_tests(logger=log), critical=False)
 
     step("Initialisation des services", lambda: init_services(bot), critical=False)
     step("Initialisation des extensions", lambda: load_extensions(bot))

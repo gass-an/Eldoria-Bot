@@ -212,7 +212,7 @@ def test_startup_calls_steps_in_order_and_runs_actions(monkeypatch):
     mod.startup(bot)
 
     assert step_calls == [
-        ("Tests", True),
+        ("Tests", False),
         ("Initialisation des services", False),
         ("Initialisation des extensions", True),
         ("Initialisation de la base de données", True),
