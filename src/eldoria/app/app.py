@@ -1,6 +1,7 @@
 """Module principal de l'application EldoriaBot."""
 
 import logging
+import time
 
 import discord
 
@@ -34,5 +35,6 @@ def main(started_at: float) -> None:
     startup(bot)
 
     bot.set_started_at(started_at)
+    bot.set_discord_started_at(time.perf_counter())
     log.info("⏳ Connexion à Discord…")
     bot.run(TOKEN)

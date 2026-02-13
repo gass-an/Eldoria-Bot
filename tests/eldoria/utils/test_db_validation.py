@@ -1,14 +1,15 @@
-import os
-import tempfile
 import importlib
+
 import pytest
+
+import eldoria.utils.db_validation as db_validation
 
 
 class FakeAttachment:
     def __init__(self, *, filename: str, payload: bytes):
         self.filename = filename
         self._payload = payload
-        self.saved_paths = []
+        self.saved_paths: list[str] = []
 
     async def save(self, path: str):
         self.saved_paths.append(path)
@@ -43,20 +44,11 @@ class _ConnOK:
         pass
 
 
-class _ConnBad:
-    def execute(self, sql):
-        raise RuntimeError("should not be called")
-
-    def close(self):
-        pass
-
-
 @pytest.fixture
 def mod():
-    # on importe le module pour pouvoir monkeypatch SES dépendances (sqlite3/os/tempfile)
-    m = importlib.import_module("eldoria.utils.db_validation")
-    importlib.reload(m)
-    return m
+    # Recharge le module pour pouvoir monkeypatch ses dépendances proprement
+    importlib.reload(db_validation)
+    return db_validation
 
 
 @pytest.mark.asyncio
@@ -73,10 +65,10 @@ async def test_is_valid_sqlite_db_accepts_valid_db_and_cleans_temp(tmp_path, mon
     temp_file = tmp_path / "upload_tmp.db"
     monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
 
-    removed = []
+    removed: list[str] = []
     monkeypatch.setattr(mod.os, "remove", lambda p: removed.append(p))
 
-    # IMPORTANT: patch dans le module under test, pas sqlite3 global
+    # IMPORTANT : patch dans le module under test (mod.sqlite3), pas sqlite3 global
     monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
 
     assert await mod.is_valid_sqlite_db(att) is True
@@ -91,7 +83,7 @@ async def test_is_valid_sqlite_db_rejects_invalid_db_and_cleans_temp(tmp_path, m
     temp_file = tmp_path / "bad_tmp.db"
     monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
 
-    removed = []
+    removed: list[str] = []
     monkeypatch.setattr(mod.os, "remove", lambda p: removed.append(p))
 
     def bad_connect(p):
@@ -102,3 +94,37 @@ async def test_is_valid_sqlite_db_rejects_invalid_db_and_cleans_temp(tmp_path, m
     assert await mod.is_valid_sqlite_db(att) is False
     assert att.saved_paths == [str(temp_file)]
     assert removed == [str(temp_file)]
+
+
+@pytest.mark.asyncio
+async def test_is_valid_sqlite_db_cleanup_retries_on_permission_error(tmp_path, monkeypatch, mod):
+    """
+    Sous Windows, os.remove peut lever PermissionError si le fichier est encore lock.
+    Le code retry et dort un peu. On vérifie qu'il retry sans exploser.
+    """
+    att = FakeAttachment(filename="ok.db", payload=b"doesnt matter")
+
+    temp_file = tmp_path / "locked_tmp.db"
+    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
+
+    # Conn valide
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
+
+    calls = {"remove": 0, "sleep": 0}
+
+    def fake_remove(p):
+        calls["remove"] += 1
+        # 2 échecs puis succès
+        if calls["remove"] <= 2:
+            raise PermissionError("locked")
+        return None
+
+    def fake_sleep(_):
+        calls["sleep"] += 1
+
+    monkeypatch.setattr(mod.os, "remove", fake_remove)
+    monkeypatch.setattr(mod.time, "sleep", fake_sleep)
+
+    assert await mod.is_valid_sqlite_db(att) is True
+    assert calls["remove"] == 3
+    assert calls["sleep"] == 2

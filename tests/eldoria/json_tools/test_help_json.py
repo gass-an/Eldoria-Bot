@@ -1,32 +1,22 @@
-# tests/json_tools/test_helpJson.py
-import io
+# tests/eldoria/json_tools/test_help_json.py
 import json
-import builtins
 
-from eldoria.json_tools.help_json import load_help_json, load_help_config
-
-
-def test_load_help_json_file_not_found(monkeypatch):
-    def _open(*args, **kwargs):
-        raise FileNotFoundError
-
-    monkeypatch.setattr(builtins, "open", _open)
-    assert load_help_json() == {}
+from eldoria.json_tools.help_json import load_help_config, load_help_json
 
 
-def test_load_help_json_valid(monkeypatch):
+def test_load_help_json_file_not_found():
+    assert load_help_json(path="does_not_exist_help.json") == {}
+
+
+def test_load_help_json_valid(tmp_path):
     data = {"ok": True}
+    p = tmp_path / "help.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
 
-    def _open(*args, **kwargs):
-        return io.StringIO(json.dumps(data))
-
-    monkeypatch.setattr(builtins, "open", _open)
-    assert load_help_json() == data
+    assert load_help_json(path=str(p)) == data
 
 
 def test_load_help_config_structured_format(monkeypatch):
-    # Ton format structuré réel :
-    # {"categories": {"Nom": {"description": "...", "commands": {"cmd": "desc"}}}}
     data = {
         "categories": {
             "Utilitaires": {
@@ -43,10 +33,8 @@ def test_load_help_config_structured_format(monkeypatch):
         }
     }
 
-    def _open(*args, **kwargs):
-        return io.StringIO(json.dumps(data))
-
-    monkeypatch.setattr(builtins, "open", _open)
+    # On patch le loader, pas open()
+    monkeypatch.setattr("eldoria.json_tools.help_json.load_help_json", lambda: data)
 
     help_infos, categories, cat_desc = load_help_config()
 
@@ -72,10 +60,7 @@ def test_load_help_config_intermediate_format(monkeypatch):
         "category_descriptions": {"Moderation": "Outils de modération"},
     }
 
-    def _open(*args, **kwargs):
-        return io.StringIO(json.dumps(data))
-
-    monkeypatch.setattr(builtins, "open", _open)
+    monkeypatch.setattr("eldoria.json_tools.help_json.load_help_json", lambda: data)
 
     help_infos, categories, cat_desc = load_help_config()
     assert help_infos == {"ban": "Ban un utilisateur"}
@@ -86,10 +71,7 @@ def test_load_help_config_intermediate_format(monkeypatch):
 def test_load_help_config_legacy_format(monkeypatch):
     data = {"oldcmd": "ancienne description"}
 
-    def _open(*args, **kwargs):
-        return io.StringIO(json.dumps(data))
-
-    monkeypatch.setattr(builtins, "open", _open)
+    monkeypatch.setattr("eldoria.json_tools.help_json.load_help_json", lambda: data)
 
     help_infos, categories, cat_desc = load_help_config()
     assert help_infos == {"oldcmd": "ancienne description"}

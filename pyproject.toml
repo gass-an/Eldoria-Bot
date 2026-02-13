@@ -1,3 +1,8 @@
+
+# ------------------------------------------
+# Configuration de Ruff
+# ------------------------------------------
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
@@ -16,10 +21,30 @@ ignore = [
   "D401", # impératif dans les docstrings
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN"]
+
 [tool.ruff.lint.pyupgrade]
 keep-runtime-typing = false
 
 
+
+# ------------------------------------------
+# Configuration de Pyright
+# ------------------------------------------
+
 # [tool.pyright]
 # typeCheckingMode = "basic"
 # reportOptionalReturn = "error"
+
+
+
+
+# ------------------------------------------
+# Configuration de Pytest
+# ------------------------------------------
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]

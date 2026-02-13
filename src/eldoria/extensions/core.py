@@ -43,12 +43,13 @@ class Core(commands.Cog):
         except Exception:
             log.exception("Erreur lors de la synchronisation des commandes")
         started_at = getattr(self.bot, "_started_at", time.perf_counter())
+        discord_started_at = getattr(self.bot, "_discord_started_at", time.perf_counter())
         
-        discord_ms = (time.perf_counter() - started_at) * 1000
-        log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_ms)
+        discord_time = (time.perf_counter() - discord_started_at) * 1000
+        log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_time)
 
-        elapsed = (time.perf_counter() - started_at)
-        log.info("🤖 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", elapsed, self.bot.user, len(self.bot.guilds))
+        total_time = (time.perf_counter() - started_at)
+        log.info("🤖 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", total_time, self.bot.user, len(self.bot.guilds))
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()

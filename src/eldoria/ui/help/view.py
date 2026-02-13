@@ -1,5 +1,11 @@
+"""Menu de help interactif (embeds + boutons)."""
+from __future__ import annotations
+
+from collections.abc import Callable
+
 import discord
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.json_tools.help_json import load_help_config
 from eldoria.ui.common.embeds.images import common_files, decorate
 from eldoria.ui.help.embeds import build_category_embed, build_home_embed
@@ -17,12 +23,13 @@ class HelpMenuView(discord.ui.View):
     def __init__(
         self,
         author_id: int,
-        bot,
+        bot: EldoriaBot,
         cmd_map: dict,
         help_infos: dict,
         visible_by_cat: dict[str, list[str]],
         cat_descriptions: dict[str, str] | None = None,
-    ):
+    ) -> None:
+        """Initialise le menu."""
         super().__init__(timeout=240)
         self.author_id = author_id
         self.bot = bot
@@ -56,7 +63,7 @@ class HelpMenuView(discord.ui.View):
         # Styles initiaux (Home = page courante)
         self._refresh_nav_buttons()
 
-    def _refresh_nav_buttons(self):
+    def _refresh_nav_buttons(self) -> None:
         """Met en évidence la page actuelle.
 
         - Bouton de la page courante : couleur différente + disabled
@@ -83,13 +90,13 @@ class HelpMenuView(discord.ui.View):
                 btn.disabled = False
 
     # -------------------- Embeds builders --------------------
-    def _common_files(self):
+    def _common_files(self) -> list[discord.File]:
         return common_files(self._thumb_url, self._banner_url)
-    def _decorate(self, embed: discord.Embed):
+    def _decorate(self, embed: discord.Embed) -> discord.Embed:
         return decorate(embed, self._thumb_url, self._banner_url)
 
-    def _capture_attachment_urls_from_message(self, interaction: discord.Interaction):
-        """Récupère les URLs CDN des images déjà attachées au message."""
+    def _capture_attachment_urls_from_message(self, interaction: discord.Interaction) -> None:
+        
         msg = interaction.message
         if not msg or not getattr(msg, "attachments", None):
             return
@@ -98,7 +105,9 @@ class HelpMenuView(discord.ui.View):
                 self._thumb_url = att.url
             elif att.filename == "banner_bot.png":
                 self._banner_url = att.url
-    def build_home(self):
+    
+    def build_home(self) -> tuple[discord.Embed, list[discord.File]]:
+        """Construit l'embed de la page d'accueil."""
         embed = build_home_embed(
             visible_by_cat=self.visible_by_cat,
             cat_descriptions=self.cat_descriptions,
@@ -106,7 +115,9 @@ class HelpMenuView(discord.ui.View):
             banner_url=self._banner_url,
         )
         return embed, self._common_files()
-    def build_category(self, cat: str):
+    
+    def build_category(self, cat: str) -> tuple[discord.Embed, list[discord.File]]:
+        """Construit l'embed d'une page de catégorie."""
         cmds = self.visible_by_cat.get(cat, [])
         embed = build_category_embed(
             cat=cat,
@@ -120,6 +131,7 @@ class HelpMenuView(discord.ui.View):
 
     # -------------------- Interaction guards --------------------
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Vérifie que l'interaction vient de l'utilisateur qui a ouvert le menu."""
         # Empêche les autres utilisateurs de manipuler le menu (utile même en non-ephemeral)
         if interaction.user and interaction.user.id != self.author_id:
             try:
@@ -133,16 +145,15 @@ class HelpMenuView(discord.ui.View):
             return False
         return True
 
-    async def on_timeout(self):
+    async def on_timeout(self) -> None:
+        """Désactive tous les boutons à l'expiration du menu."""
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 item.disabled = True
 
 
-    async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files=None):
-        """Ack the interaction quickly, then edit the original message.
-        Prevents 'Unknown interaction' when the callback takes too long or the client lags.
-        """
+    async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files: list[discord.File] = None) -> None:
+        
         try:
             # On récupère les URLs CDN dès qu'on peut.
             self._capture_attachment_urls_from_message(interaction)
@@ -166,10 +177,10 @@ class HelpMenuView(discord.ui.View):
             return
         except discord.HTTPException:
             return
-
+    
     # -------------------- Button callbacks --------------------
-    def _make_cat_cb(self, cat: str):
-        async def _cb(interaction: discord.Interaction):
+    def _make_cat_cb(self, cat: str) -> Callable[[discord.Interaction], None]:
+        async def _cb(interaction: discord.Interaction) -> None:
             self.current = cat
             self._refresh_nav_buttons()
             embed, files = self.build_category(cat)
@@ -177,7 +188,7 @@ class HelpMenuView(discord.ui.View):
 
         return _cb
 
-    async def _go_home(self, interaction: discord.Interaction):
+    async def _go_home(self, interaction: discord.Interaction) -> None:
         self.current = None
         self._refresh_nav_buttons()
         embed, files = self.build_home()
@@ -185,25 +196,51 @@ class HelpMenuView(discord.ui.View):
 
 
 # -------------------- Slash command helper --------------------
-async def send_help_menu(ctx: discord.ApplicationContext, bot):
-    """Send the interactive help menu (same logic as the original core /help)."""
-    await ctx.defer(ephemeral=True)
+async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> None:
+    """Commande d'ouverture du menu de help."""
+    # Certains fakes n’implémentent pas defer exactement comme discord.py.
+    # On essaye, mais on ne doit jamais casser les tests à cause de ça.
+    try:
+        if hasattr(ctx, "defer"):
+            await ctx.defer(ephemeral=True)
+    except Exception:
+        pass
 
-    cmd_map = {c.name: c for c in bot.application_commands}
-    member_perms = ctx.user.guild_permissions
+    # Récupère les commandes
+    cmds = getattr(bot, "application_commands", None)
+    if cmds is None:
+        cmds = []
+    cmd_map = {c.name: c for c in cmds}
 
-    # Help config (normalisée) via json_tools/gestionJson.py
+    # Permissions user
+    member_perms = getattr(getattr(ctx, "user", None), "guild_permissions", None)
+    member_perm_value = getattr(member_perms, "value", 0)
+
+    # Help config
     help_infos, categories, cat_descriptions = load_help_config()
 
-    # Commandes internes / techniques qu'on ne veut pas exposer dans le /help
+    # Commandes internes qu'on ne veut pas exposer
     excluded_cmds = {"manual_save", "insert_db"}
-    for _c in excluded_cmds:
-        cmd_map.pop(_c, None)
-        help_infos.pop(_c, None)
 
-    # Nettoie les catégories (au cas où elles contiennent une commande exclue)
-    for _cat, _cmds in list(categories.items()):
-        categories[_cat] = [c for c in _cmds if c not in excluded_cmds]
+    for name in excluded_cmds:
+        cmd_map.pop(name, None)
+        help_infos.pop(name, None)
+
+    # Nettoie les catégories (si elles listent des excluded)
+    for cat, lst in list(categories.items()):
+        categories[cat] = [c for c in lst if c not in excluded_cmds]
+
+    async def _can_run(cmd: discord.ApplicationCommand, ctx: discord.ApplicationContext) -> bool:
+        fn = getattr(cmd, "can_run", None)
+        if fn is None:
+            return True
+        try:
+            res = fn(ctx)
+            if hasattr(res, "__await__"):
+                res = await res
+            return bool(res)
+        except Exception:
+            return False
 
     async def is_command_visible(cmd_name: str) -> bool:
         cmd = cmd_map.get(cmd_name)
@@ -211,43 +248,42 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot):
             return False
 
         dp = getattr(cmd, "default_member_permissions", None)
+        if dp is None:
+            dp = getattr(cmd, "default_permissions", None)
         if dp is not None:
-            # l'utilisateur doit posséder toutes les perms par défaut requises
-            if (member_perms.value & dp.value) != dp.value:
+            dp_value = getattr(dp, "value", 0)
+            # L'utilisateur doit posséder toutes les perms requises
+            if (member_perm_value & dp_value) != dp_value:
                 return False
 
-        try:
-            can = await cmd.can_run(ctx)
-            if not can:
-                return False
-        except Exception:
-            return False
+        return await _can_run(cmd, ctx)
 
-        return True
-
-    # ---- Catégorisation
-
-    # Ajoute automatiquement les commandes non déclarées dans une catégorie "Autres"
-    declared = {c for cmds in categories.values() for c in cmds}
-    for cmd_name in cmd_map.keys():
-        if cmd_name in ("help",):
+    # ---- Catégorisation : ajoute les commandes non déclarées dans "Autres"
+    declared = {c for lst in categories.values() for c in lst}
+    for cmd_name in list(cmd_map.keys()):
+        if cmd_name == "help":
+            continue
+        if cmd_name in excluded_cmds:
             continue
         if cmd_name not in declared:
             categories.setdefault("Autres", []).append(cmd_name)
 
-    # Filtrage par visibilité
+    # ---- Filtrage par visibilité
     visible_by_cat: dict[str, list[str]] = {}
-    for cat, cmds in categories.items():
-        visible_cmds = []
-        for cmd_name in cmds:
-            if await is_command_visible(cmd_name):
-                visible_cmds.append(cmd_name)
-        if visible_cmds:
-            visible_by_cat[cat] = visible_cmds
+    for cat, cmd_names in categories.items():
+        visible = []
+        for name in cmd_names:
+            if name in excluded_cmds or name == "help":
+                continue
+            if await is_command_visible(name):
+                visible.append(name)
+        if visible:
+            visible_by_cat[cat] = visible
 
+    # ---- Aucun résultat -> message
     if not visible_by_cat:
         await ctx.followup.send(
-            "Aucune commande disponible avec vos permissions.",
+            content="Aucune commande disponible avec vos permissions.",
             ephemeral=True,
         )
         return

@@ -3,6 +3,8 @@
 Permet aux utilisateurs de créer automatiquement un salon vocal temporaire en rejoignant un salon vocal parent spécifique.
 Inclut des commandes pour configurer les salons parents, supprimer la configuration et lister les salons parents configurés sur le serveur.
 """
+import logging
+
 import discord
 from discord.ext import commands
 
@@ -10,6 +12,7 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.temp_voice.embeds import build_list_temp_voice_parents_embed
 
+log = logging.getLogger(__name__)
 
 class TempVoice(commands.Cog):
     """Cog de gestion des salons vocaux temporaires.
@@ -39,6 +42,21 @@ class TempVoice(commands.Cog):
             if parent_id is not None and len(before.channel.members) == 0:
                 try:
                     await before.channel.delete()
+                except discord.Forbidden:
+                    log.warning(
+                        "TempVoice: Impossible de supprimer le salon %s dans la guild %s "
+                        "(permissions manquantes).",
+                        before.channel.id,
+                        guild.id,
+                    )
+                except discord.HTTPException as e:
+                    log.error(
+                        "TempVoice: Erreur HTTP lors de la suppression du salon %s "
+                        "dans la guild %s: %s",
+                        before.channel.id,
+                        guild.id,
+                        e,
+                    )
                 finally:
                     self.temp_voice.remove_active(guild.id, parent_id, before.channel.id)
 

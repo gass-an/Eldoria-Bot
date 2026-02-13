@@ -1,1 +1,1 @@
-# Permet l'import explicite depuis `tests.conftest` dans certains fichiers de tests.
+"""Permet l'import explicite depuis `tests.conftest` dans certains fichiers de tests."""

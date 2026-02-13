@@ -1,9 +1,12 @@
 {
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+
+    "python.testing.cwd": "${workspaceFolder}",
     "python.testing.pytestArgs": [
-        "-q",
+        "--rootdir=${workspaceFolder}",
         "tests"
     ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true,
-    // "python.analysis.typeCheckingMode": "basic"
+
+    "python.testing.autoTestDiscoverOnSaveEnabled": true
 }

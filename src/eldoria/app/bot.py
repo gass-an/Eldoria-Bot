@@ -31,6 +31,7 @@ class EldoriaBot(commands.Bot):
 
         self._booted: bool = False
         self._started_at: float = time.perf_counter()
+        self._discord_started_at: float | None = None
         self.services: Services | None = None
 
     def set_started_at(self, timestamp: float) -> None:
@@ -49,3 +50,10 @@ class EldoriaBot(commands.Bot):
         """Retourne True si le bot a déjà été prêt, False sinon."""
         return self._booted
     
+    def set_discord_started_at(self, timestamp: float) -> None:
+        """Définit le timestamp de connexion à Discord, utilisé pour mesurer les temps de chargement liés à Discord."""
+        self._discord_started_at = timestamp
+
+    def get_discord_started_at(self) -> float | None:
+        """Retourne le timestamp de connexion à Discord, ou None s'il n'a pas encore été défini."""
+        return self._discord_started_at

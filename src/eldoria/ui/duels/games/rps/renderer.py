@@ -124,5 +124,12 @@ async def render_rps(
     
 
     # fallback si état inconnu
+    embed, files = await build_game_base_embed(
+        player_a=player_a,
+        player_b=player_b,
+        stake_xp=stake_xp,
+        expires_at=expires_at,
+        game_type=game_type,
+    )
     embed.add_field(name="État", value=f"État inconnu: `{state}`", inline=False)
     return embed, files, RpsView(bot=bot, duel_id=duel["id"])

@@ -12,7 +12,7 @@ from eldoria.features.duel import constants
 from eldoria.utils.timestamp import now_ts
 
 
-def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False) -> bool:
+def finish_duel(duel_id: int, result: str, *, ignore_expired: bool=False) -> None:
     """Finit un duel en mettant à jour son status, son résultat, et son timestamp de fin dans la base de données.
     
     Uniquement si le duel est actuellement actif et pas déjà fini, et retourne True si la mise à jour a été effectuée, ou False sinon.

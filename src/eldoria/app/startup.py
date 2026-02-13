@@ -7,6 +7,7 @@ from typing import Any
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.app.extensions import EXTENSIONS
+from eldoria.app.run_tests import run_tests
 from eldoria.app.services import Services
 from eldoria.db.schema import init_db
 from eldoria.features.duel.duel_service import DuelService
@@ -60,6 +61,8 @@ def init_services(bot: EldoriaBot) -> int:
 
 def startup(bot: EldoriaBot) -> None:
     """Exécute les différentes étapes de démarrage du bot en utilisant la fonction step pour mesurer le temps d'exécution et gérer les exceptions."""
+    step("Tests", lambda: run_tests(logger=log), critical=True)
+
     step("Initialisation des services", lambda: init_services(bot), critical=False)
     step("Initialisation des extensions", lambda: load_extensions(bot))
     step("Initialisation de la base de données", init_db)

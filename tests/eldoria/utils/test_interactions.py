@@ -1,14 +1,6 @@
-import sys
-import types
-
 import pytest
 
-
-if "discord" not in sys.modules:
-    sys.modules["discord"] = types.SimpleNamespace()
-
-
-from eldoria.utils.interactions import reply_ephemeral  # noqa: E402
+from eldoria.utils.interactions import reply_ephemeral
 
 
 class FakeResponse:
@@ -24,6 +16,7 @@ class FakeResponse:
 
 
 class FakeFollowup:
+    hookup_sent = []
     def __init__(self):
         self.sent = []
 
@@ -41,7 +34,7 @@ class FakeInteraction:
 async def test_reply_ephemeral_uses_response_send_message_when_not_done():
     inter = FakeInteraction(response_done=False)
 
-    await reply_ephemeral(inter, "hello")
+    await reply_ephemeral(inter, "hello")  # type: ignore[arg-type]
 
     assert inter.response.sent == [("response.send_message", "hello", True)]
     assert inter.followup.sent == []
@@ -51,7 +44,7 @@ async def test_reply_ephemeral_uses_response_send_message_when_not_done():
 async def test_reply_ephemeral_uses_followup_send_when_done():
     inter = FakeInteraction(response_done=True)
 
-    await reply_ephemeral(inter, "hello")
+    await reply_ephemeral(inter, "hello")  # type: ignore[arg-type]
 
     assert inter.response.sent == []
     assert inter.followup.sent == [("followup.send", "hello", True)]

@@ -4,17 +4,15 @@ import json
 from typing import Any
 
 
-def load_help_json() -> dict[str, Any]:
-    """Charge le fichier resources/json/help.json.
-
-    Le format du fichier peut évoluer : cette fonction renvoie simplement le JSON brut.
-    Pour obtenir une structure normalisée (help_infos, categories, category_descriptions),
-    utilise : `load_help_config()`.
-    """
+def load_help_json(path: str = "./resources/json/help.json") -> dict[str, Any]:
+    """Charge le fichier help.json et renvoie le JSON brut."""
     try:
-        with open("./resources/json/help.json", encoding="utf-8") as file:
-            return json.load(file)
+        with open(path, encoding="utf-8") as file:
+            data = json.load(file)
+            return data if isinstance(data, dict) else {}
     except FileNotFoundError:
+        return {}
+    except Exception:
         return {}
 
 
