@@ -49,7 +49,8 @@ class Core(commands.Cog):
         log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_time)
 
         total_time = (time.perf_counter() - started_at)
-        log.info("🤖 Bot opérationnel en %.2fs - Connecté en tant que %s (%d guilds)", total_time, self.bot.user, len(self.bot.guilds))
+        log.info("✅ %s %.2fs", "Bot opérationnel en", total_time)
+        log.info("🤖 Connecté en tant que %s (%d guilds)", self.bot.user, len(self.bot.guilds))
 
     # -------------------- Messages (router) --------------------
     @commands.Cog.listener()
