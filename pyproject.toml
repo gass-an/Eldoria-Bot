@@ -9,16 +9,16 @@ line-length = 100
 
 [tool.ruff.lint]
 select = [
-  "F",   # erreurs (imports inutilisés, etc.)
-  "I",   # tri des imports
-  "UP",  # modernisation + future annotations
-  "ANN",  # annotations de types
-  "D",   # docstrings
+	"F",   # erreurs (imports inutilisés, etc.)
+	"I",   # tri des imports
+	"UP",  # modernisation + future annotations
+	"ANN",  # annotations de types
+	"D",   # docstrings
 ]
 
 ignore = [
-  "ANN401", # Any implicite
-  "D401", # impératif dans les docstrings
+	"ANN401", # Any implicite
+	"D401", # impératif dans les docstrings
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -33,12 +33,17 @@ keep-runtime-typing = false
 # Configuration de Pyright
 # ------------------------------------------
 
-# [tool.pyright]
-# typeCheckingMode = "basic"
-# reportOptionalReturn = "error"
+[tool.pyright]
+include = ["src"]
+exclude = ["tests"]
+ignore = ["tests"]
 
+typeCheckingMode = "basic"
+reportOptionalReturn = "error"
 
-
+executionEnvironments = [
+	{ root = "src" }
+]
 
 # ------------------------------------------
 # Configuration de Pytest

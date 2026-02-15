@@ -204,8 +204,8 @@ def list_expired_duels(now_ts: int, *, conn: Connection | None = None) -> list[R
     return rows
 
 
-def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection | None = None) -> list[Row]:
-    """Supprime les duels dont la date de fin est dépassée depuis longtemps, et retourne la liste des duels supprimés."""
+def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection | None = None) -> None:
+    """Supprime les duels dont la date de fin est dépassée depuis longtemps."""
     if conn is None:
         with get_conn() as conn2:
             return cleanup_duels(cutoff_short, cutoff_finished, conn=conn2)
@@ -219,5 +219,6 @@ def cleanup_duels(cutoff_short: int, cutoff_finished: int, *, conn: Connection |
         """, (
             cutoff_short,
             cutoff_finished,
-        ), 
+        )
     )
+    return None
