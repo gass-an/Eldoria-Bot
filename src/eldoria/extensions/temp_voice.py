@@ -70,7 +70,7 @@ class TempVoice(commands.Cog):
             if user_limit is not None:
                 category = after.channel.category
                 new_channel_name = f"Salon de {member.display_name}"
-                overwrites = {
+                overwrites: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
                     member: discord.PermissionOverwrite(view_channel=True, manage_channels=True),
                 }
 

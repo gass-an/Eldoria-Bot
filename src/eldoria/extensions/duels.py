@@ -21,6 +21,9 @@ def require_guild_ctx(ctx: discord.ApplicationContext) -> tuple[discord.Guild, d
     """Extrait la guild et le channel d'un contexte de commande, ou lève une exception si le contexte n'est pas dans une guild ou un channel."""
     if ctx.guild is None or ctx.channel is None:
         raise RuntimeError("Command used outside guild")
+    
+    if ctx.channel is None or not isinstance(ctx.channel, discord.abc.GuildChannel):
+        raise RuntimeError("Command used outside guild channel")
     return ctx.guild, ctx.channel
 
 class Duels(commands.Cog):

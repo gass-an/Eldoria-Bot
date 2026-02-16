@@ -28,8 +28,13 @@ async def apply_duel_snapshot(
 
     embed, files, view = await render_duel_message(snapshot=snapshot, guild=guild, bot=bot)
 
-    await interaction.message.edit(
-        content=interaction.message.content or "",
+    msg = interaction.message
+    if msg is None:
+        await interaction.followup.send(content="Impossible de modifier le message (message introuvable).", ephemeral=True)
+        return
+
+    await msg.edit(
+        content=msg.content or "",
         embed=embed,
         view=view,
     )
@@ -41,7 +46,7 @@ async def apply_duel_snapshot(
         return
 
     channel = interaction.channel
-    if channel is None:
+    if channel is None or not isinstance(channel, discord.abc.Messageable):
         return
 
     lines: list[str] = []

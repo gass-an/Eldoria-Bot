@@ -1,5 +1,6 @@
 """Module des embeds pour le classement XP."""
 
+from collections.abc import Sequence
 from typing import TypeAlias
 
 import discord
@@ -11,7 +12,7 @@ from eldoria.ui.common.embeds.images import common_files, decorate
 
 XpLeaderboardItem: TypeAlias = tuple[int, int, int] | tuple[int, int, int, str]
 
-async def build_list_xp_embed(items: list[XpLeaderboardItem], current_page: int, total_pages: int, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
+async def build_list_xp_embed(items: Sequence[XpLeaderboardItem], current_page: int, total_pages: int, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
     """Génère l'embed du classement XP.
 
     `items` peut être au format :

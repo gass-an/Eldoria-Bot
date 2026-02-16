@@ -157,7 +157,10 @@ class _FakeGuild:
         self.id = gid
 
 
-class _FakeChannel:
+import discord  # type: ignore
+
+
+class _FakeChannel(discord.abc.GuildChannel):  # type: ignore[attr-defined]
     def __init__(self, cid=999):
         self.id = cid
 

@@ -48,7 +48,11 @@ class SecretRoles(commands.Cog):
             await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
             return
 
-        bot_member = guild.get_member(self.bot.user.id)
+        bot_member = guild.me
+        if bot_member is None:
+            await ctx.followup.send(content="Je ne suis pas correctement initialisé sur ce serveur.")
+            return
+        
         bot_highest_role = max(bot_member.roles, key=lambda r: r.position)
         if role.position >= bot_highest_role.position:
             await ctx.followup.send(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")

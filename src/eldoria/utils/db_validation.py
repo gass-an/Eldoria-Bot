@@ -1,47 +1,43 @@
 """Utilitaires pour la validation de fichiers de base de données SQLite."""
 
-import os
 import sqlite3
 import tempfile
 import time
+from pathlib import Path
 
 import discord
 
 
 async def is_valid_sqlite_db(attachment: discord.Attachment) -> bool:
     """Vérifie si un fichier attaché est une base de données SQLite valide."""
-    # 1) Vérification extension
     if not attachment.filename.lower().endswith(".db"):
         return False
 
-    # 2) Sauvegarde temporaire
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp_path = tmp.name
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+
     await attachment.save(tmp_path)
 
-    conn = None
+    conn: sqlite3.Connection | None = None
     try:
-        conn = sqlite3.connect(tmp_path)
+        conn = sqlite3.connect(str(tmp_path))
         conn.execute("PRAGMA schema_version;")
         return True
     except sqlite3.DatabaseError:
         return False
     finally:
-        # fermer la DB si ouverte
         try:
             if conn is not None:
                 conn.close()
         except Exception:
             pass
 
-        # suppression robuste (Windows peut locker le fichier brièvement)
         for _ in range(5):
             try:
-                os.remove(tmp_path)
+                tmp_path.unlink()
                 break
             except FileNotFoundError:
                 break
             except PermissionError:
                 time.sleep(0.05)
-        # Si après retries ça ne passe pas, on n'explose pas :
-        # le fichier peut être nettoyé par un job/cron, ou sera écrasé plus tard.

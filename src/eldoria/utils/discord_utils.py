@@ -45,8 +45,13 @@ async def get_member_by_id_or_raise(guild: discord.Guild, member_id: int) -> dis
     except discord.NotFound:
         raise ValueError(f"Member {member_id} not found in guild {guild.id}")
 
+def require_member(user: discord.User | discord.Member) -> discord.Member:
+    """Garantit qu'un utilisateur est un Member (contexte serveur), sinon lève une exception."""
+    if not isinstance(user, discord.Member):
+        raise UserRequired("This action requires a guild member.")
+    return user
 
-async def get_text_or_thread_channel(bot: discord.Client, channel_id: int) -> discord.abc.Messageable:
+async def get_text_or_thread_channel(bot: discord.Client, channel_id: int) -> discord.TextChannel | discord.Thread | discord.DMChannel:
     """Récupère un canal textuel ou un thread par son ID, en essayant d'abord le cache puis en fetchant depuis l'API.
     
     Lève une exception si le canal n'est pas trouvé ou n'est pas du bon type.

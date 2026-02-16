@@ -23,7 +23,15 @@ class FakeLogger:
 class FakeBot:
     def __init__(self):
         self.loaded = []
-        self.services = None
+        self._services = None
+
+    # L'implémentation prod expose `set_services(...)`.
+    def set_services(self, services):
+        self._services = services
+
+    @property
+    def services(self):
+        return self._services
 
     def load_extension(self, name: str):
         self.loaded.append(name)
@@ -174,7 +182,7 @@ def test_init_services_assigns_services_and_returns_len(monkeypatch):
     n = mod.init_services(bot)
 
     assert n == 6
-    assert bot.services is not None
+    assert bot._services is not None
     assert set(created.keys()) == {"duel", "role", "save", "temp_voice", "welcome", "xp"}
 
 

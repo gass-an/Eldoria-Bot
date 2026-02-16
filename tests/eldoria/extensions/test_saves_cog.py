@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -60,8 +61,9 @@ class FakeAttachment:
         self.filename = filename
         self.saved_to = []
 
-    async def save(self, path: str):
-        self.saved_to.append(path)
+    async def save(self, path):
+        # Le code prod peut passer un `pathlib.Path`.
+        self.saved_to.append(str(path))
 
 
 class FakeMessage:
@@ -268,12 +270,18 @@ async def test_auto_save_calls_send_once_per_day(monkeypatch):
     monkeypatch.setattr(M, "MY_ID", 1)
     monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
     monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
     monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
 
     ch = FakeChannel()
     guild = FakeGuild(channel=ch)
     bot = FakeBot(guild=guild, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
 
     # empêcher le vrai start: on force __init__ mais on patch _send_db_backup
     calls = {"send": 0}
@@ -312,10 +320,16 @@ async def test_auto_save_returns_if_wrong_minute(monkeypatch):
     monkeypatch.setattr(M, "MY_ID", 1)
     monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
     monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
     monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
 
     bot = FakeBot(guild=FakeGuild(channel=FakeChannel()), save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+
+    async def fake_get_channel(_bot, _cid):
+        return FakeChannel()
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
 
     calls = {"send": 0}
     async def fake_send_db_backup(*, channel, reason):
@@ -346,6 +360,8 @@ async def test_manual_save_not_configured(monkeypatch):
     monkeypatch.setattr(M, "MY_ID", None)
     monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
     monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+
 
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
     cog = M.Saves(bot)
@@ -364,6 +380,7 @@ async def test_manual_save_wrong_user(monkeypatch):
     monkeypatch.setattr(M, "MY_ID", 999)
     monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
     monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
     cog = M.Saves(bot)
@@ -385,6 +402,7 @@ async def test_insert_db_success(monkeypatch):
     monkeypatch.setattr(M, "MY_ID", 1)
     monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
     monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
     att = FakeAttachment(filename="eldoria.db")
@@ -399,27 +417,37 @@ async def test_insert_db_success(monkeypatch):
 
     cog = M.Saves(bot)
 
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
     # is_valid_sqlite_db -> True
-    async def valid(_attachment): return True
+    async def valid(_attachment):
+        return True
+
     monkeypatch.setattr(M, "is_valid_sqlite_db", valid)
 
     # avoid filesystem
     monkeypatch.setattr(M.os.path, "dirname", lambda p: "./data")
     monkeypatch.setattr(M.os, "makedirs", lambda *a, **k: None)
-    monkeypatch.setattr(M.os.path, "join", lambda a, b: f"{a}/{b}")
+    # os.path.join peut être appelé avec plus de 2 segments (y compris par
+    # pytest lors du rendu des erreurs). On accepte donc *parts.
+    monkeypatch.setattr(M.os.path, "join", lambda *parts: "/".join(parts))
 
     async def fake_to_thread(fn, *args):
         fn(*args)
+
     monkeypatch.setattr(M.asyncio, "to_thread", fake_to_thread)
 
     ctx = FakeCtx(uid=1)
     await cog.insert_db_command(ctx, message_id="123")
 
-    # attachment saved
-    assert att.saved_to == ["./data/temp_eldoria.db"]
+    # attachment saved (normalisation Windows/POSIX)
+    assert [Path(p).as_posix() for p in att.saved_to] == ["data/temp_eldoria.db"]
 
-    # replace called + init_db called
-    assert save.replace_calls == ["./data/temp_eldoria.db"]
+    # replace called + init_db called (normalisation Windows/POSIX)
+    assert [Path(str(p)).as_posix() for p in save.replace_calls] == ["data/temp_eldoria.db"]
     assert save.init_db_calls == 1
 
     # cleanup: channel 222 missing => remove_active called

@@ -8,19 +8,63 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-# Charge .env une seule fois
+
+def env_str_required(name: str) -> str:
+    """Récupère une variable d'environnement obligatoire et lève une exception si elle n'est pas définie."""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def env_int_optional(name: str) -> int | None:
+    """Récupère une variable d'environnement optionnelle, tente de la convertir en int, et retourne None si elle n'est pas définie ou si la conversion échoue."""
+    value = os.getenv(name)
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError as e:
+        raise RuntimeError(f"Environment variable {name} must be an integer.") from e
+
+
+def env_str_optional(name: str) -> str | None:
+    """Récupère une variable d'environnement optionnelle et retourne None si elle n'est pas définie ou est vide."""
+    value = os.getenv(name)
+    return value if value else None
+
+
 load_dotenv()
 
-TOKEN: Final[str | None] = os.getenv("DISCORD_TOKEN")
+# === Discord (required) ===
+TOKEN: Final[str] = env_str_required("DISCORD_TOKEN")
 
-# Pour save (optionnel si feature saves non utilisée)
-MY_ID: Final[int | None] = int(os.getenv("ADMIN_USER_ID")) if os.getenv("ADMIN_USER_ID") else None
-SAVE_GUILD_ID: Final[int | None] = int(os.getenv("GUILD_FOR_SAVE")) if os.getenv("GUILD_FOR_SAVE") else None
-SAVE_CHANNEL_ID: Final[int | None] = int(os.getenv("CHANNEL_FOR_SAVE")) if os.getenv("CHANNEL_FOR_SAVE") else None
+# === Backup system (all-or-nothing) ===
+MY_ID: Final[int | None] = env_int_optional("ADMIN_USER_ID")
+SAVE_GUILD_ID: Final[int | None] = env_int_optional("GUILD_FOR_SAVE")
+SAVE_CHANNEL_ID: Final[int | None] = env_int_optional("CHANNEL_FOR_SAVE")
 
-# Sauvegarde automatique (optionnel)
-# - auto_save_time: format "HH:MM" (ex: "03:00")
-# - auto_save_tz: timezone IANA (ex: "Pacific/Noumea", "Europe/Paris", "UTC")
-# Si non défini, la sauvegarde auto est désactivée.
-AUTO_SAVE_TIME: Final[str | None] = os.getenv("AUTO_SAVE_TIME")
+SAVE_ENABLED: Final[bool] = (MY_ID is not None or SAVE_GUILD_ID is not None or SAVE_CHANNEL_ID is not None)
+
+if SAVE_ENABLED:
+    missing = [name for name, v in [
+        ("ADMIN_USER_ID", MY_ID),
+        ("GUILD_FOR_SAVE", SAVE_GUILD_ID),
+        ("CHANNEL_FOR_SAVE", SAVE_CHANNEL_ID),
+    ] if v is None]
+    if missing:
+        raise RuntimeError(f"La fonctionnalité de sauvegarde est activée mais les variables suivantes sont manquantes : {', '.join(missing)}")
+    
+    assert MY_ID is not None
+    assert SAVE_GUILD_ID is not None
+    assert SAVE_CHANNEL_ID is not None
+
+    SAVE_ADMIN_ID: Final[int] = MY_ID
+    SAVE_GUILD: Final[int] = SAVE_GUILD_ID
+    SAVE_CHANNEL: Final[int] = SAVE_CHANNEL_ID
+
+# === Automatic backup (optional) ===
+AUTO_SAVE_TIME: Final[str | None] = env_str_optional("AUTO_SAVE_TIME")
 AUTO_SAVE_TZ: Final[str] = os.getenv("AUTO_SAVE_TZ") or "UTC"
+
+AUTO_SAVE_ENABLED: Final[bool] = AUTO_SAVE_TIME is not None and AUTO_SAVE_TIME.strip() != ""

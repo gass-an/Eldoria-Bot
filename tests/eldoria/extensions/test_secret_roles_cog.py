@@ -146,13 +146,13 @@ class _FakeMember:
 
 
 class _FakeGuild:
-    def __init__(self, guild_id: int, bot_member: _FakeMember):
+    def __init__(self, guild_id: int, me: _FakeMember):
         self.id = guild_id
-        self._bot_member = bot_member
+        self.me = me
 
     def get_member(self, user_id: int):
         # only bot user used in this cog
-        return self._bot_member
+        return self.me
 
 
 class _FakeRoleService:
@@ -210,8 +210,9 @@ async def test_add_secret_role_rejects_role_above_bot():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=5)])
-    guild = _FakeGuild(111, bot_member)
+    
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -225,8 +226,8 @@ async def test_add_secret_role_rejects_existing_other_role():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -241,9 +242,9 @@ async def test_add_secret_role_handles_forbidden_when_probing_role():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    bot_member._raise_add_remove = discord.Forbidden()
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    me._raise_add_remove = discord.Forbidden()
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -256,8 +257,8 @@ async def test_add_secret_role_success_upserts_and_confirms():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -266,8 +267,8 @@ async def test_add_secret_role_success_upserts_and_confirms():
     await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), role)
 
     # probes add/remove worked
-    assert bot_member.added == [role]
-    assert bot_member.removed == [role]
+    assert me.added == [role]
+    assert me.removed == [role]
 
     assert ("sr_upsert", 111, 10, "hello", 1) in role_svc.calls
     assert "bien associée" in ctx.followup.sent[-1]["content"]
@@ -291,8 +292,8 @@ async def test_delete_secret_role_handles_not_found():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -306,8 +307,8 @@ async def test_delete_secret_role_deletes_when_exists():
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
@@ -335,8 +336,8 @@ async def test_list_of_secret_roles_uses_paginator(monkeypatch):
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(100, position=50)])
-    guild = _FakeGuild(111, bot_member)
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 

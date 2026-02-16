@@ -26,25 +26,29 @@ async def build_list_roles_embed(
         colour=EMBED_COLOUR_PRIMARY,
     )
 
-    for message_id in roles:
-        # message_id = (message_id_str, {emoji: role_id})
+    for message_id_str, emoji_to_role in roles:
+        try:
+            msg_id = int(message_id_str)
+        except ValueError:
+            continue
+
         channel_id: int | None = await find_channel_id(
             bot=bot,
-            message_id=message_id[0],
+            message_id=msg_id,
             guild_id=guild_id,
         )
 
-        nb_roles += len(message_id[1])
+        nb_roles += len(emoji_to_role)
 
-        list_roles: str = ""
-        for existing_emoji, existing_role_id in message_id[1].items():
+        list_roles = ""
+        for existing_emoji, existing_role_id in emoji_to_role.items():
             list_roles += f"{existing_emoji}  **->** <@&{existing_role_id}>\n"
 
-        if list_roles != "":
+        if list_roles:
             embed.add_field(name="", value="", inline=False)
             embed.add_field(
-                name=f"· https://discord.com/channels/{guild_id}/{channel_id}/{message_id[0]} : ",
-                value=f"{list_roles}",
+                name=f"· https://discord.com/channels/{guild_id}/{channel_id}/{msg_id} : ",
+                value=list_roles,
                 inline=False,
             )
 

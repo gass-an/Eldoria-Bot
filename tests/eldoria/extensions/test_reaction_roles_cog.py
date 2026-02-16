@@ -166,7 +166,10 @@ class _FakeMessage:
         self.reactions_cleared += 1
 
 
-class _FakeChannel:
+import discord  # type: ignore
+
+
+class _FakeChannel(discord.TextChannel):  # type: ignore[misc]
     def __init__(self, message: _FakeMessage):
         self._message = message
 
@@ -182,6 +185,12 @@ class _FakeGuild:
 
     def get_member(self, user_id: int):
         return self._members.get(user_id)
+
+    @property
+    def me(self):
+        # discord.py expose `guild.me` = Member représentant le bot sur le serveur.
+        # Dans ces tests, le bot a l'id 999 (voir _FakeBotUser).
+        return self._members.get(999)
 
     def get_role(self, role_id: int):
         return self._roles.get(role_id)
@@ -263,6 +272,9 @@ class _FakeBot:
 
     def get_guild(self, guild_id: int):
         return self._guilds.get(guild_id)
+
+    def get_channel(self, channel_id: int):
+        return self._channels.get(channel_id)
 
     async def fetch_channel(self, channel_id: int):
         return self._channels[channel_id]

@@ -49,14 +49,14 @@ def load_extensions(bot: EldoriaBot) -> int:
 
 def init_services(bot: EldoriaBot) -> int:
     """Initialise les services utilisés par le bot et les assigne à l'attribut services du bot, puis retourne le nombre de services initialisés."""
-    bot.services = Services(
+    bot.set_services(Services(
         duel=DuelService(),
         role=RoleService(),
         save=SaveService(),
         temp_voice=TempVoiceService(),
         welcome=WelcomeService(),
         xp=XpService(),
-    )
+    ))
     return len(bot.services)
 
 def startup(bot: EldoriaBot) -> None:

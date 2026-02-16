@@ -6,8 +6,10 @@ from collections.abc import Awaitable, Callable
 
 import discord
 
+from eldoria.app.bot import EldoriaBot
+
 # render returns (embed, files, view)
-RenderFn = Callable[[dict, discord.Guild, object], Awaitable[tuple[discord.Embed, list[discord.File], discord.ui.View | None]]]
+RenderFn = Callable[[dict, discord.Guild, EldoriaBot], Awaitable[tuple[discord.Embed, list[discord.File], discord.ui.View | None]]]
 
 _RENDERERS: dict[str, RenderFn] = {}
 

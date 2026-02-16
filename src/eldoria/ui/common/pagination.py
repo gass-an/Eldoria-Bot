@@ -2,18 +2,21 @@
 
 from collections.abc import Awaitable, Callable, Sequence
 from math import ceil
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import discord
 from discord.ui import Button, View
 
+from eldoria.app.bot import EldoriaBot
+
+T = TypeVar("T")
+
 EmbedGenerator = Callable[
-    [Sequence[Any], int, int, Any, Any],
-    Awaitable[tuple[discord.Embed, list[discord.File] | None]]
+    [Sequence[T], int, int, Any, Any],
+    Awaitable[tuple[discord.Embed, list[discord.File]]],
 ]
 
-
-class Paginator(View):
+class Paginator(View, Generic[T]):
     """View de pagination pour les embeds.
 
     - items: la liste complète des items à paginer
@@ -24,31 +27,25 @@ class Paginator(View):
 
     def __init__(
         self,
-        items: Sequence[Any],
-        embed_generator: EmbedGenerator | None = None,
+        items: Sequence[T],
+        embed_generator: EmbedGenerator[T],
         identifiant_for_embed: Any | None = None,
-        bot: Any | None = None,
+        bot: EldoriaBot | None = None,
     ) -> None:
         """Initialise la pagination avec les items et la fonction de génération d'embed."""
         super().__init__(timeout=240)
 
-        self.items: Sequence[Any] = items
+        self.items: Sequence[T] = items
         self.page_size: int = 10
         self.current_page: int = 0
         self.total_pages: int = ceil(len(items) / self.page_size)
-        self.embed_generator: EmbedGenerator | None = embed_generator
-        self.identifiant_for_embed: Any | None = identifiant_for_embed
-        self.bot: Any | None = bot
 
-        self.previous_button: Button = Button(
-            label="Précédent",
-            style=discord.ButtonStyle.secondary,
-            disabled=True,
-        )
-        self.next_button: Button = Button(
-            label="Suivant",
-            style=discord.ButtonStyle.secondary,
-        )
+        self.embed_generator: EmbedGenerator[T] = embed_generator
+        self.identifiant_for_embed: Any | None = identifiant_for_embed
+        self.bot: EldoriaBot | None = bot
+
+        self.previous_button: Button = Button(label="Précédent", style=discord.ButtonStyle.secondary, disabled=True)
+        self.next_button: Button = Button(label="Suivant", style=discord.ButtonStyle.secondary)
 
         self.previous_button.callback = self.previous_page
         self.next_button.callback = self.next_page
@@ -56,10 +53,10 @@ class Paginator(View):
         self.add_item(self.previous_button)
         self.add_item(self.next_button)
 
-    async def create_embed(self) -> tuple[discord.Embed, list[discord.File] | None]:
+    async def create_embed(self) -> tuple[discord.Embed, list[discord.File]]:
         """Crée l'embed de la première page à afficher."""
         embed, files = await self.embed_generator(
-            self.items[:self.page_size],
+            self.items[: self.page_size],
             0,
             self.total_pages,
             self.identifiant_for_embed,
@@ -69,11 +66,11 @@ class Paginator(View):
 
     async def update_embed(self, interaction: discord.Interaction) -> None:
         """Met à jour l'embed affiché en fonction de la page courante."""
-        start_index: int = self.current_page * self.page_size
-        end_index: int = start_index + self.page_size
-        page_items: Sequence[Any] = self.items[start_index:end_index]
+        start_index = self.current_page * self.page_size
+        end_index = start_index + self.page_size
+        page_items = self.items[start_index:end_index]
 
-        embed, _ = await self.embed_generator(
+        embed, _files = await self.embed_generator(
             page_items,
             self.current_page,
             self.total_pages,

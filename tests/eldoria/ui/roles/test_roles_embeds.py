@@ -59,7 +59,7 @@ async def test_build_list_roles_embed_builds_fields_and_counts_roles(monkeypatch
     calls = []
     async def fake_find_channel_id(*, bot, message_id, guild_id):
         calls.append({"message_id": message_id, "guild_id": guild_id})
-        return 555 if message_id == "111" else 777
+        return 555 if message_id == 111 else 777
 
     monkeypatch.setattr(M, "find_channel_id", fake_find_channel_id)
 
@@ -98,8 +98,8 @@ async def test_build_list_roles_embed_builds_fields_and_counts_roles(monkeypatch
 
     # find_channel_id called with correct params
     assert calls == [
-        {"message_id": "111", "guild_id": 42},
-        {"message_id": "222", "guild_id": 42},
+        {"message_id": 111, "guild_id": 42},
+        {"message_id": 222, "guild_id": 42},
     ]
 
 

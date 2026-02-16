@@ -95,8 +95,13 @@ class InviteView(discord.ui.View):
             await interaction.followup.send(content="Le duel a été accepté, mais l'UI du jeu n'est pas encore prête.", ephemeral=True)
             return
 
+        msg = interaction.message
+        if msg is None:
+            await interaction.followup.send(content="Impossible de modifier le message (message introuvable).", ephemeral=True)
+            return
+
         # On édite le message d'invite (celui avec les boutons accepter/refuser)
-        await interaction.message.edit(content=interaction.message.content or "", embed=embed, view=view)
+        await msg.edit(content=msg.content or "", embed=embed, view=view)
 
 
     @discord.ui.button(label="❌ Refuser", style=discord.ButtonStyle.secondary)

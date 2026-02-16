@@ -32,13 +32,13 @@ class EldoriaBot(commands.Bot):
         self._booted: bool = False
         self._started_at: float = time.perf_counter()
         self._discord_started_at: float | None = None
-        self.services: Services | None = None
+        self._services: Services | None = None
 
     def set_started_at(self, timestamp: float) -> None:
         """Définit le timestamp de démarrage du bot, utilisé pour mesurer les temps de chargement et d'exécution."""
         self._started_at = timestamp
 
-    def get_started_at(self) -> float | None:
+    def get_started_at(self) -> float:
         """Retourne le timestamp de démarrage du bot, ou None s'il n'a pas encore été défini."""
         return self._started_at
     
@@ -57,3 +57,16 @@ class EldoriaBot(commands.Bot):
     def get_discord_started_at(self) -> float | None:
         """Retourne le timestamp de connexion à Discord, ou None s'il n'a pas encore été défini."""
         return self._discord_started_at
+    
+    @property
+    def services(self) -> Services:
+        """Retourne les services utilisés par le bot, ou lève une exception si les services n'ont pas encore été initialisés."""
+        if self._services is None:
+            raise RuntimeError("Services not initialized yet. Call bot.set_services(...) before loading cogs.")
+        return self._services
+    
+    def set_services(self, services: Services) -> None:
+        """Assigne les services utilisés par le bot à l'attribut services, en vérifiant qu'ils n'ont pas déjà été initialisés."""
+        if self._services is not None:
+            raise RuntimeError("Services already initialized.")
+        self._services = services

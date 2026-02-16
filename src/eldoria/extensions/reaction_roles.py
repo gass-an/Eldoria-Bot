@@ -9,7 +9,7 @@ from discord.ext import commands
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.embeds import build_list_roles_embed
-from eldoria.utils.discord_utils import extract_id_from_link
+from eldoria.utils.discord_utils import extract_id_from_link, get_text_or_thread_channel
 
 
 class ReactionRoles(commands.Cog):
@@ -31,14 +31,22 @@ class ReactionRoles(commands.Cog):
         
         Vérifie si la réaction correspond à une règle de rôle par réaction, et si oui, attribue le rôle correspondant à l'utilisateur qui a réagi.
         """
-        guild = self.bot.get_guild(payload.guild_id)
+        guild_id = payload.guild_id
+        if guild_id is None:
+            return
+        
+        guild = self.bot.get_guild(guild_id)
         if guild is None:
             return
         member = guild.get_member(payload.user_id)
         if member is None or member == self.bot.user:
             return
 
-        role_id = self.role.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+        emoji_name = payload.emoji.name
+        if emoji_name is None:
+            return
+        
+        role_id = self.role.rr_get_role_id(guild_id, payload.message_id, emoji_name)
         if role_id is None:
             return
 
@@ -56,21 +64,31 @@ class ReactionRoles(commands.Cog):
         Vérifie si la réaction correspond à une règle de rôle par réaction, et si oui,
         retire le rôle correspondant à l'utilisateur qui a retiré sa réaction.
         """
-        guild = self.bot.get_guild(payload.guild_id)
+        guild_id = payload.guild_id
+        if guild_id is None:
+            return
+
+        guild = self.bot.get_guild(guild_id)
         if guild is None:
             return
 
-        role_id = self.role.rr_get_role_id(payload.guild_id, payload.message_id, payload.emoji.name)
+        emoji_name = payload.emoji.name
+        if emoji_name is None:
+            return
+
+        role_id = self.role.rr_get_role_id(guild_id, payload.message_id, emoji_name)
         if role_id is None:
             return
 
         role = guild.get_role(role_id)
         member = guild.get_member(payload.user_id)
-        if role and member:
-            try:
-                await member.remove_roles(role)
-            except (discord.Forbidden, discord.HTTPException):
-                pass
+        if role is None or member is None:
+            return
+
+        try:
+            await member.remove_roles(role)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
     # -------------------- Commands --------------------
     @commands.slash_command(name="add_reaction_role", description="Associe une réaction sur un message défini à un rôle.")
@@ -88,16 +106,22 @@ class ReactionRoles(commands.Cog):
         await ctx.defer(ephemeral=True)
 
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
+        if guild_id is None or channel_id is None or message_id is None:
+            await ctx.followup.send(content="Lien de message invalide.")
+            return
 
         if ctx.guild is None or guild_id != ctx.guild.id:
             await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
             return
 
         guild = ctx.guild
-        channel = await self.bot.fetch_channel(channel_id)
+        channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)
 
-        bot_member = guild.get_member(self.bot.user.id)
+        bot_member = guild.me
+        if bot_member is None:
+            await ctx.followup.send(content="Je ne suis pas correctement initialisé sur ce serveur.")
+            return
         bot_highest_role = max(bot_member.roles, key=lambda r: r.position)
 
         if role.position >= bot_highest_role.position:
@@ -156,12 +180,15 @@ class ReactionRoles(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
+        if guild_id is None or channel_id is None or message_id is None:
+            await ctx.followup.send(content="Lien de message invalide.")
+            return
 
         if ctx.guild is None or guild_id != ctx.guild.id:
             await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
             return
 
-        channel = await self.bot.fetch_channel(channel_id)
+        channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)
 
         self.role.rr_delete(guild_id, message_id, emoji)
@@ -188,12 +215,15 @@ class ReactionRoles(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
+        if guild_id is None or channel_id is None or message_id is None:
+            await ctx.followup.send(content="Lien de message invalide.")
+            return
 
         if ctx.guild is None or guild_id != ctx.guild.id:
             await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
             return
 
-        channel = await self.bot.fetch_channel(channel_id)
+        channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)
 
         self.role.rr_delete_message(guild_id, message_id)

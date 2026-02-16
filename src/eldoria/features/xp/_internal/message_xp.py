@@ -10,6 +10,7 @@ from eldoria.features.xp._internal.config import XpConfig
 from eldoria.features.xp._internal.tags import has_active_server_tag_for_guild
 from eldoria.features.xp.levels import compute_level
 from eldoria.features.xp.roles import sync_member_level_roles
+from eldoria.utils.discord_utils import require_member
 from eldoria.utils.timestamp import now_ts
 
 
@@ -24,7 +25,7 @@ async def handle_message_xp(message: discord.Message) -> tuple[int, int, int] | 
         return None
 
     guild = message.guild
-    member = message.author
+    member = require_member(message.author)
 
     config_raw = xp_get_config(guild.id)
     config = XpConfig(**config_raw)

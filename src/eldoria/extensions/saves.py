@@ -7,14 +7,24 @@ Inclut des commandes pour faire une sauvegarde manuelle et pour remplacer la bas
 import asyncio
 import os
 from datetime import datetime, time
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import discord
 from discord.ext import commands, tasks
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.config import AUTO_SAVE_TIME, AUTO_SAVE_TZ, MY_ID, SAVE_CHANNEL_ID, SAVE_GUILD_ID
+from eldoria.config import (
+    AUTO_SAVE_ENABLED,
+    AUTO_SAVE_TIME,
+    AUTO_SAVE_TZ,
+    MY_ID,
+    SAVE_CHANNEL_ID,
+    SAVE_ENABLED,
+    SAVE_GUILD_ID,
+)
 from eldoria.utils.db_validation import is_valid_sqlite_db
+from eldoria.utils.discord_utils import get_text_or_thread_channel
 
 
 class Saves(commands.Cog):
@@ -33,17 +43,23 @@ class Saves(commands.Cog):
         self.save = self.bot.services.save
         self.temp_voice = self.bot.services.temp_voice
 
-        # Démarre l'auto-save si configuré
-        if self._enabled() and self._auto_enabled():
+        self.save_enabled: bool = SAVE_ENABLED
+        if self.save_enabled:
+            assert MY_ID is not None and SAVE_GUILD_ID is not None and SAVE_CHANNEL_ID is not None
+            self.admin_user_id: int = MY_ID
+            self.save_guild_id: int = SAVE_GUILD_ID
+            self.save_channel_id: int = SAVE_CHANNEL_ID
+
+        if self.save_enabled and AUTO_SAVE_ENABLED:
             self._auto_save_time = self._parse_auto_time(AUTO_SAVE_TIME)
             if self._auto_save_time is not None:
                 self.auto_save.start()
 
     def _enabled(self) -> bool:
-        return MY_ID is not None and SAVE_GUILD_ID is not None and SAVE_CHANNEL_ID is not None
+        return self.save_enabled
 
     def _auto_enabled(self) -> bool:
-        return AUTO_SAVE_TIME is not None and AUTO_SAVE_TIME.strip() != ""
+        return AUTO_SAVE_ENABLED
 
     def _parse_auto_time(self, value: str | None) -> time | None:
         """Parse un horaire HH:MM et retourne un datetime.time avec tzinfo."""
@@ -99,9 +115,8 @@ class Saves(commands.Cog):
         last_date = getattr(self, "_last_auto_save_date", None)
         if last_date == now.date():
             return
-
-        guild = self.bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID) if guild else None
+    
+        channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
         if channel is None:
             return
 
@@ -129,12 +144,11 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="Feature save non configurée (.env).")
             return
 
-        if ctx.user.id != MY_ID:
+        if ctx.user.id != self.admin_user_id:
             await ctx.followup.send(content="Vous ne pouvez pas faire cela")
             return
 
-        guild = self.bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID) if guild else None
+        channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
         if channel is None:
             await ctx.followup.send(content="❌ Channel de save introuvable.")
             return
@@ -173,12 +187,11 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="Feature save non configurée (.env).")
             return
 
-        if ctx.user.id != MY_ID:
+        if ctx.user.id != self.admin_user_id:
             await ctx.followup.send(content="Vous ne pouvez pas faire cela")
             return
 
-        guild = self.bot.get_guild(SAVE_GUILD_ID)
-        channel = guild.get_channel(SAVE_CHANNEL_ID) if guild else None
+        channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
         if channel is None:
             await ctx.followup.send(content="❌ Channel de save introuvable.")
             return
@@ -199,19 +212,20 @@ class Saves(commands.Cog):
             await ctx.followup.send(content="❌ Le fichier fourni n'est pas une base de données SQLite valide (.db).")
             return
 
-        data_dir = os.path.dirname(self.save.get_db_path())  # "./data"
-        os.makedirs(data_dir, exist_ok=True)
+        db_path = Path(self.save.get_db_path())  # convertit en Path
+        data_dir = db_path.parent
+        data_dir.mkdir(parents=True, exist_ok=True)
 
-        tmp_new = os.path.join(data_dir, f"temp_{attachment.filename}")
+        tmp_new = data_dir / f"temp_{attachment.filename}"
         await attachment.save(tmp_new)
 
         try:
-            await asyncio.to_thread(self.save.replace_db_file, tmp_new)
+            await asyncio.to_thread(self.save.replace_db_file, str(tmp_new))
             self.save.init_db()
         except Exception as e:
             try:
-                if os.path.exists(tmp_new):
-                    os.remove(tmp_new)
+                if tmp_new.exists():
+                    tmp_new.unlink()
             except OSError:
                 pass
             await ctx.followup.send(content=f"❌ Erreur pendant la restauration : {e}")

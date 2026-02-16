@@ -5,6 +5,7 @@ from __future__ import annotations
 import discord
 
 import eldoria.features.duel.constants as constants
+from eldoria.app.bot import EldoriaBot
 from eldoria.features.duel.games.rps import rps_constants as rps
 from eldoria.ui.duels.common import build_game_base_embed
 from eldoria.ui.duels.games.rps.view import RpsView
@@ -37,7 +38,7 @@ def _result_label(result: str, player_a: discord.Member, player_b: discord.Membe
 async def render_rps(
     snapshot: dict,
     guild: discord.Guild,
-    bot: object,
+    bot: EldoriaBot,
 ) -> tuple[discord.Embed, list[discord.File], discord.ui.View | None]:
     """Rend l'état actuel d'une partie de Pierre-Papier-Ciseaux sous forme d'embed et de view."""
     duel = snapshot["duel"]

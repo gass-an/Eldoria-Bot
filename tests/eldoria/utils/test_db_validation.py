@@ -11,9 +11,10 @@ class FakeAttachment:
         self._payload = payload
         self.saved_paths: list[str] = []
 
-    async def save(self, path: str):
-        self.saved_paths.append(path)
-        with open(path, "wb") as f:
+    async def save(self, path):
+        path_str = str(path)
+        self.saved_paths.append(path_str)
+        with open(path_str, "wb") as f:
             f.write(self._payload)
 
 
@@ -26,6 +27,9 @@ class _Tmp:
 
     def __exit__(self, exc_type, exc, tb):
         return False
+
+    def close(self):
+        return None
 
 
 class _Cursor:
@@ -66,7 +70,11 @@ async def test_is_valid_sqlite_db_accepts_valid_db_and_cleans_temp(tmp_path, mon
     monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
 
     removed: list[str] = []
-    monkeypatch.setattr(mod.os, "remove", lambda p: removed.append(p))
+
+    def fake_unlink(self):
+        removed.append(str(self))
+
+    monkeypatch.setattr(mod.Path, "unlink", fake_unlink, raising=True)
 
     # IMPORTANT : patch dans le module under test (mod.sqlite3), pas sqlite3 global
     monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
@@ -84,7 +92,11 @@ async def test_is_valid_sqlite_db_rejects_invalid_db_and_cleans_temp(tmp_path, m
     monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
 
     removed: list[str] = []
-    monkeypatch.setattr(mod.os, "remove", lambda p: removed.append(p))
+
+    def fake_unlink(self):
+        removed.append(str(self))
+
+    monkeypatch.setattr(mod.Path, "unlink", fake_unlink, raising=True)
 
     def bad_connect(p):
         raise mod.sqlite3.DatabaseError("not sqlite")
@@ -110,21 +122,21 @@ async def test_is_valid_sqlite_db_cleanup_retries_on_permission_error(tmp_path, 
     # Conn valide
     monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
 
-    calls = {"remove": 0, "sleep": 0}
+    calls = {"unlink": 0, "sleep": 0}
 
-    def fake_remove(p):
-        calls["remove"] += 1
+    def fake_unlink(self):
+        calls["unlink"] += 1
         # 2 échecs puis succès
-        if calls["remove"] <= 2:
+        if calls["unlink"] <= 2:
             raise PermissionError("locked")
         return None
 
     def fake_sleep(_):
         calls["sleep"] += 1
 
-    monkeypatch.setattr(mod.os, "remove", fake_remove)
+    monkeypatch.setattr(mod.Path, "unlink", fake_unlink, raising=True)
     monkeypatch.setattr(mod.time, "sleep", fake_sleep)
 
     assert await mod.is_valid_sqlite_db(att) is True
-    assert calls["remove"] == 3
+    assert calls["unlink"] == 3
     assert calls["sleep"] == 2

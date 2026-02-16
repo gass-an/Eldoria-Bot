@@ -100,7 +100,7 @@ class Core(commands.Cog):
                     pass
 
                 role = message.guild.get_role(role_id)
-                if role:
+                if role and isinstance(message.author, discord.Member):
                     try:
                         await message.author.add_roles(role)
                     except (discord.Forbidden, discord.HTTPException):

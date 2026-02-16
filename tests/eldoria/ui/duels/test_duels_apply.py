@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import pytest
 
+import discord  # type: ignore
+
 from eldoria.ui.duels import apply as M
 
 
 class FakeMember:
     def __init__(self, user_id: int):
+        import discord  # type: ignore
+
+        # Doit être reconnu comme discord.Member dans le code prod.
+        self.__class__ = type(self.__class__.__name__, (discord.Member,), dict(self.__class__.__dict__))
         self.id = user_id
         self.mention = f"<@{user_id}>"
 
@@ -19,7 +25,7 @@ class FakeGuild:
         return self._members.get(uid)
 
 
-class FakeChannel:
+class FakeChannel(discord.abc.Messageable):  # type: ignore[attr-defined]
     def __init__(self):
         self.sent: list[str] = []
 

@@ -5,7 +5,10 @@ from tests._fakes.xp_internal_entities import FakeGuild
 
 
 
-class FakeMember:
+import discord  # type: ignore
+
+
+class FakeMember(discord.Member):
     def __init__(self, member_id: int = 42, *, bot: bool = False):
         self.id = member_id
         self.bot = bot

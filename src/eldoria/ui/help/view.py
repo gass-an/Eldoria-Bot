@@ -1,14 +1,46 @@
 """Menu de help interactif (embeds + boutons)."""
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import discord
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.json_tools.help_json import load_help_config
 from eldoria.ui.common.embeds.images import common_files, decorate
 from eldoria.ui.help.embeds import build_category_embed, build_home_embed
+
+
+class HomeButton(discord.ui.Button):
+    """Bouton de retour à l'accueil du menu de help."""
+
+    def __init__(self) -> None:
+        """Initialise le bouton."""
+        super().__init__(label="Accueil", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton Accueil."""
+        view = self.view
+        if view is None:
+            return
+        await view._go_home(interaction)
+
+
+class CategoryButton(discord.ui.Button):
+    """Bouton de navigation vers une catégorie du menu de help."""
+
+    def __init__(self, cat: str) -> None:
+        """Initialise le bouton."""
+        super().__init__(label=cat, style=discord.ButtonStyle.secondary)
+        self.cat = cat
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Gère le clic sur le bouton de catégorie."""
+        view = self.view
+        if view is None:
+            return
+        view.current = self.cat
+        view._refresh_nav_buttons()
+        embed, files = view.build_category(self.cat)
+        await view._safe_edit(interaction, embed=embed, files=files)
 
 
 class HelpMenuView(discord.ui.View):
@@ -49,14 +81,12 @@ class HelpMenuView(discord.ui.View):
         self._cat_buttons: dict[str, discord.ui.Button] = {}
 
         # Construit les boutons (accueil + 1 bouton par catégorie)
-        self.home_button = discord.ui.Button(label="Accueil")
-        self.home_button.callback = self._go_home
+        self.home_button = HomeButton()
         self.add_item(self.home_button)
 
         # Boutons catégories
         for cat in self.visible_by_cat.keys():
-            btn = discord.ui.Button(label=cat)
-            btn.callback = self._make_cat_cb(cat)
+            btn = CategoryButton(cat)
             self.add_item(btn)
             self._cat_buttons[cat] = btn
 
@@ -152,8 +182,11 @@ class HelpMenuView(discord.ui.View):
                 item.disabled = True
 
 
-    async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files: list[discord.File] = None) -> None:
+    async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files: list[discord.File] | None = None) -> None:
         
+        if files is None:
+            files = []
+
         try:
             # On récupère les URLs CDN dès qu'on peut.
             self._capture_attachment_urls_from_message(interaction)
@@ -179,15 +212,6 @@ class HelpMenuView(discord.ui.View):
             return
     
     # -------------------- Button callbacks --------------------
-    def _make_cat_cb(self, cat: str) -> Callable[[discord.Interaction], None]:
-        async def _cb(interaction: discord.Interaction) -> None:
-            self.current = cat
-            self._refresh_nav_buttons()
-            embed, files = self.build_category(cat)
-            await self._safe_edit(interaction, embed=embed, files=files)
-
-        return _cb
-
     async def _go_home(self, interaction: discord.Interaction) -> None:
         self.current = None
         self._refresh_nav_buttons()

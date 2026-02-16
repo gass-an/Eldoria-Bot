@@ -43,7 +43,10 @@ def create_duel(
             VALUES (?, ?, NULL, ?, ?, NULL, NULL, 'CONFIG', ?, ?, NULL, NULL)
         """, (guild_id, channel_id, player_a_id, player_b_id, created_at, expires_at))
         
-        return cursor.lastrowid
+        duel_id = cursor.lastrowid
+        if duel_id is None:
+            raise RuntimeError("Failed to retrieve duel id after INSERT")
+        return duel_id
 
 
 def get_duel_by_id(duel_id: int, *, conn: Connection | None = None) -> Row:

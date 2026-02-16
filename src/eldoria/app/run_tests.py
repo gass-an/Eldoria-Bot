@@ -25,8 +25,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 TESTS_PATH = PROJECT_ROOT / "tests"
 
 def _parse_pytest_counts(output: str) -> dict[str, int]:
-    """
-    Extrait les compteurs depuis la/les lignes de fin pytest:
+    """Extrait les compteurs depuis la/les lignes de fin pytest.
+    
     '2 failed, 367 passed, 4 skipped in 3.21s'
     """
     counts = {"failed": 0, "passed": 0, "skipped": 0, "xfailed": 0, "xpassed": 0}
@@ -59,7 +59,6 @@ def run_tests(*, logger: logging.Logger | None = None) -> str | None:
     Retourne un label stylé pour step(): "367/367 Tests validés" ou "2 tests fails / 367".
     En cas d'échec, log la liste des tests en échec (résumé pytest) et lève si TESTS_STRICT=1.
     """
-
     # ✅ Ne jamais relancer pytest quand on est déjà dans pytest (évite pytest-dans-pytest)
     if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
         return None
@@ -71,7 +70,7 @@ def run_tests(*, logger: logging.Logger | None = None) -> str | None:
     if not tests_path.exists() or not any(tests_path.rglob("test_*.py")):
         return None
 
-    logger.info("⏳ Lancement des tests")
+    logger.info("⏳ Lancement des tests…")
 
     p = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],

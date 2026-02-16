@@ -1,3 +1,5 @@
+import pytest
+
 from eldoria.app.bot import EldoriaBot
 
 
@@ -31,7 +33,11 @@ def test_eldoria_bot_init_calls_super_with_expected_args(monkeypatch):
 
     assert bot.is_booted() is False
     assert bot.get_started_at() == 123.456
-    assert bot.services is None
+    # `services` est désormais une propriété qui lève tant que les services
+    # n'ont pas été initialisés.
+    with pytest.raises(RuntimeError, match="Services not initialized"):
+        _ = bot.services
+    assert bot._services is None  # type: ignore[attr-defined]
 
 
 def test_eldoria_bot_init_passes_options(monkeypatch):

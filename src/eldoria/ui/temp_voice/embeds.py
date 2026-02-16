@@ -1,5 +1,7 @@
 """Module des embeds pour les vocaux temporaires."""
 
+from collections.abc import Sequence
+
 import discord
 
 from eldoria.app.bot import EldoriaBot
@@ -8,7 +10,7 @@ from eldoria.ui.common.embeds.images import common_files, decorate
 
 
 async def build_list_temp_voice_parents_embed(
-        items: list[tuple[int, int]], 
+        items: Sequence[tuple[int, int]], 
         page: int, 
         total_pages: int, 
         identifiant_for_embed: int,

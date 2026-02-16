@@ -21,8 +21,13 @@ def install_discord_stub() -> None:
     class User:
         pass
 
+    # Base de channel de guild pour les checks isinstance(..., discord.abc.GuildChannel)
+    class GuildChannel:
+        id: int
+
     abc_mod.Messageable = Messageable
     abc_mod.User = User
+    abc_mod.GuildChannel = GuildChannel
 
     # ---- discord.utils ----
     utils_mod = ModuleType("discord.utils")
@@ -102,20 +107,21 @@ def install_discord_stub() -> None:
             return None
 
     # ---- Channels ----
-    class TextChannel(Messageable):
+    class TextChannel(Messageable, GuildChannel):
         id: int = 0
 
         async def fetch_message(self, message_id: int):
             raise NotFound()
 
-    class Thread(Messageable):
+    class Thread(Messageable, GuildChannel):
         id: int = 0
 
     class DMChannel(Messageable):
         id: int = 0
 
-    class GuildChannel:
-        id: int
+    # Compat: discord.GuildChannel existe aussi mais les checks utilisent surtout discord.abc.GuildChannel
+    class GuildChannel(GuildChannel):
+        pass
 
     # ---- UI ----
     class ButtonStyle:
@@ -132,6 +138,8 @@ def install_discord_stub() -> None:
             self.timeout = kwargs.get("timeout", None)
 
         def add_item(self, item):
+            # discord.py assigne `item.view` à la view courante.
+            setattr(item, "view", self)
             self.children.append(item)
 
         async def on_timeout(self):  # pragma: no cover
@@ -143,7 +151,7 @@ def install_discord_stub() -> None:
             self.style = style
             self.disabled = disabled
             self.custom_id = custom_id
-            self.callback = None
+            # Ne pas écraser une méthode `callback` définie dans les sous-classes.
 
     def button(*args, **kwargs):  # pragma: no cover
         def decorator(func):

@@ -226,7 +226,15 @@ class FakeGuild:
 
 
 class FakeAuthor:
+    """Auteur de message qui doit être reconnu comme un discord.Member."""
+
     def __init__(self, *, mention: str = "<@42>"):
+        import discord  # type: ignore
+
+        # Hériter dynamiquement du stub discord.Member pour satisfaire isinstance(..., discord.Member)
+        # sans dépendre d'un vrai discord.py.
+        self.__class__ = type(self.__class__.__name__, (discord.Member,), dict(self.__class__.__dict__))
+
         self.mention = mention
         self.add_roles = AsyncMock()
 
@@ -264,7 +272,8 @@ class FakeBot:
 
         self.services = SimpleNamespace(
             xp=SimpleNamespace(
-                handle_message_xp=AsyncMock(),
+                # Par défaut on ne renvoie rien (évite l'unpack dans le cog)
+                handle_message_xp=AsyncMock(return_value=None),
                 get_role_ids=MagicMock(return_value=[1, 2, 3]),
             ),
             role=SimpleNamespace(

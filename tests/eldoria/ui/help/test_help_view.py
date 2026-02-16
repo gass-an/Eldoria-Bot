@@ -268,8 +268,9 @@ async def test_make_cat_cb_sets_current_refreshes_and_calls_safe_edit(monkeypatc
 
     inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
 
-    cb = view._make_cat_cb("XP")
-    await cb(inter)
+    # Nouveau code: les boutons de catégorie sont des instances de CategoryButton.
+    btn = view._cat_buttons["XP"]
+    await btn.callback(inter)  # type: ignore[attr-defined]
 
     assert view.current == "XP"
     assert safe_calls == [{"embed": "EMBED_CAT", "files": ["FILES_CAT"], "current": "XP"}]
