@@ -23,7 +23,7 @@ def build_home_embed(
         desc = cat_descriptions.get(cat, "Fonctionnalité du bot.")
         embed.add_field(name=cat, value=f"> {desc}", inline=False)
 
-    embed.set_footer(text="Utilise les boutons pour naviguer. (Peut prendre plusieurs secondes)")
+    embed.set_footer(text="Utilise les boutons pour naviguer.")
     decorate(embed, thumb_url, banner_url)
     return embed
 
@@ -53,6 +53,6 @@ def build_category_embed(
 
         embed.add_field(name=f"▸ /{cmd_name}", value=f"> {desc}", inline=False)
 
-    embed.set_footer(text="Utilise les boutons pour naviguer. (Peut prendre plusieurs secondes)")
+    embed.set_footer(text="Utilise les boutons pour naviguer.")
     decorate(embed, thumb_url, banner_url)
     return embed

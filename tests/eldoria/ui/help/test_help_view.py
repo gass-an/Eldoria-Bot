@@ -5,7 +5,6 @@ import pytest
 
 from eldoria.ui.help import view as M
 from tests._fakes._pages_fakes import (
-    FakeAttachment,
     FakeCtx,
     FakeInteraction,
     FakeMessage,
@@ -137,26 +136,6 @@ def test_refresh_nav_buttons_when_in_category_marks_category_active(monkeypatch)
     assert view._cat_buttons["XP"].style == discord.ButtonStyle.secondary
 
 
-def test_capture_attachment_urls_from_message_sets_thumb_and_banner(monkeypatch):
-    view = _make_view(monkeypatch)
-
-    msg = FakeMessage(
-        attachments=[
-            FakeAttachment(filename="logo_bot.png", url="THUMB_URL"),
-            FakeAttachment(filename="banner_bot.png", url="BANNER_URL"),
-        ]
-    )
-    inter = CompatInteraction(user=FakeUser(1), message=msg)
-
-    assert view._thumb_url is None
-    assert view._banner_url is None
-
-    view._capture_attachment_urls_from_message(inter)
-
-    assert view._thumb_url == "THUMB_URL"
-    assert view._banner_url == "BANNER_URL"
-
-
 @pytest.mark.asyncio
 async def test_interaction_check_blocks_other_user_and_uses_response_send(monkeypatch):
     view = _make_view(monkeypatch, author_id=1)
@@ -217,22 +196,16 @@ async def test_safe_edit_fast_path_when_urls_known_uses_response_edit_message(mo
 
 
 @pytest.mark.asyncio
-async def test_safe_edit_no_urls_defers_then_edit_original_with_files(monkeypatch):
+async def test_safe_edit_when_response_not_done_uses_response_edit_message(monkeypatch):
     view = _make_view(monkeypatch)
-    view._thumb_url = None
-    view._banner_url = None
 
-    # Message sans attachments => URLs restent None
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())  # is_done False par défaut
 
     await view._safe_edit(inter, embed="EMBED", files=["FILES"])
 
-    assert inter.response.deferred is True
-    assert inter.original_edits
-    last = inter.original_edits[-1]
-    assert last["embed"] == "EMBED"
-    assert last["files"] == ["FILES"]
-    assert last["view"] is view
+    assert inter.response_edit_calls == [{"embed": "EMBED", "view": view}]
+    assert inter.response.deferred is False
+    assert inter.original_edits == []
 
 
 @pytest.mark.asyncio

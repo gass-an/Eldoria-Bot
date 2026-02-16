@@ -10,13 +10,14 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Added
 - Duels de mini-jeux pour miser de l'XP : disponible que pour Pierre-Feuille-Ciseaux (1 manche)
-- Amélioration de l’affichage du terminal au lancement (banner + logs structurés)
 - Docstrings et typage strict
 - Refacto Tests unitaires + Ajout tests unitaires manquant
 
 ### Changed
+- Amélioration de l’affichage du terminal au lancement (banner + logs structurés)
 
 ### Fixed
+- Réduction de la latence du menu d’aide en supprimant les ré-uploads inutiles de fichiers lors des éditions d’embed.
 
 ### Notes
 

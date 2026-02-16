@@ -75,6 +75,9 @@ class HelpMenuView(discord.ui.View):
         # Objectif: éviter de ré-uploader les mêmes fichiers à chaque clic (latence).
         self._thumb_url: str | None = None
         self._banner_url: str | None = None
+        
+        # Marque si on a déjà uploadé les fichiers au moins une fois (pour ne plus les renvoyer ensuite)
+        self._uploaded_once = False  
 
         # On garde une référence aux boutons de catégories pour pouvoir
         # mettre en évidence la page courante (couleur différente + non cliquable).
@@ -125,16 +128,6 @@ class HelpMenuView(discord.ui.View):
     def _decorate(self, embed: discord.Embed) -> discord.Embed:
         return decorate(embed, self._thumb_url, self._banner_url)
 
-    def _capture_attachment_urls_from_message(self, interaction: discord.Interaction) -> None:
-        
-        msg = interaction.message
-        if not msg or not getattr(msg, "attachments", None):
-            return
-        for att in msg.attachments:
-            if att.filename == "logo_bot.png":
-                self._thumb_url = att.url
-            elif att.filename == "banner_bot.png":
-                self._banner_url = att.url
     
     def build_home(self) -> tuple[discord.Embed, list[discord.File]]:
         """Construit l'embed de la page d'accueil."""
@@ -183,32 +176,22 @@ class HelpMenuView(discord.ui.View):
 
 
     async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files: list[discord.File] | None = None) -> None:
-        
-        if files is None:
-            files = []
-
         try:
-            # On récupère les URLs CDN dès qu'on peut.
-            self._capture_attachment_urls_from_message(interaction)
-
-            # Chemin "rapide" : si on ne renvoie pas de fichiers, on peut répondre directement
-            # via interaction.response.edit_message (1 seule requête au lieu defer+edit).
-            fast_no_files = (self._thumb_url and self._banner_url)
+            # 1) Si on peut répondre directement, on le fait (1 call)
             if not interaction.response.is_done():
-                if fast_no_files:
-                    await interaction.response.edit_message(embed=embed, view=self)
-                    return
-                # Sinon, on ACK tout de suite pour éviter l'expiration, puis on édite.
-                await interaction.response.defer()
+                await interaction.response.edit_message(embed=embed, view=self)
+                return
 
-            if fast_no_files:
+            # 2) Sinon, on édite l'original
+            if getattr(self, "_uploaded_once", False):
                 await interaction.edit_original_response(embed=embed, view=self)
-            else:
-                await interaction.edit_original_response(embed=embed, files=files, view=self)
-        except discord.NotFound:
-            # Interaction expired or message deleted -> nothing we can do safely
-            return
-        except discord.HTTPException:
+                return
+
+            # 3) Fallback rare
+            await interaction.edit_original_response(embed=embed, files=files or [], view=self)
+            self._uploaded_once = True
+
+        except (discord.NotFound, discord.HTTPException):
             return
     
     # -------------------- Button callbacks --------------------
@@ -322,3 +305,4 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> No
     )
     embed, files = view.build_home()
     await ctx.followup.send(embed=embed, files=files, view=view, ephemeral=True)
+    view._uploaded_once = True  # Marque que les fichiers ont été envoyés une fois (pour ne plus les renvoyer)

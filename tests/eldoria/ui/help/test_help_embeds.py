@@ -47,7 +47,7 @@ def test_build_home_embed_builds_fields_footer_and_calls_decorate(monkeypatch):
     assert embed.fields[0] == {"name": "XP", "value": "> Système d'expérience", "inline": False}
     assert embed.fields[1] == {"name": "Duels", "value": "> Fonctionnalité du bot.", "inline": False}
 
-    assert embed.footer == {"text": "Utilise les boutons pour naviguer. (Peut prendre plusieurs secondes)"}
+    assert embed.footer == {"text": "Utilise les boutons pour naviguer."}
 
     # decorate called with exact thumb/banner
     assert called["args"][0] is embed
@@ -100,7 +100,7 @@ def test_build_category_embed_description_fallbacks(monkeypatch, desc_in_help, c
     assert embed.fields[0]["value"] == f"> {expected}"
     assert embed.fields[0]["inline"] is False
 
-    assert embed.footer == {"text": "Utilise les boutons pour naviguer. (Peut prendre plusieurs secondes)"}
+    assert embed.footer == {"text": "Utilise les boutons pour naviguer."}
 
     assert called["args"][0] is embed
     assert called["args"][1] == "TH"
