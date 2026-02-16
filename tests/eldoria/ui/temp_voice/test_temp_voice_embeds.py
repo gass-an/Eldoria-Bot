@@ -4,12 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.temp_voice import embeds as M
-
-
-class FakeChannel:
-    def __init__(self, channel_id: int):
-        self.id = channel_id
-        self.mention = f"<#{channel_id}>"
+from tests._fakes._embed_fakes import FakeChannel
 
 
 class FakeGuild:

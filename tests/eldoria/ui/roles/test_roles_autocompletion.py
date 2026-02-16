@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-# ⚠️ adapte si ton module n’est pas exactement là
 from eldoria.ui.roles import autocompletion as M
 
 # ------------------------------------------------------------

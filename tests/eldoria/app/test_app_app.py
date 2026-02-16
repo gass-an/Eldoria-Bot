@@ -1,4 +1,3 @@
-
 import pytest
 
 from eldoria.app import app as mod

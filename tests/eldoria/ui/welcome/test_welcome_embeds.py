@@ -4,23 +4,13 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.welcome import embeds as M
-
-
-class FakeAvatar:
-    def __init__(self, url: str):
-        self.url = url
+from tests._fakes._profile_entities_fakes import FakeAvatar, FakeGuild
 
 
 class FakeMember:
     def __init__(self, mention: str, avatar_url: str):
         self.mention = mention
         self.display_avatar = FakeAvatar(avatar_url)
-
-
-class FakeGuild:
-    def __init__(self, name: str):
-        self.name = name
-
 
 class FakeWelcomeService:
     def __init__(self):
@@ -33,11 +23,9 @@ class FakeWelcomeService:
         )
         return self.ret
 
-
 class FakeServices:
     def __init__(self, welcome: FakeWelcomeService):
         self.welcome = welcome
-
 
 class FakeBot:
     def __init__(self, guild: FakeGuild, welcome: FakeWelcomeService):
@@ -48,7 +36,6 @@ class FakeBot:
     def get_guild(self, guild_id: int):
         self.get_guild_calls.append(guild_id)
         return self._guild
-
 
 @pytest.mark.asyncio
 async def test_build_welcome_embed_builds_embed_and_returns_emojis(monkeypatch):
@@ -78,7 +65,6 @@ async def test_build_welcome_embed_builds_embed_and_returns_emojis(monkeypatch):
     assert embed.thumbnail == {"url": "https://cdn/avatar.png"}
 
     assert emojis == ["😀", "🔥"]
-
 
 @pytest.mark.asyncio
 async def test_build_welcome_embed_supports_empty_emojis(monkeypatch):

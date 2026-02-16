@@ -1,4 +1,3 @@
-# tests/eldoria/features/duel/_internal/test_flow.py
 from __future__ import annotations
 
 import pytest
@@ -6,6 +5,7 @@ import pytest
 import eldoria.features.duel._internal.flow as flow_mod
 from eldoria.exceptions import duel_exceptions as exc
 from eldoria.features.duel import constants
+from tests._fakes._db_fakes import FakeConnCM
 
 
 # ------------------------------------------------------------
@@ -13,18 +13,6 @@ from eldoria.features.duel import constants
 # ------------------------------------------------------------
 class FakeConn:
     pass
-
-
-class FakeConnCtx:
-    def __init__(self, conn=None):
-        self.conn = conn or FakeConn()
-
-    def __enter__(self):
-        return self.conn
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
 
 def _minimal_duel_row(**overrides):
     base = {
@@ -42,7 +30,6 @@ def _minimal_duel_row(**overrides):
     base.update(overrides)
     return base
 
-
 # ------------------------------------------------------------
 # new_duel
 # ------------------------------------------------------------
@@ -50,12 +37,10 @@ def test_new_duel_rejects_same_players(monkeypatch):
     with pytest.raises(exc.SamePlayerDuel):
         flow_mod.new_duel(1, 2, 3, 3)
 
-
 def test_new_duel_rejects_if_any_player_already_in_duel(monkeypatch):
     monkeypatch.setattr(flow_mod.duel_repo, "get_active_duel_for_user", lambda gid, uid: {"id": 99})
     with pytest.raises(exc.PlayerAlreadyInDuel):
         flow_mod.new_duel(1, 2, 3, 4)
-
 
 def test_new_duel_creates_and_returns_snapshot(monkeypatch):
     calls = {}
@@ -84,7 +69,6 @@ def test_new_duel_creates_and_returns_snapshot(monkeypatch):
     assert calls["create"] == (10, 20, 111, 222, 1000, 1000 + 600)
     assert out == {"snapshot": True, "id": 777}
 
-
 # ------------------------------------------------------------
 # configure_game_type
 # ------------------------------------------------------------
@@ -96,7 +80,6 @@ def test_configure_game_type_rejects_invalid_type(monkeypatch):
     with pytest.raises(exc.InvalidGameType):
         flow_mod.configure_game_type(1, "NOT_A_GAME")
 
-
 def test_configure_game_type_raises_on_update_failure(monkeypatch):
     duel = _minimal_duel_row(status=constants.DUEL_STATUS_CONFIG)
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
@@ -107,7 +90,6 @@ def test_configure_game_type_raises_on_update_failure(monkeypatch):
 
     with pytest.raises(exc.ConfigurationError):
         flow_mod.configure_game_type(1, valid_game)
-
 
 def test_configure_game_type_success_returns_snapshot_with_allowed_stakes(monkeypatch):
     duel_before = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG)
@@ -137,7 +119,6 @@ def test_configure_game_type_success_returns_snapshot_with_allowed_stakes(monkey
     assert out["id"] == 1
     assert out["allowed_stakes"] == [10, 20]
 
-
 # ------------------------------------------------------------
 # configure_stake_xp
 # ------------------------------------------------------------
@@ -149,7 +130,6 @@ def test_configure_stake_xp_rejects_invalid_stake(monkeypatch):
     with pytest.raises(exc.InvalidStake):
         flow_mod.configure_stake_xp(1, 999999)
 
-
 def test_configure_stake_xp_rejects_not_allowed(monkeypatch):
     duel = _minimal_duel_row(status=constants.DUEL_STATUS_CONFIG)
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
@@ -160,7 +140,6 @@ def test_configure_stake_xp_rejects_not_allowed(monkeypatch):
 
     with pytest.raises(exc.InsufficientXp):
         flow_mod.configure_stake_xp(1, stake)
-
 
 def test_configure_stake_xp_success(monkeypatch):
     duel_before = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG)
@@ -183,7 +162,6 @@ def test_configure_stake_xp_success(monkeypatch):
     out = flow_mod.configure_stake_xp(1, stake)
     assert out == {"id": 1, "stake": stake}
 
-
 # ------------------------------------------------------------
 # send_invite
 # ------------------------------------------------------------
@@ -196,7 +174,6 @@ def test_send_invite_rejects_incomplete_configuration(monkeypatch):
     with pytest.raises(exc.ConfigurationIncomplete):
         flow_mod.send_invite(1, message_id=123)
 
-
 def test_send_invite_rejects_missing_message_id(monkeypatch):
     duel = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG)
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
@@ -205,7 +182,6 @@ def test_send_invite_rejects_missing_message_id(monkeypatch):
 
     with pytest.raises(exc.MissingMessageId):
         flow_mod.send_invite(1, message_id=0)
-
 
 def test_send_invite_success(monkeypatch):
     duel_before = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG, guild_id=10, player_a_id=111, player_b_id=222)
@@ -237,7 +213,6 @@ def test_send_invite_success(monkeypatch):
     assert out["status"] == constants.DUEL_STATUS_INVITED
     assert out["xp"] == {"a": 10, "b": 20}
 
-
 # ------------------------------------------------------------
 # accept_duel
 # ------------------------------------------------------------
@@ -249,7 +224,6 @@ def test_accept_duel_rejects_not_player_b(monkeypatch):
     with pytest.raises(exc.NotAuthorizedPlayer):
         flow_mod.accept_duel(1, user_id=999)
 
-
 def test_accept_duel_rejects_wrong_status(monkeypatch):
     duel = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG, player_b_id=222)
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
@@ -257,7 +231,6 @@ def test_accept_duel_rejects_wrong_status(monkeypatch):
 
     with pytest.raises(exc.DuelNotAcceptable):
         flow_mod.accept_duel(1, user_id=222)
-
 
 def test_accept_duel_rejects_insufficient_xp(monkeypatch):
     duel = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_INVITED, player_b_id=222, stake_xp=10)
@@ -267,7 +240,6 @@ def test_accept_duel_rejects_insufficient_xp(monkeypatch):
 
     with pytest.raises(exc.InsufficientXp):
         flow_mod.accept_duel(1, user_id=222)
-
 
 def test_accept_duel_success_sets_baseline_and_debits_xp(monkeypatch):
     duel_before = _minimal_duel_row(
@@ -296,7 +268,7 @@ def test_accept_duel_success_sets_baseline_and_debits_xp(monkeypatch):
 
     # Conn transaction
     conn = FakeConn()
-    monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCtx(conn))
+    monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCM(conn))
 
     # Transition status OK
     transition_calls = {}
@@ -338,7 +310,6 @@ def test_accept_duel_success_sets_baseline_and_debits_xp(monkeypatch):
     assert upd_payload_calls["args"][0] == 1
     assert debit_calls["args"] == (10, 111, 222, -10, conn)
 
-
 # ------------------------------------------------------------
 # refuse_duel
 # ------------------------------------------------------------
@@ -350,7 +321,6 @@ def test_refuse_duel_rejects_not_player_b(monkeypatch):
     with pytest.raises(exc.NotAuthorizedPlayer):
         flow_mod.refuse_duel(1, user_id=999)
 
-
 def test_refuse_duel_rejects_wrong_status(monkeypatch):
     duel = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_CONFIG, player_b_id=222)
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
@@ -358,7 +328,6 @@ def test_refuse_duel_rejects_wrong_status(monkeypatch):
 
     with pytest.raises(exc.DuelNotAcceptable):
         flow_mod.refuse_duel(1, user_id=222)
-
 
 def test_refuse_duel_success_transitions_and_sets_finished_at(monkeypatch):
     duel_before = _minimal_duel_row(id=1, status=constants.DUEL_STATUS_INVITED, player_b_id=222)
@@ -374,7 +343,7 @@ def test_refuse_duel_success_transitions_and_sets_finished_at(monkeypatch):
     monkeypatch.setattr(flow_mod.helpers, "assert_duel_not_expired", lambda d: None)
 
     conn = FakeConn()
-    monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCtx(conn))
+    monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(flow_mod.duel_repo, "transition_status", lambda *a, **k: True)
 

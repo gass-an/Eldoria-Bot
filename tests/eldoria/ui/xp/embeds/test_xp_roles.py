@@ -4,12 +4,8 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import roles as M
-
-
-class FakeRole:
-    def __init__(self, role_id: int):
-        self.id = role_id
-        self.mention = f"<@&{role_id}>"
+from tests._fakes._discord_entities_fakes import FakeRole
+from tests._fakes.xp_ui import FakeBot
 
 
 class FakeGuild:
@@ -20,17 +16,6 @@ class FakeGuild:
     def get_role(self, role_id):
         self.get_role_calls.append(role_id)
         return self._roles.get(role_id)
-
-
-class FakeBot:
-    def __init__(self, guild):
-        self._guild = guild
-        self.get_guild_calls: list[int] = []
-
-    def get_guild(self, guild_id: int):
-        self.get_guild_calls.append(guild_id)
-        return self._guild
-
 
 @pytest.mark.asyncio
 async def test_build_xp_roles_embed_no_configuration(monkeypatch):
@@ -56,7 +41,6 @@ async def test_build_xp_roles_embed_no_configuration(monkeypatch):
 
     assert files == ["FILES"]
     assert bot.get_guild_calls == [42]
-
 
 @pytest.mark.asyncio
 async def test_build_xp_roles_embed_builds_lines_with_role_mentions_and_fallbacks(monkeypatch):
@@ -90,7 +74,6 @@ async def test_build_xp_roles_embed_builds_lines_with_role_mentions_and_fallback
     assert guild.get_role_calls == [100, 999]
     assert bot.get_guild_calls == [42]
 
-
 @pytest.mark.asyncio
 async def test_build_xp_roles_embed_guild_none_falls_back_to_lvl(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -103,7 +86,6 @@ async def test_build_xp_roles_embed_guild_none_falls_back_to_lvl(monkeypatch):
 
     assert embed.fields[0]["name"] == "Niveaux"
     assert embed.fields[0]["value"] == "**Niveau 2** — lvl2 — **50 XP**"
-
 
 @pytest.mark.asyncio
 async def test_build_xp_roles_embed_guild_id_zero_does_not_call_get_guild(monkeypatch):

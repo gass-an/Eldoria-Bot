@@ -1,4 +1,3 @@
-# tests/_embed_fakes.py
 """
 Helpers/fakes pour tester les embeds sans dépendre de py-cord/discord.py.
 

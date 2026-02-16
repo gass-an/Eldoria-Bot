@@ -1,4 +1,3 @@
-# tests/eldoria/json_tools/test_help_json.py
 import json
 
 from eldoria.json_tools.help_json import load_help_config, load_help_json

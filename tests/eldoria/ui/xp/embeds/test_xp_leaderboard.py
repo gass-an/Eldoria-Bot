@@ -4,19 +4,14 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import leaderboard as M
+from tests._fakes._discord_entities_fakes import FakeRole
+from tests._fakes.xp_ui import FakeBot
 
 
 class FakeMember:
     def __init__(self, uid: int, name: str):
         self.id = uid
         self.display_name = name
-
-
-class FakeRole:
-    def __init__(self, rid: int):
-        self.id = rid
-        self.mention = f"<@&{rid}>"
-
 
 class FakeGuild:
     def __init__(self, *, members=None, roles=None):
@@ -32,17 +27,6 @@ class FakeGuild:
     def get_role(self, role_id):
         self.get_role_calls.append(role_id)
         return self._roles.get(role_id)
-
-
-class FakeBot:
-    def __init__(self, guild):
-        self._guild = guild
-        self.get_guild_calls: list[int] = []
-
-    def get_guild(self, gid: int):
-        self.get_guild_calls.append(gid)
-        return self._guild
-
 
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_empty_items(monkeypatch):
@@ -76,7 +60,6 @@ async def test_build_list_xp_embed_empty_items(monkeypatch):
     }
 
     assert embed.footer == {"text": "Page 1/3"}
-
 
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_tuple3_uses_role_mention_when_available(monkeypatch):
@@ -114,7 +97,6 @@ async def test_build_list_xp_embed_tuple3_uses_role_mention_when_available(monke
     assert guild.get_role_calls == [500]
     assert guild.get_member_calls == [10]
 
-
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_tuple3_fallback_lvl_when_role_missing(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -131,7 +113,6 @@ async def test_build_list_xp_embed_tuple3_fallback_lvl_when_role_missing(monkeyp
     embed, _ = await M.build_list_xp_embed(items, current_page=0, total_pages=1, guild_id=42, bot=bot)
 
     assert embed.fields[0]["value"] == "**1.** Alice — lvl5 — **50 XP**"
-
 
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_tuple4_uses_precomputed_label_and_handles_missing_member(monkeypatch):
@@ -155,7 +136,6 @@ async def test_build_list_xp_embed_tuple4_uses_precomputed_label_and_handles_mis
     assert guild.get_role_calls == []
     assert guild.get_member_calls == [999]
 
-
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_rank_starts_at_page_offset(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -174,7 +154,6 @@ async def test_build_list_xp_embed_rank_starts_at_page_offset(monkeypatch):
     assert v[0].startswith("**21.**")
     assert v[1].startswith("**22.**")
     assert embed.footer == {"text": "Page 3/10"}
-
 
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_when_guild_none_uses_id_fallback(monkeypatch):

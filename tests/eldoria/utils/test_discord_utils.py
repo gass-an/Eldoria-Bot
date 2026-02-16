@@ -1,4 +1,3 @@
-# tests/eldoria/utils/test_discord_utils.py
 import discord  # type: ignore
 import pytest
 

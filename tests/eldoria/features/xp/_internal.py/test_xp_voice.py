@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from eldoria.features.xp._internal import voice_xp as mod
+from tests._fakes.xp_internal_entities import FakeGuild
 
 # ----------------------------
 # Fakes Discord
@@ -31,10 +32,6 @@ class FakeMember:
         self.bot = bot
         self.voice = voice
 
-
-class FakeGuild:
-    def __init__(self, guild_id: int = 123):
-        self.id = guild_id
 
 
 # ----------------------------

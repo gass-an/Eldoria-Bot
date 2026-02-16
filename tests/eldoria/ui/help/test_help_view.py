@@ -3,9 +3,14 @@ from __future__ import annotations
 import discord  # type: ignore
 import pytest
 
-# ⚠️ adapte ce chemin au vrai fichier
 from eldoria.ui.help import view as M
-from tests._fakes._pages_fakes import FakeCtx, FakeInteraction, FakeUser
+from tests._fakes._pages_fakes import (
+    FakeAttachment,
+    FakeCtx,
+    FakeInteraction,
+    FakeMessage,
+    FakeUser,
+)
 
 
 # ------------------------------------------------------------
@@ -52,16 +57,6 @@ class CompatInteraction(FakeInteraction):
             }
         )
 
-
-class FakeAttachment:
-    def __init__(self, *, filename: str, url: str):
-        self.filename = filename
-        self.url = url
-
-
-class FakeMessage:
-    def __init__(self, attachments=None):
-        self.attachments = attachments or []
 
 
 class FakePerms:

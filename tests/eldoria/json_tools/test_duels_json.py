@@ -1,5 +1,3 @@
-# tests/eldoria/json_tools/test_duels_json.py
-
 from eldoria.json_tools.duels_json import get_duel_embed_data, get_game_text
 
 

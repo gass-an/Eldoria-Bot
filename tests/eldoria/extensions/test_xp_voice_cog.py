@@ -1,4 +1,3 @@
-# tests/eldoria/extensions/test_xp_voice_cog.py
 from __future__ import annotations
 
 import sys

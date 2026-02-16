@@ -3,11 +3,8 @@ from __future__ import annotations
 import pytest
 
 from eldoria.ui.duels.games.rps import view as M
+from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
 from tests._fakes._pages_fakes import FakeInteraction, FakeUser
-
-
-class FakeDuelError(Exception):
-    pass
 
 
 class FakeDuelService:
@@ -21,17 +18,6 @@ class FakeDuelService:
         if self.raise_on_play is not None:
             raise self.raise_on_play
         return self.snapshot
-
-
-class FakeServices:
-    def __init__(self, duel: FakeDuelService):
-        self.duel = duel
-
-
-class FakeBot:
-    def __init__(self, duel: FakeDuelService):
-        self.services = FakeServices(duel)
-
 
 @pytest.mark.asyncio
 async def test_play_success_calls_apply_snapshot(monkeypatch):
@@ -59,7 +45,6 @@ async def test_play_success_calls_apply_snapshot(monkeypatch):
     assert duel.calls == [{"duel_id": 777, "user_id": 42, "action": {"move": "ROCK"}}]
     assert applied and applied[0]["snapshot"] == duel.snapshot
 
-
 @pytest.mark.asyncio
 async def test_play_duel_error_sends_ephemeral_and_does_not_apply(monkeypatch):
     monkeypatch.setattr(M, "DuelError", FakeDuelError)
@@ -85,7 +70,6 @@ async def test_play_duel_error_sends_ephemeral_and_does_not_apply(monkeypatch):
     assert last["content"] == "ERR:nope"
     assert last["ephemeral"] is True
 
-
 @pytest.mark.asyncio
 async def test_rock_calls_play_with_rock(monkeypatch):
     monkeypatch.setattr(M, "RPS_MOVE_ROCK", "ROCK")
@@ -104,7 +88,6 @@ async def test_rock_calls_play_with_rock(monkeypatch):
     await v.rock(None, FakeInteraction(user=FakeUser(1)))  # type: ignore[arg-type]
     assert calls == ["ROCK"]
 
-
 @pytest.mark.asyncio
 async def test_paper_calls_play_with_paper(monkeypatch):
     monkeypatch.setattr(M, "RPS_MOVE_PAPER", "PAPER")
@@ -122,7 +105,6 @@ async def test_paper_calls_play_with_paper(monkeypatch):
 
     await v.paper(None, FakeInteraction(user=FakeUser(1)))  # type: ignore[arg-type]
     assert calls == ["PAPER"]
-
 
 @pytest.mark.asyncio
 async def test_scissors_calls_play_with_scissors(monkeypatch):

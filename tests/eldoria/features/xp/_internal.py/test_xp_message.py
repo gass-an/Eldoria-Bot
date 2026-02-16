@@ -1,11 +1,8 @@
 import pytest
 
 from eldoria.features.xp._internal import message_xp as mod
+from tests._fakes.xp_internal_entities import FakeGuild
 
-
-class FakeGuild:
-    def __init__(self, guild_id: int = 123):
-        self.id = guild_id
 
 
 class FakeMember:

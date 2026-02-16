@@ -1,4 +1,3 @@
-# tests/eldoria/json_tools/test_welcome_json.py
 import json
 
 from eldoria.json_tools.welcome_json import load_welcome_json

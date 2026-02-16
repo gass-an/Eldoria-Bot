@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from eldoria.features.xp._internal import time as mod  # <-- adapte si nom différent
+from eldoria.features.xp._internal import time as mod
 
 
 def test_day_key_with_explicit_timestamp_does_not_call_now_ts(monkeypatch):

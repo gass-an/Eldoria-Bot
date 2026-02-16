@@ -4,8 +4,6 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.common.embeds import images
-
-# Important: injecte FakeEmbed/FakeFile dans le stub discord (installé par conftest)
 from tests._fakes import _embed_fakes  # noqa: F401
 
 # ---------------------------------------------------------------------------

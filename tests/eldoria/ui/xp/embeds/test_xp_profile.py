@@ -4,33 +4,14 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import profile as M
-
-
-class FakeAvatar:
-    def __init__(self, url: str):
-        self.url = url
+from tests._fakes._profile_entities_fakes import FakeAvatar, FakeGuild
+from tests._fakes.xp_ui import FakeBot
 
 
 class FakeUser:
     def __init__(self, display_name: str, avatar_url: str | None):
         self.display_name = display_name
         self.display_avatar = FakeAvatar(avatar_url) if avatar_url is not None else None
-
-
-class FakeGuild:
-    def __init__(self, name: str):
-        self.name = name
-
-
-class FakeBot:
-    def __init__(self, guild):
-        self._guild = guild
-        self.get_guild_calls: list[int] = []
-
-    def get_guild(self, gid: int):
-        self.get_guild_calls.append(gid)
-        return self._guild
-
 
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_next_level_branch_and_remaining(monkeypatch):
@@ -75,7 +56,6 @@ async def test_build_xp_profile_embed_next_level_branch_and_remaining(monkeypatc
     assert embed.footer == {"text": "Serveur : Eldoria"}
     assert files == ["FILES"]
 
-
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_remaining_clamped_to_zero(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -97,7 +77,6 @@ async def test_build_xp_profile_embed_remaining_clamped_to_zero(monkeypatch):
     )
 
     assert "XP restante : **0 XP**" in embed.fields[2]["value"]
-
 
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_max_level_branch(monkeypatch):
@@ -128,7 +107,6 @@ async def test_build_xp_profile_embed_max_level_branch(monkeypatch):
     }
     assert files == ["F"]
 
-
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_user_without_avatar_sets_icon_url_none(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -150,7 +128,6 @@ async def test_build_xp_profile_embed_user_without_avatar_sets_icon_url_none(mon
     )
 
     assert embed.author == {"name": "NoAvatar", "icon_url": None}
-
 
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_footer_fallback_when_guild_none(monkeypatch):

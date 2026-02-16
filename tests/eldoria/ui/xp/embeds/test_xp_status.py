@@ -4,22 +4,12 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import status as M
+from tests._fakes.xp_ui import FakeBot
 
 
 class FakeGuild:
     def __init__(self, name: str):
         self.name = name
-
-
-class FakeBot:
-    def __init__(self, guild):
-        self._guild = guild
-        self.get_guild_calls: list[int] = []
-
-    def get_guild(self, gid: int):
-        self.get_guild_calls.append(gid)
-        return self._guild
-
 
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_disabled_branch(monkeypatch):
@@ -52,7 +42,6 @@ async def test_build_xp_status_embed_disabled_branch(monkeypatch):
     assert embed.footer == {"text": "Serveur : Srv"}
     assert decorated["called"] is True
     assert files == ["FILES"]
-
 
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_enabled_voice_disabled(monkeypatch):
@@ -92,7 +81,6 @@ async def test_build_xp_status_embed_enabled_voice_disabled(monkeypatch):
 
     # pas de champs "Gain vocal" / "Cap vocal" si voice_disabled
     assert all(f["name"] not in ("Gain vocal", "Cap vocal") for f in embed.fields)
-
 
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_enabled_voice_enabled_with_cap_hours(monkeypatch):
@@ -146,7 +134,6 @@ async def test_build_xp_status_embed_enabled_voice_enabled_with_cap_hours(monkey
     # Footer fallback
     assert embed.footer == {"text": "Serveur : 999"}
 
-
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_voice_enabled_cap_without_hours_when_per_int_zero(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -170,7 +157,6 @@ async def test_build_xp_status_embed_voice_enabled_cap_without_hours_when_per_in
     cap = next(f for f in embed.fields if f["name"] == "Cap vocal")
     assert cap["value"] == "100 XP/jour"
 
-
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_minutes_min_1(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 1)
@@ -190,7 +176,6 @@ async def test_build_xp_status_embed_minutes_min_1(monkeypatch):
 
     gain = next(f for f in embed.fields if f["name"] == "Gain vocal")
     assert gain["value"] == "1 XP / 1min"
-
 
 @pytest.mark.asyncio
 async def test_build_xp_disable_embed_matches_disabled_layout(monkeypatch):

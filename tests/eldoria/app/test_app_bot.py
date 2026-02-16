@@ -1,4 +1,3 @@
-
 from eldoria.app.bot import EldoriaBot
 
 

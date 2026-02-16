@@ -4,6 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.flow import invite as M
+from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
 from tests._fakes._pages_fakes import FakeInteraction, FakeUser
 
 
@@ -32,7 +33,6 @@ class CompatInteraction(FakeInteraction):
             }
         )
 
-
 # ------------------------------------------------------------
 # Fakes discord-like: member/message/channel/guild
 # ------------------------------------------------------------
@@ -41,7 +41,6 @@ class FakeMember:
         self.id = mid
         self.display_name = name
         self.mention = f"<@{mid}>"
-
 
 class FakeMessage:
     def __init__(self, *, content: str = "", mid: int = 999):
@@ -52,10 +51,8 @@ class FakeMessage:
     async def edit(self, *, content: str, embed=None, view=None, files=None):
         self.edits.append({"content": content, "embed": embed, "view": view, "files": files})
 
-
 class FakeFetchedMessage(FakeMessage):
     pass
-
 
 class FakeChannel:
     def __init__(self):
@@ -66,18 +63,12 @@ class FakeChannel:
         self.fetch_calls.append(message_id)
         return self.fetched
 
-
 class FakeGuild:
     pass
-
 
 # ------------------------------------------------------------
 # Fake Duel service + Bot
 # ------------------------------------------------------------
-class FakeDuelError(Exception):
-    pass
-
-
 class FakeDuelService:
     def __init__(self):
         self.accept_calls: list[dict] = []
@@ -106,17 +97,6 @@ class FakeDuelService:
         if self.raise_on_refuse is not None:
             raise self.raise_on_refuse
         return self.snapshot_refuse
-
-
-class FakeServices:
-    def __init__(self, duel: FakeDuelService):
-        self.duel = duel
-
-
-class FakeBot:
-    def __init__(self, duel: FakeDuelService):
-        self.services = FakeServices(duel)
-
 
 # ------------------------------------------------------------
 # build_invite_duels_embed
@@ -176,7 +156,6 @@ async def test_build_invite_duels_embed_builds_fields_footer_and_files(monkeypat
     assert decorated["called"] is True
     assert files == ["FILE"]
 
-
 # ------------------------------------------------------------
 # InviteView.accept
 # ------------------------------------------------------------
@@ -205,7 +184,6 @@ async def test_invite_view_accept_duel_error_sends_ephemeral(monkeypatch):
     last = inter.followup.sent[-1]
     assert last["content"] == "ERR:nope"
     assert last["ephemeral"] is True
-
 
 @pytest.mark.asyncio
 async def test_invite_view_accept_render_fails_fallback_message(monkeypatch):
@@ -238,7 +216,6 @@ async def test_invite_view_accept_render_fails_fallback_message(monkeypatch):
     # message pas édité car render fail
     assert inter.message.edits == []
 
-
 @pytest.mark.asyncio
 async def test_invite_view_accept_success_edits_invite_message(monkeypatch):
     monkeypatch.setattr(M, "DuelError", FakeDuelError)
@@ -267,7 +244,6 @@ async def test_invite_view_accept_success_edits_invite_message(monkeypatch):
 
     assert inter.message.edits == [{"content": "hello", "embed": "EMBED", "view": "VIEW", "files": None}]
 
-
 # ------------------------------------------------------------
 # InviteView.refuse
 # ------------------------------------------------------------
@@ -294,7 +270,6 @@ async def test_invite_view_refuse_duel_error_sends_ephemeral(monkeypatch):
     last = inter.followup.sent[-1]
     assert last["content"] == "ERR:nope"
     assert last["ephemeral"] is True
-
 
 @pytest.mark.asyncio
 async def test_invite_view_refuse_member_lookup_value_error(monkeypatch):
@@ -328,7 +303,6 @@ async def test_invite_view_refuse_member_lookup_value_error(monkeypatch):
     assert inter.original_edits
     assert inter.original_edits[-1]["content"] == "Un des participants n'a pas pu être trouvé."
     assert inter.original_edits[-1]["view"] is None
-
 
 @pytest.mark.asyncio
 async def test_invite_view_refuse_success_fetches_message_and_edits(monkeypatch):

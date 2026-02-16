@@ -4,6 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.flow import config as M
+from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
 from tests._fakes._pages_fakes import FakeInteraction, FakeUser
 
 
@@ -33,7 +34,6 @@ class CompatInteraction(FakeInteraction):
             }
         )
 
-
 # -----------------------------
 # Fakes "discord-like" helpers
 # -----------------------------
@@ -43,7 +43,6 @@ class FakeMember:
         self.display_name = name
         self.mention = f"<@{member_id}>"
 
-
 class FakeMessage:
     def __init__(self, message_id: int = 999, content: str = ""):
         self.id = message_id
@@ -52,7 +51,6 @@ class FakeMessage:
 
     async def edit(self, *, content: str, embed=None, files=None, view=None):
         self.edits.append({"content": content, "embed": embed, "files": files, "view": view})
-
 
 class FakeChannel:
     def __init__(self):
@@ -65,18 +63,12 @@ class FakeChannel:
         self.sent.append({"content": content, "message": msg})
         return msg
 
-
 class FakeGuild:
     pass
-
 
 # -----------------------------
 # Fake Duel service + Bot
 # -----------------------------
-class FakeDuelError(Exception):
-    pass
-
-
 class FakeDuelService:
     def __init__(self, *, allowed_stakes: set[int]):
         self._allowed = allowed_stakes
@@ -107,17 +99,6 @@ class FakeDuelService:
             raise self.raise_on_send_invite
         return self.snapshot_invite
 
-
-class FakeServices:
-    def __init__(self, duel: FakeDuelService):
-        self.duel = duel
-
-
-class FakeBot:
-    def __init__(self, duel: FakeDuelService):
-        self.services = FakeServices(duel)
-
-
 # -----------------------------
 # build_config_stake_duels_embed
 # -----------------------------
@@ -144,7 +125,6 @@ async def test_build_config_stake_duels_embed_builds_embed_and_files(monkeypatch
     assert decorated["called"] is True
     assert files == ["F"]
 
-
 # -----------------------------
 # StakeXpView __init__
 # -----------------------------
@@ -162,7 +142,6 @@ def test_stake_xp_view_builds_buttons_disabled_based_on_allowed_stakes(monkeypat
 
     assert labels == ["10", "20", "30"]
     assert disabled == [False, True, False]
-
 
 # -----------------------------
 # StakeXpView callback: succès
@@ -239,7 +218,6 @@ async def test_stake_xp_view_click_success_flow(monkeypatch):
     assert inter.original_edits[-1]["content"] == "Invitation envoyée !"
     assert inter.original_edits[-1]["view"] is None
 
-
 # -----------------------------
 # StakeXpView callback: erreurs
 # -----------------------------
@@ -275,7 +253,6 @@ async def test_stake_xp_view_click_configure_raises_duel_error(monkeypatch):
     assert inter.original_edits
     assert inter.original_edits[-1]["content"] == "ERR:bad stake"
     assert inter.original_edits[-1]["view"] is None
-
 
 @pytest.mark.asyncio
 async def test_stake_xp_view_click_send_invite_raises_duel_error(monkeypatch):
@@ -316,7 +293,6 @@ async def test_stake_xp_view_click_send_invite_raises_duel_error(monkeypatch):
 
     assert inter.original_edits
     assert inter.original_edits[-1]["content"] == "ERR:invite fail"
-
 
 @pytest.mark.asyncio
 async def test_stake_xp_view_click_member_lookup_value_error(monkeypatch):

@@ -3,46 +3,7 @@ from __future__ import annotations
 import pytest
 
 from eldoria.db.repo import reaction_roles_repo as mod
-
-
-class FakeCursor:
-    def __init__(self, *, one=None, all=None):
-        self._one = one
-        self._all = all
-
-    def fetchone(self):
-        return self._one
-
-    def fetchall(self):
-        return self._all
-
-
-class FakeConn:
-    def __init__(self):
-        self.calls: list[tuple[str, tuple]] = []
-        self._next = FakeCursor(one=None, all=[])
-
-    def set_next(self, *, one=None, all=None):
-        self._next = FakeCursor(one=one, all=all)
-
-    def execute(self, sql: str, params: tuple):
-        self.calls.append((sql.strip(), params))
-        return self._next
-
-
-class FakeConnCM:
-    def __init__(self, conn: FakeConn):
-        self.conn = conn
-        self.entered = 0
-        self.exited = 0
-
-    def __enter__(self):
-        self.entered += 1
-        return self.conn
-
-    def __exit__(self, exc_type, exc, tb):
-        self.exited += 1
-        return False
+from tests._fakes._db_fakes import FakeConn, FakeConnCM
 
 
 @pytest.fixture
@@ -51,7 +12,6 @@ def fconn(monkeypatch):
     cm = FakeConnCM(conn)
     monkeypatch.setattr(mod, "get_conn", lambda: cm, raising=True)
     return conn
-
 
 def test_rr_upsert_executes_insert_on_conflict_with_params(fconn: FakeConn):
     mod.rr_upsert(1, 2, "😀", 99)
@@ -62,7 +22,6 @@ def test_rr_upsert_executes_insert_on_conflict_with_params(fconn: FakeConn):
     assert "ON CONFLICT(guild_id, message_id, emoji) DO UPDATE" in sql
     assert params == (1, 2, "😀", 99)
 
-
 def test_rr_delete_executes_delete_with_params(fconn: FakeConn):
     mod.rr_delete(1, 2, "🔥")
 
@@ -72,7 +31,6 @@ def test_rr_delete_executes_delete_with_params(fconn: FakeConn):
     assert "WHERE guild_id=? AND message_id=? AND emoji=?" in sql
     assert params == (1, 2, "🔥")
 
-
 def test_rr_delete_message_executes_delete_message_with_params(fconn: FakeConn):
     mod.rr_delete_message(1, 2)
 
@@ -81,7 +39,6 @@ def test_rr_delete_message_executes_delete_message_with_params(fconn: FakeConn):
     assert "DELETE FROM reaction_roles" in sql
     assert "WHERE guild_id=? AND message_id=?" in sql
     assert params == (1, 2)
-
 
 def test_rr_get_role_id_returns_role_id_when_row_exists(fconn: FakeConn):
     fconn.set_next(one=(123,), all=None)
@@ -95,11 +52,9 @@ def test_rr_get_role_id_returns_role_id_when_row_exists(fconn: FakeConn):
     assert "WHERE guild_id=? AND message_id=? AND emoji=?" in sql
     assert params == (1, 2, "✅")
 
-
 def test_rr_get_role_id_returns_none_when_no_row(fconn: FakeConn):
     fconn.set_next(one=None, all=None)
     assert mod.rr_get_role_id(1, 2, "❌") is None
-
 
 def test_rr_list_by_message_builds_dict_mapping(fconn: FakeConn):
     fconn.set_next(all=[("😀", 1), ("🔥", 2)], one=None)
@@ -113,7 +68,6 @@ def test_rr_list_by_message_builds_dict_mapping(fconn: FakeConn):
     assert "WHERE guild_id=? AND message_id=?" in sql
     assert params == (1, 2)
 
-
 def test_rr_list_by_message_last_duplicate_wins_python_dict_semantics(fconn: FakeConn):
     """
     Si la DB renvoie 2 fois le même emoji, le dict écrase avec le dernier.
@@ -123,7 +77,6 @@ def test_rr_list_by_message_last_duplicate_wins_python_dict_semantics(fconn: Fak
 
     res = mod.rr_list_by_message(1, 2)
     assert res == {"😀": 999}
-
 
 def test_rr_list_by_guild_grouped_groups_by_message_id_as_str(fconn: FakeConn):
     # rows = (message_id, emoji, role_id)
@@ -150,7 +103,6 @@ def test_rr_list_by_guild_grouped_groups_by_message_id_as_str(fconn: FakeConn):
     assert "WHERE guild_id=?" in sql
     assert "ORDER BY message_id" in sql
     assert params == (1,)
-
 
 def test_rr_list_by_guild_grouped_empty_returns_empty_list(fconn: FakeConn):
     fconn.set_next(all=[], one=None)

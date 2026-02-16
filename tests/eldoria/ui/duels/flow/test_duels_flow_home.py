@@ -4,6 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.flow import home as M
+from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
 from tests._fakes._pages_fakes import FakeInteraction, FakeUser
 
 
@@ -32,14 +33,9 @@ class CompatInteraction(FakeInteraction):
             }
         )
 
-
 # ------------------------------------------------------------
 # Fakes Duel/Bot
 # ------------------------------------------------------------
-class FakeDuelError(Exception):
-    pass
-
-
 class FakeDuelService:
     def __init__(self):
         self.configure_calls: list[dict] = []
@@ -51,17 +47,6 @@ class FakeDuelService:
         if self.raise_on_configure is not None:
             raise self.raise_on_configure
         return self.snapshot
-
-
-class FakeServices:
-    def __init__(self, duel: FakeDuelService):
-        self.duel = duel
-
-
-class FakeBot:
-    def __init__(self, duel: FakeDuelService):
-        self.services = FakeServices(duel)
-
 
 # ------------------------------------------------------------
 # build_home_duels_embed
@@ -112,7 +97,6 @@ async def test_build_home_duels_embed_builds_embed_fields_footer_and_files(monke
     assert decorated["called"] is True
     assert files == ["F1", "F2"]
 
-
 # ------------------------------------------------------------
 # HomeView init (boutons + label tronqué)
 # ------------------------------------------------------------
@@ -140,7 +124,6 @@ def test_home_view_creates_buttons_from_games_and_truncates_label(monkeypatch):
     assert labels[0] == "RPS"
     assert labels[1] == ("X" * 80)  # tronqué à 80
     assert labels[2] == "no_name"  # fallback sur game_key
-
 
 # ------------------------------------------------------------
 # HomeView click success
@@ -188,7 +171,6 @@ async def test_home_view_click_success_builds_stake_embed_and_edits_original(mon
     assert last["embed"] == "STAKE_EMBED"
     assert last["files"] == ["STAKE_FILES"]
     assert last["view"] == ("STAKE_VIEW", 777, bot)
-
 
 # ------------------------------------------------------------
 # HomeView click DuelError
