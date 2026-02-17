@@ -69,6 +69,40 @@ def test_backup_to_file_raises_if_checkpoint_fails(monkeypatch, mod):
     assert any("wal_checkpoint" in s.lower() for s in main.executed)
 
 
+def test_backup_to_file_ignores_sqlite_database_error_on_checkpoint(monkeypatch, mod):
+    """Couvre le `except sqlite3.DatabaseError: pass` (ligne 17-18)."""
+    main = FakeConn("main")
+    bck = FakeConn("backup")
+
+    class FakeDbError(mod.sqlite3.DatabaseError):
+        pass
+
+    def execute_maybe_fail(sql):
+        main.executed.append(sql)
+        if "wal_checkpoint" in sql.lower():
+            raise FakeDbError("checkpoint failed")
+        return _FakeCursor()
+
+    main.execute = execute_maybe_fail  # type: ignore[method-assign]
+
+    connect_calls = []
+
+    def fake_connect(arg):
+        connect_calls.append(arg)
+        if len(connect_calls) == 1:
+            return main
+        return bck
+
+    monkeypatch.setattr(mod.sqlite3, "connect", fake_connect, raising=True)
+
+    # ne doit pas lever
+    mod.backup_to_file("backup.db")
+
+    assert any("wal_checkpoint" in s.lower() for s in main.executed)
+    assert bck.closed == 1
+    assert main.closed == 1
+
+
 def test_replace_db_file_happy_path_just_replaces(monkeypatch, mod):
     calls = {"replace": []}
     monkeypatch.setattr(mod, "DB_PATH", "eldoria.db", raising=False)
@@ -131,6 +165,36 @@ def test_replace_db_file_cross_device_fallback(monkeypatch, mod):
     assert calls["copy2"], "fallback doit copier le fichier avant replace atomique"
     assert len(calls["replace"]) == 2, "fallback doit faire un 2e os.replace (tmp -> DB_PATH)"
     assert calls["makedirs"], "fallback doit créer le dossier destination au besoin"
+
+
+def test_replace_db_file_cross_device_remove_failure_is_ignored(monkeypatch, mod):
+    """Couvre le `except OSError: pass` lors du remove (ligne 53-54)."""
+    monkeypatch.setattr(mod, "DB_PATH", r"C:\tmp\eldoria\data\db.sqlite", raising=False)
+
+    test_conn = FakeConn("test")
+
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda _p: test_conn, raising=True)
+
+    first = True
+
+    def fake_replace(src, dst):
+        nonlocal first
+        if first:
+            first = False
+            raise OSError(errno.EXDEV, "Cross-device link")
+        return None
+
+    monkeypatch.setattr(mod.os, "replace", fake_replace, raising=True)
+    monkeypatch.setattr(mod.os, "makedirs", lambda *_a, **_k: None, raising=True)
+    monkeypatch.setattr(mod.shutil, "copy2", lambda *_a, **_k: None, raising=True)
+
+    def remove_raises(_p):
+        raise OSError("cannot remove")
+
+    monkeypatch.setattr(mod.os, "remove", remove_raises, raising=True)
+
+    # ne doit pas lever
+    mod.replace_db_file(r"D:\downloads\new.db")
 
 
 def test_replace_db_file_other_oserror_is_raised(monkeypatch, mod):

@@ -87,3 +87,34 @@ def test_booted_flag(monkeypatch):
 
     bot.set_booted(False)
     assert bot.is_booted() is False
+
+
+def test_discord_started_at_set_and_get(monkeypatch):
+    from discord.ext import commands
+    monkeypatch.setattr(commands.Bot, "__init__", lambda self, **kwargs: None, raising=True)
+
+    import eldoria.app.bot as bot_mod
+    monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 0.0, raising=True)
+
+    bot = EldoriaBot(intents=FakeIntents())
+
+    assert bot.get_discord_started_at() is None
+    bot.set_discord_started_at(123.0)
+    assert bot.get_discord_started_at() == 123.0
+
+
+def test_set_services_success_and_double_init_raises(monkeypatch):
+    from discord.ext import commands
+    monkeypatch.setattr(commands.Bot, "__init__", lambda self, **kwargs: None, raising=True)
+
+    import eldoria.app.bot as bot_mod
+    monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 0.0, raising=True)
+
+    bot = EldoriaBot(intents=FakeIntents())
+
+    services = object()
+    bot.set_services(services)  # type: ignore[arg-type]
+    assert bot.services is services  # type: ignore[comparison-overlap]
+
+    with pytest.raises(RuntimeError, match="Services already initialized"):
+        bot.set_services(object())  # type: ignore[arg-type]

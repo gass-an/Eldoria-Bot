@@ -258,6 +258,363 @@ def test_parse_auto_time_invalid_returns_none(monkeypatch):
     assert cog._parse_auto_time(None) is None
 
 
+def test_init_starts_auto_save_when_config_valid(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
+    monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
+
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    # FakeLoop.start() doit avoir été appelé (FakeLoop est stocké sur la classe)
+    assert cog.__class__.auto_save.started is True  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_send_db_backup_when_db_missing(monkeypatch, tmp_path):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+    bot = FakeBot(guild=None, save=FakeSaveService(db_path=str(tmp_path / "eldoria.db")), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    monkeypatch.setattr(M.os.path, "exists", lambda _p: False, raising=True)
+
+    ch = FakeChannel()
+    await cog._send_db_backup(channel=ch, reason="R")
+
+    assert ch.sent[-1]["content"] == "Fichier DB introuvable !"
+
+
+@pytest.mark.asyncio
+async def test_send_db_backup_happy_path_and_remove_failure_ignored(monkeypatch, tmp_path):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+
+    # travaille dans un dossier temporaire pour créer ./temp_eldoria_backup.db
+    monkeypatch.chdir(tmp_path)
+    db_path = tmp_path / "eldoria.db"
+    db_path.write_bytes(b"db")
+
+    save = FakeSaveService(db_path=str(db_path))
+
+    # backup_to_file crée le fichier temporaire attendu
+    def backup_to_file(dst: str):
+        Path(dst).write_bytes(b"backup")
+        save.backup_calls.append(dst)
+
+    save.backup_to_file = backup_to_file  # type: ignore[method-assign]
+
+    bot = FakeBot(guild=None, save=save, temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    monkeypatch.setattr(M.os.path, "exists", lambda _p: True, raising=True)
+
+    async def fake_to_thread(fn, *args):
+        fn(*args)
+
+    monkeypatch.setattr(M.asyncio, "to_thread", fake_to_thread, raising=True)
+
+    # remove échoue, doit être ignoré
+    monkeypatch.setattr(M.os, "remove", lambda _p: (_ for _ in ()).throw(OSError("no")), raising=True)
+
+    ch = FakeChannel()
+    await cog._send_db_backup(channel=ch, reason="R")
+
+    assert ch.sent
+    assert ch.sent[-1]["content"] == "R"
+    assert ch.sent[-1]["file"] is not None
+
+
+@pytest.mark.asyncio
+async def test_auto_save_guards_disabled_noop(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
+
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    await cog.auto_save()  # doit juste return
+
+
+@pytest.mark.asyncio
+async def test_auto_save_no_parsed_time_noop(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_TIME", None)
+
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    # _auto_save_time n'existe pas (parse None)
+    await cog.auto_save()
+
+
+@pytest.mark.asyncio
+async def test_auto_save_channel_none_noop(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
+    monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
+    monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
+
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+    cog._auto_save_time = time(8, 30, tzinfo=UTC)
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 2, 13, 8, 30, 0, tzinfo=UTC)
+
+    monkeypatch.setattr(M, "datetime", FakeDatetime)
+
+    async def fake_get_channel(_bot, _cid):
+        return None
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    await cog.auto_save()
+
+
+@pytest.mark.asyncio
+async def test_manual_save_channel_missing(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return None
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    ctx = FakeCtx(uid=1)
+    await cog.manual_save_command(ctx)
+
+    assert ctx.followup.sent[-1]["content"] == "❌ Channel de save introuvable."
+
+
+@pytest.mark.asyncio
+async def test_manual_save_db_missing_sends_both_channel_and_followup(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    ch = FakeChannel()
+    bot = FakeBot(guild=FakeGuild(channel=ch), save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+    monkeypatch.setattr(M.os.path, "exists", lambda _p: False, raising=True)
+
+    ctx = FakeCtx(uid=1)
+    await cog.manual_save_command(ctx)
+
+    assert ch.sent[-1]["content"] == "Fichier DB introuvable !"
+    assert ctx.followup.sent[-1]["content"] == "❌ DB introuvable."
+
+
+def test_cog_unload_ignores_cancel_errors(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    # force cancel to raise
+    def cancel_raises():
+        raise RuntimeError("no")
+
+    cog.auto_save.cancel = cancel_raises  # type: ignore[attr-defined]
+    cog.cog_unload()  # doit ignorer
+
+
+@pytest.mark.asyncio
+async def test_insert_db_fetch_message_error(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    ch = FakeChannel()
+    ch.raise_on_fetch = RuntimeError("no")
+    bot = FakeBot(guild=FakeGuild(channel=ch), save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    ctx = FakeCtx(uid=1)
+    await cog.insert_db_command(ctx, message_id="123")
+
+    assert "Message introuvable" in ctx.followup.sent[-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_insert_db_no_attachments(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    ch = FakeChannel()
+    ch.fetch_map[123] = FakeMessage([])
+    bot = FakeBot(guild=FakeGuild(channel=ch), save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    ctx = FakeCtx(uid=1)
+    await cog.insert_db_command(ctx, message_id="123")
+    assert "Aucun fichier attaché" in ctx.followup.sent[-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_insert_db_invalid_sqlite(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    ch = FakeChannel()
+    att = FakeAttachment(filename="x.db")
+    ch.fetch_map[123] = FakeMessage([att])
+    bot = FakeBot(guild=FakeGuild(channel=ch), save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    async def invalid(_attachment):
+        return False
+
+    monkeypatch.setattr(M, "is_valid_sqlite_db", invalid)
+
+    ctx = FakeCtx(uid=1)
+    await cog.insert_db_command(ctx, message_id="123")
+    assert "n'est pas une base" in ctx.followup.sent[-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_insert_db_replace_failure_unlinks_tmp_and_reports(monkeypatch, tmp_path):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "MY_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ENABLED", True)
+
+    ch = FakeChannel()
+    att = FakeAttachment(filename="eldoria.db")
+    ch.fetch_map[123] = FakeMessage([att])
+
+    save = FakeSaveService(db_path=str(tmp_path / "eldoria.db"))
+    bot = FakeBot(guild=FakeGuild(channel=ch), save=save, temp_voice=FakeTempVoiceService())
+    cog = M.Saves(bot)
+
+    async def fake_get_channel(_bot, _cid):
+        return ch
+
+    monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
+
+    async def valid(_attachment):
+        return True
+
+    monkeypatch.setattr(M, "is_valid_sqlite_db", valid)
+
+    # crée un fichier tmp pour que tmp_new.exists() soit True
+    tmp_new_path = tmp_path / "temp_eldoria.db"
+    tmp_new_path.write_bytes(b"x")
+
+    async def save_to(path):
+        # le code passe un Path, on écrase le contenu
+        Path(path).write_bytes(b"x")
+        att.saved_to.append(str(path))
+
+    att.save = save_to  # type: ignore[method-assign]
+
+    # replace_db_file échoue
+    def replace_raises(_p):
+        raise RuntimeError("boom")
+
+    save.replace_db_file = replace_raises  # type: ignore[method-assign]
+
+    async def fake_to_thread(fn, *args):
+        fn(*args)
+
+    monkeypatch.setattr(M.asyncio, "to_thread", fake_to_thread, raising=True)
+
+    # force tmp_new.unlink to raise to cover inner except OSError (ligne 229-230)
+    orig_unlink = Path.unlink
+
+    def unlink_maybe(self, *a, **k):
+        if str(self).endswith("temp_eldoria.db"):
+            raise OSError("cannot")
+        return orig_unlink(self, *a, **k)
+
+    monkeypatch.setattr(Path, "unlink", unlink_maybe, raising=True)
+
+    ctx = FakeCtx(uid=1)
+    await cog.insert_db_command(ctx, message_id="123")
+
+    assert "Erreur pendant la restauration" in ctx.followup.sent[-1]["content"]
+
+
+def test_setup_adds_cog(monkeypatch):
+    M = _import_module_with_patched_decorators(monkeypatch)
+
+    monkeypatch.setattr(M, "SAVE_ENABLED", False)
+    bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
+
+    added = {}
+    bot.add_cog = lambda cog: added.setdefault("cog", cog)  # type: ignore[attr-defined]
+
+    M.setup(bot)
+    assert isinstance(added.get("cog"), M.Saves)
+
+
 # -----------------------------
 # Tests: auto_save logic (happy path + guards)
 # -----------------------------

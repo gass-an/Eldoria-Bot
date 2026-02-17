@@ -43,6 +43,18 @@ def test_parse_pytest_counts_minimal_summary_line():
     assert _parse_pytest_counts(out)["failed"] == 0
 
 
+def test_parse_pytest_counts_fallback_without_in_keyword_hits_fallback_loop():
+    # Couvre le fallback (cas: sortie très minimale sans "in ...s")
+    out = "367 passed\n"
+    assert _parse_pytest_counts(out) == {
+        "failed": 0,
+        "passed": 367,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0,
+    }
+
+
 def test_parse_pytest_counts_with_xfail_xpass():
     out = "1 failed, 2 passed, 3 skipped, 4 xfailed, 5 xpassed in 0.10s\n"
     assert _parse_pytest_counts(out) == {
@@ -260,3 +272,36 @@ def test_run_tests_failure_parsing_ko_raises(monkeypatch):
     monkeypatch.setenv("TESTS_STRICT", "1")
     with pytest.raises(RuntimeError, match="Tests failed"):
         mod.run_tests(logger=FakeLogger())
+
+
+def test_run_tests_logger_defaults_to_module_log(monkeypatch):
+    import sys
+
+    import eldoria.app.run_tests as mod
+
+    # disable "already in pytest" guard
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delitem(sys.modules, "pytest", raising=False)
+
+    # tests exist
+    class FakePath:
+        def exists(self):
+            return True
+
+        def rglob(self, _pattern):
+            return [SimpleNamespace(name="test_x.py")]
+
+    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+
+    # make module log observable
+    fake_logger = FakeLogger()
+    monkeypatch.setattr(mod, "log", fake_logger, raising=True)
+
+    def fake_run(_args, capture_output=True, text=True):
+        return SimpleNamespace(returncode=0, stdout="1 passed in 0.01s\n", stderr="")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
+
+    assert mod.run_tests(logger=None) == "1/1 Tests validés"
+    # Verify defaulted logger is used
+    assert any("Lancement des tests" in msg for msg in fake_logger.infos)

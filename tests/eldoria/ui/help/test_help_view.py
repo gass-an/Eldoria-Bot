@@ -117,6 +117,64 @@ def test_help_menu_view_init_creates_buttons_and_sets_home_active(monkeypatch):
         assert btn.style == discord.ButtonStyle.secondary
 
 
+@pytest.mark.asyncio
+async def test_home_button_callback_with_no_view_noops(monkeypatch):
+    btn = M.HomeButton()
+    btn.view = None  # type: ignore[attr-defined]
+    # Par défaut, btn.view est None (pas ajouté dans une View)
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    await btn.callback(inter)  # ne doit pas lever
+
+
+@pytest.mark.asyncio
+async def test_category_button_callback_with_no_view_noops(monkeypatch):
+    btn = M.CategoryButton("XP")
+    btn.view = None  # type: ignore[attr-defined]
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    await btn.callback(inter)  # ne doit pas lever
+
+
+def test_common_files_and_decorate_helpers(monkeypatch):
+    view = _make_view(monkeypatch)
+    view._thumb_url = "T"
+    view._banner_url = "B"
+
+    monkeypatch.setattr(M, "common_files", lambda *_a: ["F"], raising=True)
+    monkeypatch.setattr(M, "decorate", lambda e, *_a: f"DECOR({e})", raising=True)
+
+    assert view._common_files() == ["F"]
+    assert view._decorate("E") == "DECOR(E)"
+
+
+def test_build_home_and_category_call_builders(monkeypatch):
+    view = _make_view(monkeypatch)
+    view._thumb_url = "T"
+    view._banner_url = "B"
+
+    monkeypatch.setattr(M, "common_files", lambda *_a: ["FILES"], raising=True)
+
+    monkeypatch.setattr(
+        M,
+        "build_home_embed",
+        lambda **kw: ("HOME", kw["thumb_url"], kw["banner_url"]),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        M,
+        "build_category_embed",
+        lambda **kw: ("CAT", kw["cat"], kw["cmds"], kw["thumb_url"], kw["banner_url"]),
+        raising=True,
+    )
+
+    home_embed, home_files = view.build_home()
+    assert home_embed[0] == "HOME"
+    assert home_files == ["FILES"]
+
+    cat_embed, cat_files = view.build_category("XP")
+    assert cat_embed[0] == "CAT"
+    assert cat_files == ["FILES"]
+
+
 def test_refresh_nav_buttons_when_in_category_marks_category_active(monkeypatch):
     view = _make_view(monkeypatch)
 
@@ -206,6 +264,31 @@ async def test_safe_edit_when_response_not_done_uses_response_edit_message(monke
     assert inter.response_edit_calls == [{"embed": "EMBED", "view": view}]
     assert inter.response.deferred is False
     assert inter.original_edits == []
+
+
+@pytest.mark.asyncio
+async def test_safe_edit_when_response_done_and_uploaded_once_edits_original_without_files(monkeypatch):
+    view = _make_view(monkeypatch)
+    view._uploaded_once = True
+
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter.response._done = True  # type: ignore[attr-defined]
+
+    await view._safe_edit(inter, embed="E", files=["F"])
+    assert inter.original_edits == [{"content": None, "embeds": None, "attachments": None, "view": view, "embed": "E", "files": None}]
+
+
+@pytest.mark.asyncio
+async def test_safe_edit_when_response_done_first_time_sends_files_and_sets_flag(monkeypatch):
+    view = _make_view(monkeypatch)
+    view._uploaded_once = False
+
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter.response._done = True  # type: ignore[attr-defined]
+
+    await view._safe_edit(inter, embed="E", files=["F"])
+    assert inter.original_edits[-1]["files"] == ["F"]
+    assert view._uploaded_once is True
 
 
 @pytest.mark.asyncio
@@ -302,6 +385,29 @@ async def test_send_help_menu_no_visible_commands_sends_message(monkeypatch):
     assert "Aucune commande disponible avec vos permissions." in (
     last.get("content") or (last.get("args") or [""])[0]
 )
+
+
+@pytest.mark.asyncio
+async def test_send_help_menu_handles_ctx_without_defer_and_bot_without_application_commands(monkeypatch):
+    # load_help_config minimal
+    monkeypatch.setattr(M, "load_help_config", lambda: ({}, {"Cat": ["a"]}, {}))
+
+    # Bot without application_commands attribute triggers cmds None branch
+    class Bot:
+        pass
+
+    user = FakeUser(1, guild_permissions=FakePerms(0xFFFF))
+
+    class CtxNoDefer:
+        def __init__(self, user):
+            self.user = user
+            self.followup = FakeCtx(user=user).followup
+
+    ctx = CtxNoDefer(user)
+
+    await M.send_help_menu(ctx, Bot())
+    # no visible commands -> followup message
+    assert ctx.followup.sent
 
 
 @pytest.mark.asyncio

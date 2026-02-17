@@ -245,6 +245,18 @@ def test_cog_unload_cancels_loop_no_throw():
     assert cog.voice_xp_loop.cancelled is True
 
 
+def test_cog_unload_ignores_cancel_errors(monkeypatch):
+    xp = _FakeXpService()
+    bot = _FakeBot(xp)
+    cog = XpVoice(bot)
+
+    def cancel_raises():
+        raise RuntimeError("no")
+
+    cog.voice_xp_loop.cancel = cancel_raises  # type: ignore[attr-defined]
+    cog.cog_unload()  # doit ignorer
+
+
 # ---------- Tests: voice_xp_loop behavior ----------
 @pytest.mark.asyncio
 async def test_voice_xp_loop_skips_when_disabled_or_voice_disabled(monkeypatch):
@@ -282,6 +294,116 @@ async def test_voice_xp_loop_updates_last_tick_when_solo(monkeypatch):
     await cog.voice_xp_loop()
 
     assert ("voice_upsert_progress", 1, 1, 123) in xp.calls
+
+
+@pytest.mark.asyncio
+async def test_voice_xp_loop_skips_empty_voice_channels(monkeypatch):
+    xp = _FakeXpService()
+    bot = _FakeBot(xp)
+    g = _FakeGuild(1)
+    bot.guilds = [g]
+    cog = XpVoice(bot)
+
+    # members empty -> continue (ligne 92-93)
+    g.voice_channels = [_FakeVoiceChannel([])]
+    await cog.voice_xp_loop()
+
+
+@pytest.mark.asyncio
+async def test_voice_xp_loop_solo_upsert_errors_are_swallowed(monkeypatch):
+    xp = _FakeXpService()
+    xp._voice_upsert_raises = True
+    bot = _FakeBot(xp)
+    g = _FakeGuild(1)
+    bot.guilds = [g]
+    cog = XpVoice(bot)
+
+    m1 = _FakeMember(1, g)
+    g.voice_channels = [_FakeVoiceChannel([m1])]
+
+    monkeypatch.setattr(xv_mod, "now_ts", lambda: 123, raising=True)
+    await cog.voice_xp_loop()  # ne doit pas lever
+
+
+@pytest.mark.asyncio
+async def test_voice_xp_loop_tick_returns_none_noop(monkeypatch):
+    xp = _FakeXpService()
+    xp._tick_return = None
+    bot = _FakeBot(xp)
+    g = _FakeGuild(1)
+    bot.guilds = [g]
+    cog = XpVoice(bot)
+
+    m1 = _FakeMember(1, g)
+    m2 = _FakeMember(2, g)
+    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+
+    await cog.voice_xp_loop()  # ne doit pas lever
+
+
+@pytest.mark.asyncio
+async def test_voice_xp_loop_no_level_up_no_send(monkeypatch):
+    xp = _FakeXpService()
+    xp._tick_return = (10, 2, 2)  # new_lvl <= old_lvl
+    bot = _FakeBot(xp)
+    g = _FakeGuild(1)
+    bot.guilds = [g]
+    cog = XpVoice(bot)
+
+    m1 = _FakeMember(1, g)
+    m2 = _FakeMember(2, g)
+    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+
+    txt = _FakeTextChannel("general", channel_id=50, can_send=True)
+    g.text_channels = [txt]
+    g.me = _FakeMember(999, g)
+
+    await cog.voice_xp_loop()
+    assert txt.sent == []
+
+
+@pytest.mark.asyncio
+async def test_voice_xp_loop_send_errors_are_swallowed(monkeypatch):
+    xp = _FakeXpService()
+    xp._tick_return = (10, 2, 1)  # would level up
+    bot = _FakeBot(xp)
+    g = _FakeGuild(1)
+    bot.guilds = [g]
+    cog = XpVoice(bot)
+
+    m1 = _FakeMember(1, g)
+    m2 = _FakeMember(2, g)
+    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+
+    class BoomChannel(_FakeTextChannel):
+        async def send(self, *_a, **_k):
+            raise RuntimeError("boom")
+
+    txt = BoomChannel("general", channel_id=50, can_send=True)
+    g.text_channels = [txt]
+    g.me = _FakeMember(999, g)
+
+    monkeypatch.setattr(xv_mod, "level_mention", lambda *_a, **_k: "@lvl2", raising=True)
+
+    await cog.voice_xp_loop()  # ne doit pas lever
+
+
+@pytest.mark.asyncio
+async def test_wait_until_ready_calls_bot(monkeypatch):
+    xp = _FakeXpService()
+
+    class Bot(_FakeBot):
+        def __init__(self, xp):
+            super().__init__(xp)
+            self.ready_called = 0
+
+        async def wait_until_ready(self):
+            self.ready_called += 1
+
+    bot = Bot(xp)
+    cog = XpVoice(bot)
+    await cog._wait_until_ready()
+    assert bot.ready_called == 1
 
 
 @pytest.mark.asyncio
