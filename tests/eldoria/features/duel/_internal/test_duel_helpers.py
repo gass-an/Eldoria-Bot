@@ -5,7 +5,7 @@ import json
 import pytest
 
 import eldoria.features.duel._internal.helpers as helpers_mod
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from tests._fakes._db_fakes import FakeConnCM
 

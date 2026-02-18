@@ -3,6 +3,8 @@
 Gère les événements de réaction pour attribuer ou retirer les rôles correspondants, et inclut des commandes pour ajouter,
 supprimer et lister les associations de réactions et de rôles.
 """
+import logging
+
 import discord
 from discord.ext import commands
 
@@ -11,6 +13,7 @@ from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.embeds import build_list_roles_embed
 from eldoria.utils.discord_utils import extract_id_from_link, get_text_or_thread_channel
 
+log = logging.getLogger(__name__)
 
 class ReactionRoles(commands.Cog):
     """Cog de gestion des rôles par réaction, permettant d'associer des réactions à des rôles sur des messages spécifiques.
@@ -54,8 +57,10 @@ class ReactionRoles(commands.Cog):
         if role:
             try:
                 await member.add_roles(role)
-            except (discord.Forbidden, discord.HTTPException):
-                pass
+            except discord.Forbidden:
+                log.warning("ReactionRole: Forbidden add_roles (guild=%s user=%s role=%s)", guild_id, payload.user_id, role_id)
+            except discord.HTTPException:
+                log.warning("ReactionRole: HTTPException add_roles (guild=%s user=%s role=%s)", guild_id, payload.user_id, role_id)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
@@ -87,8 +92,10 @@ class ReactionRoles(commands.Cog):
 
         try:
             await member.remove_roles(role)
-        except (discord.Forbidden, discord.HTTPException):
-            pass
+        except discord.Forbidden:
+            log.warning("ReactionRole: Forbidden remove_roles (guild=%s user=%s role=%s)", guild_id, payload.user_id, role_id)
+        except discord.HTTPException:
+            log.warning("ReactionRole: HTTPException remove_roles (guild=%s user=%s role=%s)", guild_id, payload.user_id, role_id)
 
     # -------------------- Commands --------------------
     @commands.slash_command(name="add_reaction_role", description="Associe une réaction sur un message défini à un rôle.")
@@ -144,20 +151,9 @@ class ReactionRoles(commands.Cog):
                 )
                 return
 
-        try:
-            await bot_member.add_roles(role)
-            await bot_member.remove_roles(role)
-            await message.add_reaction(emoji)
-        except discord.NotFound:
-            await ctx.followup.send(content="Message ou canal introuvable.")
-            return
-        except discord.Forbidden:
-            await ctx.followup.send(content=(
-                "## Un problème est survenu : \n"
-                "- Soit je n'ai pas le droit de rajouter une réaction sur ce message.\n"
-                "- Soit je n'ai pas le droit de gérer ce rôle."
-            ))
-            return
+        await bot_member.add_roles(role)
+        await bot_member.remove_roles(role)
+        await message.add_reaction(emoji)
 
         self.role.rr_upsert(guild_id, message_id, emoji, role.id)
 
@@ -193,11 +189,8 @@ class ReactionRoles(commands.Cog):
 
         self.role.rr_delete(guild_id, message_id, emoji)
 
-        try:
-            await message.clear_reaction(emoji)
-        except discord.Forbidden:
-            await ctx.followup.send(content="Je n'ai pas la permission de supprimer les réactions.")
-            return
+
+        await message.clear_reaction(emoji)
 
         await ctx.followup.send(
             content=f"## L'emoji {emoji} a bien été retiré du message.\n**Message** : {message_link}\n{message.content}"
@@ -228,11 +221,7 @@ class ReactionRoles(commands.Cog):
 
         self.role.rr_delete_message(guild_id, message_id)
 
-        try:
-            await message.clear_reactions()
-        except discord.Forbidden:
-            await ctx.followup.send(content="Je n'ai pas la permission de supprimer les réactions.")
-            return
+        await message.clear_reactions()
 
         await ctx.followup.send(
             content=f"## Toutes les réactions ont été supprimées du message sélectionné.\n**Message** : {message_link}\n{message.content}"

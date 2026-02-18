@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import discord
 
+from eldoria.app.bot import EldoriaBot
 from eldoria.utils.mentions import level_mention
 
 
@@ -11,7 +12,7 @@ async def apply_duel_snapshot(
     *,
     interaction: discord.Interaction,
     snapshot: dict,
-    bot: object,
+    bot: EldoriaBot,
 ) -> None:
     """Applique un snapshot sur le message courant.
     

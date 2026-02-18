@@ -1,9 +1,24 @@
 """Module de définition des exceptions personnalisées liées aux duels dans Eldoria Bot."""
 
-class DuelError(Exception):
+from eldoria.exceptions.base import AppError
+
+
+class DuelError(AppError):
     """Base de toutes les erreurs liées aux duels."""
 
+# ---------------- internal errors ----------------
+class DuelRepositoryError(DuelError):
+    """Erreur technique liée à la persistance des duels."""
 
+class DuelInsertFailed(DuelRepositoryError):
+    """Impossible de récupérer l'ID du duel après insertion."""
+
+    def __init__(self) -> None:
+        """Initialise l'exception avec un message indiquant l'échec de la récupération de l'ID du duel."""
+        super().__init__("Duel inséré mais impossible de récupérer son ID.")
+
+
+# ---------------- exceptions métier ----------------
 class DuelNotFound(DuelError):
     """Exception levée lorsqu'un duel n'est pas trouvé dans la base de données, ou a expiré."""
 
@@ -168,3 +183,10 @@ class ExpiredDuel(DuelError):
         """Exception levée lorsqu'une action est tentée sur un duel qui a expiré."""
         super().__init__(f"Le duel ({duel_id}) est expiré.")
         self.duel_id = duel_id
+
+class InvalidSnapshot(DuelError):
+    """Snapshot de duel invalide ou incomplet."""
+
+    def __init__(self) -> None:
+        """Initialise l'exception sans attributs supplémentaires, car le message d'erreur est générique."""
+        super().__init__("Le snapshot de duel est invalide ou incomplet.")

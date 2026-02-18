@@ -1,8 +1,10 @@
 """Service métier regroupant les opérations de sauvegarde et de maintenance de la base de données, notamment les backups et l'initialisation du schéma."""
 
+import sqlite3
 from dataclasses import dataclass
 
 from eldoria.db import connection, maintenance, schema
+from eldoria.exceptions.general import DatabaseRestoreError
 
 
 @dataclass(slots=True)
@@ -19,8 +21,11 @@ class SaveService:
     
     def replace_db_file(self, new_db_path: str) -> None:
         """Remplace le fichier de base de données actuel par un nouveau fichier de base de données (par exemple pour restaurer une sauvegarde)."""
-        return maintenance.replace_db_file(new_db_path)
-    
+        try:
+            maintenance.replace_db_file(new_db_path)
+        except (OSError, sqlite3.DatabaseError) as e:
+            raise DatabaseRestoreError() from e
+        
     def init_db(self) -> None:
         """Initialise le schéma de la base de données en créant les tables nécessaires si elles n'existent pas déjà."""
         return schema.init_db()

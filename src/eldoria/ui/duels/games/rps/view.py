@@ -5,8 +5,8 @@ from __future__ import annotations
 import discord
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.exceptions.duel_exceptions import DuelError
-from eldoria.exceptions.duel_ui_errors import duel_error_message
+from eldoria.exceptions.duel import DuelError
+from eldoria.exceptions.ui.duel_ui import duel_error_message
 from eldoria.features.duel.games.rps.rps_constants import (
     RPS_MOVE_PAPER,
     RPS_MOVE_ROCK,

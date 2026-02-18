@@ -5,6 +5,7 @@ et aux utilisateurs de consulter leur profil d'XP, les rôles de niveau, et le c
 Il inclut également une commande pour modifier manuellement l'XP d'un membre.
 Les commandes sont principalement destinées à être utilisées sur un serveur Discord, et certaines nécessitent des permissions d'administrateur
 """
+import logging
 import re
 
 import discord
@@ -18,6 +19,8 @@ from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
 from eldoria.utils.mentions import level_label
+
+log = logging.getLogger(__name__)
 
 LEVEL_RE = re.compile(r"^level\s*(\d+)\b", re.IGNORECASE)
 
@@ -216,11 +219,26 @@ class Xp(commands.Cog):
         label = level_label(guild, role_ids, level)
         await ctx.followup.send(content=f"✅ Seuil mis à jour : **{label}** = **{xp_required} XP**.")
 
-        try:
-            for member in guild.members:
+        for member in guild.members:
+            if member.bot:
+                continue
+            try:
                 await self.xp.sync_member_level_roles(guild, member)
-        except Exception:
-            pass
+            except discord.Forbidden:
+                log.warning(
+                    "xp_set_level: forbidden pendant sync_member_level_roles (guild_id=%s user_id=%s)",
+                    guild.id, member.id
+                )
+            except discord.HTTPException:
+                log.warning(
+                    "xp_set_level: HTTPException pendant sync_member_level_roles (guild_id=%s user_id=%s)",
+                    guild.id, member.id
+                )
+            except Exception:
+                log.exception(
+                    "xp_set_level: erreur inattendue pendant sync_member_level_roles (guild_id=%s user_id=%s)",
+                    guild.id, member.id
+                )
 
     @commands.slash_command(name="xp_set_config", description="(Admin) Configure les paramètres du système XP (champs vides = inchangés).")
     @discord.option("points_per_message", int, description="XP gagné par message (>=0)", min_value=0, max_value=1000, required=False)
@@ -372,14 +390,32 @@ class Xp(commands.Cog):
         affected = [mem for mem in guild.members if (not mem.bot and from_role_obj in mem.roles)]
 
         failed = 0
+
         for mem in affected:
             try:
                 await mem.remove_roles(from_role_obj, reason="XP role setup: replace role mapping")
                 await self.xp.sync_member_level_roles(guild, mem)
+
             except discord.Forbidden:
                 failed += 1
+                log.warning(
+                    "xp_set_role: forbidden sur membre (guild_id=%s user_id=%s from_role=%s to_role=%s)",
+                    guild.id, mem.id, from_role_obj.id, to_role.id
+                )
+
+            except discord.HTTPException:
+                failed += 1
+                log.warning(
+                    "xp_set_role: HTTPException sur membre (guild_id=%s user_id=%s from_role=%s to_role=%s)",
+                    guild.id, mem.id, from_role_obj.id, to_role.id
+                )
+
             except Exception:
                 failed += 1
+                log.exception(
+                    "xp_set_role: erreur inattendue sur membre (guild_id=%s user_id=%s)",
+                    guild.id, mem.id
+                )
 
         await ctx.followup.send(
             content=(

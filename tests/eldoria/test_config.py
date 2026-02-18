@@ -32,14 +32,18 @@ def test_env_helpers_required_and_optional_paths(monkeypatch):
 
     mod = _load_config_fresh(monkeypatch, "cfg_a")
 
-    with pytest.raises(RuntimeError, match="Missing required environment variable"):
+    from eldoria.exceptions.config import MissingEnvVar
+
+    with pytest.raises(MissingEnvVar):
         mod.env_str_required("NOPE")
 
     monkeypatch.delenv("MISSING_INT", raising=False)
     assert mod.env_int_optional("MISSING_INT") is None
 
     monkeypatch.setenv("BAD_INT", "abc")
-    with pytest.raises(RuntimeError, match="must be an integer"):
+    from eldoria.exceptions.config import InvalidEnvVar
+
+    with pytest.raises(InvalidEnvVar):
         mod.env_int_optional("BAD_INT")
 
 
@@ -49,5 +53,7 @@ def test_config_import_raises_when_save_enabled_but_missing_vars(monkeypatch):
     monkeypatch.delenv("GUILD_FOR_SAVE", raising=False)
     monkeypatch.delenv("CHANNEL_FOR_SAVE", raising=False)
 
-    with pytest.raises(RuntimeError, match="fonctionnalité de sauvegarde"):
+    from eldoria.exceptions.config import IncompleteFeatureConfig
+
+    with pytest.raises(IncompleteFeatureConfig):
         _load_config_fresh(monkeypatch, "cfg_b")

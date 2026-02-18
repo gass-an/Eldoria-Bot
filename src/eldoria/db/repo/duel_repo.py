@@ -4,6 +4,7 @@ from sqlite3 import Connection, Cursor, Row
 from typing import Any
 
 from eldoria.db.connection import get_conn
+from eldoria.exceptions.duel import DuelInsertFailed
 
 
 def _execute_in_conn(
@@ -45,8 +46,8 @@ def create_duel(
         
         duel_id = cursor.lastrowid
         if duel_id is None:
-            raise RuntimeError("Failed to retrieve duel id after INSERT")
-        return duel_id
+            raise DuelInsertFailed()
+        return int(duel_id)
 
 
 def get_duel_by_id(duel_id: int, *, conn: Connection | None = None) -> Row:

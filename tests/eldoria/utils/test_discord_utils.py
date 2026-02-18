@@ -1,7 +1,7 @@
 import discord  # type: ignore
 import pytest
 
-from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, UserRequired
+from eldoria.exceptions.general import ChannelRequired, GuildRequired, UserRequired, MemberNotFound
 from eldoria.utils.discord_utils import (
     extract_id_from_link,
     find_channel_id,
@@ -166,11 +166,12 @@ async def test_get_member_by_id_or_raise_fetches_when_not_cached():
 
 
 @pytest.mark.asyncio
-async def test_get_member_by_id_or_raise_raises_value_error_when_not_found():
+async def test_get_member_by_id_or_raise_raises_member_not_found_when_not_found():
     guild = FakeGuild(777, text_channels=[])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(MemberNotFound) as e:
         await get_member_by_id_or_raise(guild, 1234)
-    assert "Member 1234 not found in guild 777" in str(e.value)
+    assert "1234" in str(e.value)
+    assert "777" in str(e.value)
 
 
 # ------------------------------------------------------------

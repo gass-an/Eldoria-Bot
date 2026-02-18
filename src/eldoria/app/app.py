@@ -27,9 +27,6 @@ def create_bot() -> EldoriaBot:
 
 def main(started_at: float) -> None:
     """Démarre le bot Discord avec le token d'authentification."""
-    if not TOKEN:
-        raise RuntimeError("discord_token manquant dans le .env")
-
     print(startup_banner())
     bot = create_bot()
     startup(bot)

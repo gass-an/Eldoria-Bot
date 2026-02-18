@@ -1,10 +1,11 @@
 """Module de fonctions de maintenance pour les duels, notamment la gestion de l'expiration des duels et le nettoyage des anciens duels dans la base de données."""
 
+import logging
 from typing import Any
 
 from eldoria.db.connection import get_conn
 from eldoria.db.repo import duel_repo
-from eldoria.exceptions.duel_exceptions import DuelAlreadyHandled, DuelNotFinishable
+from eldoria.exceptions.duel import DuelAlreadyHandled, DuelNotFinishable
 from eldoria.features.duel import constants
 from eldoria.features.duel._internal import helpers
 from eldoria.features.duel._internal.gameplay import (
@@ -13,6 +14,7 @@ from eldoria.features.duel._internal.gameplay import (
 )
 from eldoria.utils.timestamp import now_ts
 
+log = logging.getLogger(__name__)
 
 def cancel_expired_duels() -> list[dict[str, Any]]:
     """Expire les duels arrivés à échéance.
@@ -61,9 +63,11 @@ def cancel_expired_duels() -> list[dict[str, Any]]:
                         })
                         
                     continue
-            except Exception as e:
-                print(f"[cancel_expired_duels] resolve error duel_id={duel_id} \n Error : {e}")
-                pass
+            except Exception:
+                log.exception(
+                    "Erreur lors du resolve d'un duel expiré (duel_id=%s)",
+                    duel_id,
+                )
 
         # 2) Sinon : expire normalement (transaction + refund si duel était ACTIVE)
         with get_conn() as conn:

@@ -1,7 +1,7 @@
 import pytest
 
-from eldoria.exceptions import duel_exceptions as exc
-from eldoria.exceptions import duel_ui_errors as M
+from eldoria.exceptions import duel as exc
+from eldoria.exceptions.ui import duel_ui as M
 
 
 @pytest.mark.parametrize(
@@ -23,6 +23,7 @@ from eldoria.exceptions import duel_ui_errors as M
         (exc.AlreadyPlayed(), "⚠️ Tu as déjà joué."),
         (exc.PayloadError(), "⚠️ Petit souci technique, réessaie."),
         (exc.DuelAlreadyHandled(1, "ACTIVE"), "ℹ️ Ce duel a déjà été traité (quelqu'un a cliqué juste avant)."),
+        (exc.InvalidSnapshot(), "⚠️ Le duel est dans un état inattendu. Réessaie."),
     ],
 )
 def test_duel_error_message_specific_cases(error, expected):

@@ -8,6 +8,7 @@ import discord
 from discord.ext import commands
 
 from eldoria.app.services import Services
+from eldoria.exceptions.internal import ServicesAlreadyInitialized, ServicesNotInitialized
 
 BotLike: TypeAlias = commands.Bot | commands.AutoShardedBot
 
@@ -62,11 +63,11 @@ class EldoriaBot(commands.Bot):
     def services(self) -> Services:
         """Retourne les services utilisés par le bot, ou lève une exception si les services n'ont pas encore été initialisés."""
         if self._services is None:
-            raise RuntimeError("Services not initialized yet. Call bot.set_services(...) before loading cogs.")
+            raise ServicesNotInitialized()
         return self._services
     
     def set_services(self, services: Services) -> None:
         """Assigne les services utilisés par le bot à l'attribut services, en vérifiant qu'ils n'ont pas déjà été initialisés."""
         if self._services is not None:
-            raise RuntimeError("Services already initialized.")
+            raise ServicesAlreadyInitialized()
         self._services = services

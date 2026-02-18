@@ -386,12 +386,15 @@ async def test_auto_save_channel_none_noop(monkeypatch):
 
     monkeypatch.setattr(M, "datetime", FakeDatetime)
 
+    from eldoria.exceptions.general import ChannelRequired
+
     async def fake_get_channel(_bot, _cid):
-        return None
+        raise ChannelRequired()
 
     monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
 
-    await cog.auto_save()
+    with pytest.raises(ChannelRequired):
+        await cog.auto_save()
 
 
 @pytest.mark.asyncio
@@ -406,15 +409,16 @@ async def test_manual_save_channel_missing(monkeypatch):
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
     cog = M.Saves(bot)
 
+    from eldoria.exceptions.general import ChannelRequired
+
     async def fake_get_channel(_bot, _cid):
-        return None
+        raise ChannelRequired()
 
     monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
 
     ctx = FakeCtx(uid=1)
-    await cog.manual_save_command(ctx)
-
-    assert ctx.followup.sent[-1]["content"] == "❌ Channel de save introuvable."
+    with pytest.raises(ChannelRequired):
+        await cog.manual_save_command(ctx)
 
 
 @pytest.mark.asyncio
@@ -478,9 +482,8 @@ async def test_insert_db_fetch_message_error(monkeypatch):
     monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel, raising=True)
 
     ctx = FakeCtx(uid=1)
-    await cog.insert_db_command(ctx, message_id="123")
-
-    assert "Message introuvable" in ctx.followup.sent[-1]["content"]
+    with pytest.raises(RuntimeError):
+        await cog.insert_db_command(ctx, message_id="123")
 
 
 @pytest.mark.asyncio
@@ -597,9 +600,8 @@ async def test_insert_db_replace_failure_unlinks_tmp_and_reports(monkeypatch, tm
     monkeypatch.setattr(Path, "unlink", unlink_maybe, raising=True)
 
     ctx = FakeCtx(uid=1)
-    await cog.insert_db_command(ctx, message_id="123")
-
-    assert "Erreur pendant la restauration" in ctx.followup.sent[-1]["content"]
+    with pytest.raises(RuntimeError):
+        await cog.insert_db_command(ctx, message_id="123")
 
 
 def test_setup_adds_cog(monkeypatch):

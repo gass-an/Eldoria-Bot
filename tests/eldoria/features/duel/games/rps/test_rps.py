@@ -5,7 +5,7 @@ import json
 import pytest
 
 import eldoria.features.duel.games.rps.rps as rps_mod
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from eldoria.features.duel.games.rps import rps_constants as rps
 
@@ -41,14 +41,12 @@ def test_load_rps_payload_returns_defaults_when_payload_missing():
     assert payload[rps.RPS_PAYLOAD_B_MOVE] is None
 
 
-def test_load_rps_payload_returns_defaults_when_payload_invalid_json():
+def test_load_rps_payload_raises_when_payload_invalid_json():
+    from eldoria.exceptions.duel import PayloadError
+
     duel = _duel_row(payload="{not json")
-    payload = rps_mod.load_rps_payload(duel)
-
-    assert payload[rps.RPS_PAYLOAD_VERSION] == 1
-    assert payload[rps.RPS_PAYLOAD_A_MOVE] is None
-    assert payload[rps.RPS_PAYLOAD_B_MOVE] is None
-
+    with pytest.raises(PayloadError):
+        rps_mod.load_rps_payload(duel)
 
 def test_load_rps_payload_parses_valid_json():
     duel = _duel_row(payload=json.dumps({rps.RPS_PAYLOAD_A_MOVE: rps.RPS_MOVE_ROCK, rps.RPS_PAYLOAD_B_MOVE: None}))

@@ -12,6 +12,8 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 - Duels de mini-jeux pour miser de l'XP : disponible que pour Pierre-Feuille-Ciseaux (1 manche)
 - Docstrings et typage strict
 - Refacto Tests unitaires + Ajout tests unitaires manquant
+- Système global de gestion d’erreurs avec hiérarchie d’exceptions métier
+- Centralisation du traitement des erreurs via un handler dédié
 
 ### Changed
 - Amélioration de l’affichage du terminal au lancement (banner + logs structurés)

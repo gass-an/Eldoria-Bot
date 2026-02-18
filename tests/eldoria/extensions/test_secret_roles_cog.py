@@ -237,7 +237,8 @@ async def test_add_secret_role_rejects_existing_other_role():
 
 
 @pytest.mark.asyncio
-async def test_add_secret_role_handles_forbidden_when_probing_role():
+@pytest.mark.asyncio
+async def test_add_secret_role_propagates_forbidden_when_probing_role():
     discord = sys.modules["discord"]
     role_svc = _FakeRoleService()
     bot = _FakeBot(role_svc)
@@ -248,8 +249,8 @@ async def test_add_secret_role_handles_forbidden_when_probing_role():
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
-    await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
-    assert ctx.followup.sent[-1]["content"] == "Je n'ai pas le droit de gérer ce rôle."
+    with pytest.raises(discord.Forbidden):
+        await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
 
 
 @pytest.mark.asyncio

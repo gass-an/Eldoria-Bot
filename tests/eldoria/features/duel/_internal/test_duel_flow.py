@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import eldoria.features.duel._internal.flow as flow_mod
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from tests._fakes._db_fakes import FakeConnCM
 

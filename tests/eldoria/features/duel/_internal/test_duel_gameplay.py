@@ -5,7 +5,7 @@ import json
 import pytest
 
 import eldoria.features.duel._internal.gameplay as gameplay_mod
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 
 
 def _duel_row(**overrides):

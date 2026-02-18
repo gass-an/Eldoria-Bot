@@ -3,6 +3,7 @@
 import discord
 
 from eldoria.app.bot import EldoriaBot
+from eldoria.exceptions.general import GuildNotFound
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 
 
@@ -10,7 +11,7 @@ async def build_welcome_embed(guild_id: int, member: discord.Member, bot: Eldori
     """Construit l'embed de bienvenue pour un nouvel arrivant."""
     guild = bot.get_guild(guild_id)
     if guild is None:
-        raise RuntimeError(f"Guild {guild_id} not found")
+        raise GuildNotFound(guild_id)
     welcome = bot.services.welcome
 
     (title, msg, emojis) = welcome.get_welcome_message(

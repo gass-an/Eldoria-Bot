@@ -4,6 +4,7 @@ Inclut une boucle de vérification régulière pour attribuer l'XP
 et un listener pour détecter les changements d'état vocal des membres
 afin de gérer les périodes inéligibles.
 """
+import logging
 
 import discord
 from discord.ext import commands, tasks
@@ -12,6 +13,7 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.utils.mentions import level_mention
 from eldoria.utils.timestamp import now_ts
 
+log = logging.getLogger(__name__)
 
 def _pick_voice_levelup_text_channel(guild: discord.Guild, cfg: dict) -> discord.TextChannel | None:
     """Retourne le salon texte où annoncer les levels vocaux.
@@ -66,8 +68,9 @@ class XpVoice(commands.Cog):
         """Arrête la boucle de vérification régulière pour l'XP vocal lors du déchargement du cog."""
         try:
             self.voice_xp_loop.cancel()
+            log.info("Loop de vérification régulière pour l'XP vocal arrêtée proprement.")
         except Exception:
-            pass
+            log.exception("Erreur lors de l'arrêt de la loop de vérification régulière pour l'XP vocal.")
 
     @tasks.loop(minutes=1)
     async def voice_xp_loop(self) -> None:
@@ -93,19 +96,16 @@ class XpVoice(commands.Cog):
                         continue
 
                     active_members = [m for m in members if self.xp.is_voice_member_active(m)]
-                    active_count = len(active_members)
-
-                    if active_count < 2:
-                        # coupe le compteur pour éviter d'accumuler du temps "solo"
+                    if len(active_members) < 2:
                         for m in active_members:
                             try:
-                                self.xp.voice_upsert_progress(
+                                self.xp.voice_upsert_progress(guild.id, m.id, last_tick_ts=now)
+                            except Exception:
+                                log.exception(
+                                    "XP vocal: erreur lors de la mise à jour du progress (guild_id=%s, user_id=%s)",
                                     guild.id,
                                     m.id,
-                                    last_tick_ts=now,
                                 )
-                            except Exception:
-                                continue
                         continue
 
                     for member in active_members:
@@ -122,26 +122,45 @@ class XpVoice(commands.Cog):
                             if txt_channel is None:
                                 continue
 
-                            # Vérif perm d'envoi
                             me = getattr(guild, "me", None) or guild.get_member(getattr(self.bot.user, "id", 0) or 0)
-                            if me is not None:
-                                perms = txt_channel.permissions_for(me)
-                                if not perms.send_messages:
-                                    continue
-                            
+                            if me is not None and not txt_channel.permissions_for(me).send_messages:
+                                continue
+
                             role_ids = self.xp.get_role_ids(guild.id)
                             lvl_txt = level_mention(guild, new_lvl, role_ids)
 
                             await txt_channel.send(
                                 f"🎉 Félicitations {member.mention}, tu passes {lvl_txt} grâce à ta présence dans un salon vocal !",
-                                allowed_mentions=discord.AllowedMentions(
-                                    users=True,
-                                    roles=False,
-                                ),
+                                allowed_mentions=discord.AllowedMentions(users=True, roles=False),
                             )
-                        except Exception:
+
+                        except discord.Forbidden:
+                            log.warning(
+                                "XP vocal: permissions insuffisantes pour envoyer le message (guild_id=%s, channel_id=%s)",
+                                guild.id,
+                                getattr(txt_channel, "id", None),
+                            )
                             continue
+
+                        except discord.HTTPException:
+                            log.warning(
+                                "XP vocal: échec d'envoi du message (HTTPException) (guild_id=%s, channel_id=%s)",
+                                guild.id,
+                                getattr(txt_channel, "id", None),
+                            )
+                            continue
+
+                        except Exception:
+                            log.exception(
+                                "XP vocal: erreur inattendue lors du tick (guild_id=%s, user_id=%s, vc_id=%s)",
+                                guild.id,
+                                member.id,
+                                getattr(vc, "id", None),
+                            )
+                            continue
+
             except Exception:
+                log.exception("XP vocal: erreur inattendue au niveau du serveur (guild_id=%s)", guild.id)
                 continue
 
 
@@ -183,7 +202,13 @@ class XpVoice(commands.Cog):
                 member.id,
                 last_tick_ts=now,
             )
-        except Exception:
+        except Exception as e:
+            log.warning(
+                "XP vocal: erreur lors de la mise à jour du progress sur voice_state_update (guild_id=%s, user_id=%s): %s",
+                member.guild.id,
+                member.id,
+                e,
+            )
             return
 
 

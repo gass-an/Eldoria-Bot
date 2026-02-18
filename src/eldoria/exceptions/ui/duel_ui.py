@@ -6,12 +6,11 @@ afin de fournir des retours clairs et compréhensibles aux utilisateurs lorsqu'u
 
 from __future__ import annotations
 
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 
 
 def duel_error_message(e: exc.DuelError) -> str:
     """Retourne un message d'erreur "membre-friendly" à partir d'une exception de duel."""
-    # Messages “membre-friendly” (pas trop techniques)
     match e:
         case exc.SamePlayerDuel():
             return "😅 Tu ne peux pas te défier toi-même."
@@ -66,6 +65,9 @@ def duel_error_message(e: exc.DuelError) -> str:
 
         case (exc.ConfigurationError() | exc.MissingMessageId() | exc.InvalidResult() | exc.DuelNotFinished()):
             return "❌ Une erreur est survenue. Réessaie."
+    
+        case exc.InvalidSnapshot():
+            return "⚠️ Le duel est dans un état inattendu. Réessaie."
 
         case _:
             # fallback: garde un message générique, pas le détail technique

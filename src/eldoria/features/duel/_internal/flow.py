@@ -5,7 +5,7 @@ from typing import Any
 from eldoria.db.connection import get_conn
 from eldoria.db.repo import duel_repo
 from eldoria.db.repo.xp_repo import xp_get_member
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from eldoria.features.duel._internal import helpers
 from eldoria.utils.timestamp import add_duration, now_ts

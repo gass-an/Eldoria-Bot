@@ -3,12 +3,15 @@
 Inclut des commandes pour configurer le salon de bienvenue, activer ou désactiver les messages de bienvenue.
 """
 
+import logging
+
 import discord
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.welcome.embeds import build_welcome_embed
 
+log = logging.getLogger(__name__)
 
 class WelcomeMessage(commands.Cog):
     """Cog de gestion des messages de bienvenue, permettant d'envoyer un message personnalisé lorsqu'un nouveau membre rejoint un serveur.
@@ -44,9 +47,20 @@ class WelcomeMessage(commands.Cog):
 
             channel = guild.get_channel(channel_id)
             if channel is None:
+                log.warning(
+                    "Welcome: salon introuvable (guild_id=%s, channel_id=%s)",
+                    guild_id,
+                    channel_id,
+                )
                 return
 
             if not isinstance(channel, (discord.TextChannel, discord.Thread)):
+                log.warning(
+                    "Welcome: salon invalide (guild_id=%s, channel_id=%s, type=%s)",
+                    guild_id,
+                    channel_id,
+                    type(channel).__name__,
+                )
                 return
 
             embed, emojis = await build_welcome_embed(guild_id=guild_id, member=member, bot=self.bot)
@@ -57,12 +71,20 @@ class WelcomeMessage(commands.Cog):
                 try:
                     await message.add_reaction(emoji)
                 except (discord.Forbidden, discord.HTTPException):
-                    # manque de perms, emoji invalide, rate limit, etc.
+                    log.warning(
+                        "Welcome: impossible d'ajouter une réaction (guild_id=%s, message_id=%s, emoji=%s)",
+                        guild_id,
+                        message.id,
+                        emoji,
+                    )
                     continue
 
         except Exception:
-            # On ne casse jamais le bot sur un event
-            return
+            log.exception(
+                "Welcome: erreur inattendue dans on_member_join (guild_id=%s, user_id=%s)",
+                member.guild.id,
+                member.id,
+            )
 
 
 

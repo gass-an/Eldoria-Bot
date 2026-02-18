@@ -35,7 +35,8 @@ def test_eldoria_bot_init_calls_super_with_expected_args(monkeypatch):
     assert bot.get_started_at() == 123.456
     # `services` est désormais une propriété qui lève tant que les services
     # n'ont pas été initialisés.
-    with pytest.raises(RuntimeError, match="Services not initialized"):
+    from eldoria.exceptions.internal import ServicesNotInitialized
+    with pytest.raises(ServicesNotInitialized):
         _ = bot.services
     assert bot._services is None  # type: ignore[attr-defined]
 
@@ -116,5 +117,6 @@ def test_set_services_success_and_double_init_raises(monkeypatch):
     bot.set_services(services)  # type: ignore[arg-type]
     assert bot.services is services  # type: ignore[comparison-overlap]
 
-    with pytest.raises(RuntimeError, match="Services already initialized"):
+    from eldoria.exceptions.internal import ServicesAlreadyInitialized
+    with pytest.raises(ServicesAlreadyInitialized):
         bot.set_services(object())  # type: ignore[arg-type]

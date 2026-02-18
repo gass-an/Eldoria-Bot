@@ -3,8 +3,8 @@
 Permet d'envoyer une copie du fichier .db dans un channel Discord à la demande ou automatiquement à un horaire défini.
 Inclut des commandes pour faire une sauvegarde manuelle et pour remplacer la base de données par un fichier .db fourni via un message Discord.
 """
-
 import asyncio
+import logging
 import os
 from datetime import datetime, time
 from pathlib import Path
@@ -23,9 +23,11 @@ from eldoria.config import (
     SAVE_ENABLED,
     SAVE_GUILD_ID,
 )
+from eldoria.exceptions.general import InvalidMessageId
 from eldoria.utils.db_validation import is_valid_sqlite_db
 from eldoria.utils.discord_utils import get_text_or_thread_channel
 
+log = logging.getLogger(__name__)
 
 class Saves(commands.Cog):
     """Cog de gestion des sauvegardes de la base de données SQLite.
@@ -72,29 +74,47 @@ class Saves(commands.Cog):
             tz = ZoneInfo(AUTO_SAVE_TZ)
             return time(hour=hour, minute=minute, tzinfo=tz)
         except Exception:
-            # En cas de config invalide, on désactive l'auto-save sans casser le bot.
+            log.warning(
+                "Configuration AUTO_SAVE_TIME invalide (%s). "
+                "Format attendu : HH:MM (ex: 03:30). "
+                "L'auto-save est désactivé.",
+                value,
+            )
             return None
 
     async def _send_db_backup(self, *, channel: discord.abc.Messageable, reason: str) -> None:
         """Fait une sauvegarde temporaire et envoie le .db dans le channel."""
-        if not os.path.exists(self.save.get_db_path()):
+        db_path = self.save.get_db_path()
+
+        if not os.path.exists(db_path):
+            log.warning("Sauvegarde DB impossible : fichier introuvable (%s)", db_path)
             await channel.send("Fichier DB introuvable !")
             return
 
         tmp_backup = "./temp_eldoria_backup.db"
-        await asyncio.to_thread(self.save.backup_to_file, tmp_backup)
-
-        filename = f"Eldoria_{datetime.now().strftime('%Y%m%d')}.db"
-        with open(tmp_backup, "rb") as f:
-            await channel.send(
-                content=reason,
-                file=discord.File(f, filename=filename),
-            )
 
         try:
-            os.remove(tmp_backup)
-        except OSError:
-            pass
+            await asyncio.to_thread(self.save.backup_to_file, tmp_backup)
+        except Exception:
+            log.exception("Échec lors de la création de la sauvegarde temporaire.")
+            return
+
+        filename = f"Eldoria_{datetime.now().strftime('%Y%m%d')}.db"
+
+        try:
+            with open(tmp_backup, "rb") as f:
+                await channel.send(
+                    content=reason,
+                    file=discord.File(f, filename=filename),
+                )
+        except Exception:
+            log.exception("Échec lors de l'envoi du fichier de sauvegarde.")
+            return
+        finally:
+            try:
+                os.remove(tmp_backup)
+            except OSError:
+                log.warning("Impossible de supprimer le fichier temporaire (%s)", tmp_backup)
 
     @tasks.loop(minutes=1)
     async def auto_save(self) -> None:
@@ -117,9 +137,7 @@ class Saves(commands.Cog):
             return
     
         channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
-        if channel is None:
-            return
-
+        
         await self._send_db_backup(
             channel=channel,
             reason="Sauvegarde automatique quotidienne du fichier SQLite.",
@@ -130,6 +148,14 @@ class Saves(commands.Cog):
     @auto_save.before_loop
     async def _wait_until_ready(self) -> None:
         await self.bot.wait_until_ready()
+
+    def cog_unload(self) -> None:
+        """Arrête la loop d'auto-save lors du déchargement du cog."""
+        try:
+            self.auto_save.cancel()
+            log.info("Loop d'auto-save arrêtée proprement.")
+        except Exception:
+            log.exception("Erreur lors de l'arrêt de la loop d'auto-save.")
 
     @commands.slash_command(name="manual_save", description="Envoie la base SQLite (.db) dans un channel précis", 
                             guild_ids=[SAVE_GUILD_ID] if SAVE_GUILD_ID else None)
@@ -149,9 +175,6 @@ class Saves(commands.Cog):
             return
 
         channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
-        if channel is None:
-            await ctx.followup.send(content="❌ Channel de save introuvable.")
-            return
 
         if not os.path.exists(self.save.get_db_path()):
             await channel.send("Fichier DB introuvable !")
@@ -165,12 +188,6 @@ class Saves(commands.Cog):
 
         await ctx.followup.send(content="✅ DB bien envoyée !")
 
-    def cog_unload(self) -> None:
-        """Arrête la loop d'auto-save lors du déchargement du cog."""
-        try:
-            self.auto_save.cancel()
-        except Exception:
-            pass
 
     @commands.slash_command(name="insert_db", description="Remplace la base de données SQLite par celle fournie (message_id dans le channel de save)", 
                             guild_ids=[SAVE_GUILD_ID] if SAVE_GUILD_ID else None,)
@@ -192,15 +209,10 @@ class Saves(commands.Cog):
             return
 
         channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
-        if channel is None:
-            await ctx.followup.send(content="❌ Channel de save introuvable.")
-            return
-
-        try:
-            msg = await channel.fetch_message(int(message_id))
-        except Exception:
-            await ctx.followup.send(content="❌ Message introuvable (vérifie l'ID).")
-            return
+        
+        if not message_id.isdigit():
+            raise InvalidMessageId()
+        msg = await channel.fetch_message(int(message_id))
 
         if not msg.attachments:
             await ctx.followup.send(content="❌ Aucun fichier attaché sur ce message.")
@@ -222,14 +234,12 @@ class Saves(commands.Cog):
         try:
             await asyncio.to_thread(self.save.replace_db_file, str(tmp_new))
             self.save.init_db()
-        except Exception as e:
-            try:
-                if tmp_new.exists():
+        finally:
+            if tmp_new.exists():
+                try:
                     tmp_new.unlink()
-            except OSError:
-                pass
-            await ctx.followup.send(content=f"❌ Erreur pendant la restauration : {e}")
-            return
+                except OSError:
+                    log.warning("Impossible de supprimer le fichier temporaire %s", tmp_new)
 
         # Suppression en base des channels temporaires inexistant
         for guild in self.bot.guilds:

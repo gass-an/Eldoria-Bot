@@ -55,10 +55,23 @@ def test_create_bot_sets_required_intents(monkeypatch):
     assert created["intents"] is intents_obj
 
 
-def test_main_raises_when_token_missing(monkeypatch):
+def test_main_runs_even_when_token_empty(monkeypatch):
     monkeypatch.setattr(mod, "TOKEN", "", raising=False)
-    with pytest.raises(RuntimeError, match="discord_token manquant"):
-        mod.main(123.0)
+    monkeypatch.setattr(mod, "startup_banner", lambda: "BANNER!", raising=True)
+
+    bot = FakeBot(intents=FakeIntents())
+    monkeypatch.setattr(mod, "create_bot", lambda: bot, raising=True)
+    monkeypatch.setattr(mod, "startup", lambda _b: None, raising=True)
+    monkeypatch.setattr(mod.time, "perf_counter", lambda: 0.0, raising=True)
+
+    class FakeLog:
+        def info(self, _msg):
+            pass
+
+    monkeypatch.setattr(mod, "log", FakeLog(), raising=True)
+
+    mod.main(123.0)
+    assert bot.ran_with == ""
 
 
 def test_main_happy_path_calls_startup_and_runs(monkeypatch, capsys):

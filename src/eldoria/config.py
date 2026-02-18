@@ -8,12 +8,14 @@ from typing import Final
 
 from dotenv import load_dotenv
 
+from eldoria.exceptions.config import IncompleteFeatureConfig, InvalidEnvVar, MissingEnvVar
+
 
 def env_str_required(name: str) -> str:
     """Récupère une variable d'environnement obligatoire et lève une exception si elle n'est pas définie."""
     value = os.getenv(name)
     if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
+        raise MissingEnvVar(name)
     return value
 
 
@@ -25,7 +27,7 @@ def env_int_optional(name: str) -> int | None:
     try:
         return int(value)
     except ValueError as e:
-        raise RuntimeError(f"Environment variable {name} must be an integer.") from e
+        raise InvalidEnvVar(name, "entier (ex: 123456789)") from e
 
 
 def env_str_optional(name: str) -> str | None:
@@ -53,7 +55,7 @@ if SAVE_ENABLED:
         ("CHANNEL_FOR_SAVE", SAVE_CHANNEL_ID),
     ] if v is None]
     if missing:
-        raise RuntimeError(f"La fonctionnalité de sauvegarde est activée mais les variables suivantes sont manquantes : {', '.join(missing)}")
+        raise IncompleteFeatureConfig("sauvegarde", missing)
     
     assert MY_ID is not None
     assert SAVE_GUILD_ID is not None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import eldoria.features.duel._internal.maintenance as m_mod
-from eldoria.exceptions.duel_exceptions import DuelAlreadyHandled
+from eldoria.exceptions.duel import DuelAlreadyHandled
 from eldoria.features.duel import constants
 from tests._fakes._db_fakes import FakeConnCM
 

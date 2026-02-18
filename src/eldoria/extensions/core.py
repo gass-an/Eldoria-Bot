@@ -10,7 +10,8 @@ import discord
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, MessageRequired
+from eldoria.exceptions.base import AppError
+from eldoria.exceptions.ui.messages import app_error_message
 from eldoria.ui.help.view import send_help_menu
 from eldoria.ui.version.embeds import build_version_embed
 from eldoria.utils.interactions import reply_ephemeral
@@ -42,6 +43,7 @@ class Core(commands.Cog):
             await self.bot.sync_commands()
         except Exception:
             log.exception("Erreur lors de la synchronisation des commandes")
+            
         started_at = getattr(self.bot, "_started_at", time.perf_counter())
         discord_started_at = getattr(self.bot, "_discord_started_at", time.perf_counter())
         
@@ -84,8 +86,8 @@ class Core(commands.Cog):
                                 replied_user=True,
                             ),
                         )
-        except Exception as e:
-            print(f"[XP] Erreur handle message: {e}")
+        except Exception:
+            log.exception("Erreur dans handle_message_xp (on_message)")
 
         # ---- Secret roles (message exact dans un salon)
         try:
@@ -105,8 +107,8 @@ class Core(commands.Cog):
                         await message.author.add_roles(role)
                     except (discord.Forbidden, discord.HTTPException):
                         pass
-        except Exception as e:
-            print(f"[SecretRole] Erreur: {e}")
+        except Exception:
+            log.exception("[SecretRole] Erreur dans le listener (on_message)")
 
         # Important si tu as encore des commandes préfixées (sinon harmless)
         await self.bot.process_commands(message)
@@ -142,18 +144,12 @@ class Core(commands.Cog):
         """
         err = getattr(error, "original", error)
 
-        if isinstance(err, GuildRequired):
-            await reply_ephemeral(interaction,"❌ Cette commande doit être utilisée sur un serveur.")
-            return
-        
-        if isinstance(err, ChannelRequired):
-            await reply_ephemeral(interaction, "❌ Impossible de retrouver le salon associé à cette action.")
+        # -------------------- Erreurs Métier --------------------
+        if isinstance(err, AppError):
+            await reply_ephemeral(interaction, app_error_message(err))
             return
 
-        if isinstance(err, MessageRequired):
-            await reply_ephemeral(interaction, "❌ Le message associé à cette action est introuvable.")
-            return
-
+        # -------------------- Erreurs Discord --------------------
         if isinstance(err, commands.MissingPermissions):
             missing = ", ".join(err.missing_permissions)
             await reply_ephemeral(interaction, f"❌ Permissions manquantes : **{missing}**.")
@@ -175,8 +171,23 @@ class Core(commands.Cog):
         if isinstance(err, commands.CheckFailure):
             await reply_ephemeral(interaction, "❌ Vous ne pouvez pas utiliser cette commande.")
             return
+        
+        if isinstance(err, discord.Forbidden):
+            await reply_ephemeral(interaction, "❌ Je n'ai pas les permissions nécessaires pour faire ça.")
+            return
 
-        print(f"[CommandError] {type(err).__name__}: {err}")
+        if isinstance(err, discord.NotFound):
+            await reply_ephemeral(interaction, "❌ Élément introuvable (il a peut-être été supprimé).")
+            return
+
+        if isinstance(err, discord.HTTPException):
+            await reply_ephemeral(interaction, "⚠️ Discord a eu un souci. Réessaie dans quelques secondes.")
+            return
+
+        log.error(
+            "Erreur inattendue lors de l'exécution de la commande",
+            exc_info=err
+        )
         await reply_ephemeral(interaction, "❌ Une erreur est survenue lors de l'exécution de la commande.")
 
 

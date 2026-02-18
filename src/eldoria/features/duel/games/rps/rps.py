@@ -5,7 +5,7 @@ from sqlite3 import Row
 from typing import Any
 
 from eldoria.db.repo.duel_repo import update_payload_if_unchanged
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from eldoria.features.duel._internal import helpers
 from eldoria.features.duel.games.protocol import DuelGame
@@ -14,18 +14,29 @@ from eldoria.features.duel.games.rps import rps_constants as rps
 
 # ---------------- helpers ------------------
 def load_rps_payload(duel: Row) -> dict:
-    """Charge le payload du duel et retourne un dictionnaire avec les coups joués par les joueurs, ou des valeurs par défaut si le payload est absent ou mal formé."""
-    try:
-        payload = duel["payload"]
-        if not payload:
-            raise ValueError
-        return json.loads(payload)
-    except Exception:
+    """Charge et retourne le payload d'un duel de RPS sous forme de dictionnaire.
+    
+    Si le payload est vide, retourne un dictionnaire avec les clés de coups initialisées à None.
+    Lève une exception si le payload n'est pas un JSON valide ou s'il n'est pas un dictionnaire.
+    """
+    payload = duel["payload"]
+
+    if payload is None:
         return {
             rps.RPS_PAYLOAD_VERSION: 1,
             rps.RPS_PAYLOAD_A_MOVE: None,
-            rps.RPS_PAYLOAD_B_MOVE: None
+            rps.RPS_PAYLOAD_B_MOVE: None,
         }
+
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as e:
+        raise exc.PayloadError() from e
+
+    if not isinstance(data, dict):
+        raise exc.PayloadError()
+
+    return data
 
 def who_is_moving(duel: Row, user_id: int) -> str:
     """Détermine si l'utilisateur est le joueur A ou le joueur B dans le duel.

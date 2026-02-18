@@ -3,8 +3,8 @@
 import discord
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.exceptions.duel_exceptions import DuelError
-from eldoria.exceptions.duel_ui_errors import duel_error_message
+from eldoria.exceptions.duel import DuelError
+from eldoria.exceptions.ui.duel_ui import duel_error_message
 from eldoria.json_tools.duels_json import get_duel_embed_data
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate

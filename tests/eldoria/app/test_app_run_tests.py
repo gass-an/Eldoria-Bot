@@ -210,7 +210,9 @@ ERROR tests/test_b.py::test_y - RuntimeError: nope
     monkeypatch.setenv("TESTS_STRICT", "1")
     logger = FakeLogger()
 
-    with pytest.raises(RuntimeError, match="Tests failed"):
+    from eldoria.exceptions.internal import TestsFailed
+
+    with pytest.raises(TestsFailed):
         mod.run_tests(logger=logger)
 
     assert any("Détails des échecs" in w for w in logger.warnings)
@@ -270,7 +272,9 @@ def test_run_tests_failure_parsing_ko_raises(monkeypatch):
     monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
 
     monkeypatch.setenv("TESTS_STRICT", "1")
-    with pytest.raises(RuntimeError, match="Tests failed"):
+    from eldoria.exceptions.internal import TestsFailed
+
+    with pytest.raises(TestsFailed):
         mod.run_tests(logger=FakeLogger())
 
 

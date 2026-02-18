@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from eldoria.exceptions.internal import TestsFailed
+
 log = logging.getLogger(__name__)
 
 _PYTEST_SUMMARY_RE = re.compile(
@@ -92,7 +94,7 @@ def run_tests(*, logger: logging.Logger | None = None) -> str | None:
         logger.warning("❌ Tests en échec (résumé indisponible)")
         # tente quand même d'afficher un résumé utile
         logger.warning("📌 Sortie pytest:\n%s", combined.strip()[-2000:])
-        raise RuntimeError("Tests failed")
+        raise TestsFailed()
 
     # ✅ Succès
     if failed == 0 and p.returncode == 0:
@@ -139,6 +141,6 @@ def run_tests(*, logger: logging.Logger | None = None) -> str | None:
 
     strict = os.getenv("TESTS_STRICT", "1") == "1"  # par défaut: on bloque
     if strict:
-        raise RuntimeError("Tests failed")
+        raise TestsFailed()
 
     return f"{failed} tests fails / {total}"

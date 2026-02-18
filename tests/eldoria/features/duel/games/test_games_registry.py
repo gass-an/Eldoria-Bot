@@ -28,7 +28,9 @@ def test_register_game_then_get_game_returns_instance():
 
 
 def test_require_game_raises_when_not_registered():
-    with pytest.raises(ValueError, match=r"Game not registered: MISSING"):
+    from eldoria.exceptions.duel import InvalidGameType
+
+    with pytest.raises(InvalidGameType):
         reg.require_game("MISSING")
 
 

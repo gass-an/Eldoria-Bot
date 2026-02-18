@@ -4,7 +4,7 @@ import re
 
 import discord
 
-from eldoria.exceptions.general_exceptions import ChannelRequired, GuildRequired, UserRequired
+from eldoria.exceptions.general import ChannelRequired, GuildRequired, MemberNotFound, UserRequired
 
 
 def extract_id_from_link(link: str) -> tuple[int | None, int | None, int | None]:
@@ -32,6 +32,8 @@ async def find_channel_id(bot: discord.Client, message_id: int, guild_id: int) -
             continue
         except discord.Forbidden:
             continue
+        except discord.HTTPException:
+            continue
     return None
 
 async def get_member_by_id_or_raise(guild: discord.Guild, member_id: int) -> discord.Member:
@@ -39,16 +41,16 @@ async def get_member_by_id_or_raise(guild: discord.Guild, member_id: int) -> dis
     member = guild.get_member(member_id)
     if member is not None:
         return member
-    
+
     try:
         return await guild.fetch_member(member_id)
-    except discord.NotFound:
-        raise ValueError(f"Member {member_id} not found in guild {guild.id}")
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+        raise MemberNotFound(guild.id, member_id) from e
 
 def require_member(user: discord.User | discord.Member) -> discord.Member:
     """Garantit qu'un utilisateur est un Member (contexte serveur), sinon lève une exception."""
     if not isinstance(user, discord.Member):
-        raise UserRequired("This action requires a guild member.")
+        raise UserRequired()
     return user
 
 async def get_text_or_thread_channel(bot: discord.Client, channel_id: int) -> discord.TextChannel | discord.Thread | discord.DMChannel:
@@ -58,15 +60,26 @@ async def get_text_or_thread_channel(bot: discord.Client, channel_id: int) -> di
     """
     channel = bot.get_channel(channel_id)
     if channel is None:
-        channel = await bot.fetch_channel(channel_id)
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            raise ChannelRequired()
 
-    if not isinstance(
-        channel,
-        (discord.TextChannel, discord.Thread, discord.DMChannel),
-    ):
-        raise ChannelRequired("Channel is not messageable")
+    if not isinstance(channel, (discord.TextChannel, discord.Thread, discord.DMChannel)):
+        raise ChannelRequired()
 
     return channel
+
+def require_guild_ctx(ctx: discord.ApplicationContext) -> tuple[discord.Guild, discord.abc.GuildChannel]:
+    """Garantit que la commande est exécutée dans une guild et un channel valide."""
+    if ctx.guild is None:
+        raise GuildRequired()
+
+    if ctx.channel is None or not isinstance(ctx.channel, discord.abc.GuildChannel):
+        raise ChannelRequired()
+
+    return ctx.guild, ctx.channel
+
 
 def require_guild(interaction: discord.Interaction) -> discord.Guild:
     """Extrait le serveur d'une interaction, ou lève une exception si elle n'est pas dans un contexte de serveur."""

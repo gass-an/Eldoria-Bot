@@ -431,7 +431,7 @@ async def test_on_message_xp_levelup_replies_with_mentions(core_module):
 
 
 @pytest.mark.asyncio
-async def test_on_message_xp_exception_is_caught_and_does_not_stop(core_module, capsys):
+async def test_on_message_xp_exception_is_caught_and_does_not_stop(core_module, caplog):
     Core = core_module.Core
 
     bot = FakeBot()
@@ -445,8 +445,7 @@ async def test_on_message_xp_exception_is_caught_and_does_not_stop(core_module, 
 
     await cog.on_message(msg)
 
-    out = capsys.readouterr().out
-    assert "[XP] Erreur handle message" in out
+    assert "Erreur dans handle_message_xp" in caplog.text
     # même si xp plante, on traite quand même les commandes
     bot.process_commands.assert_awaited_once_with(msg)
 
@@ -519,7 +518,7 @@ async def test_on_message_secret_role_add_roles_forbidden_is_ignored(core_module
 
 
 @pytest.mark.asyncio
-async def test_on_message_secret_role_exception_is_caught(core_module, capsys):
+async def test_on_message_secret_role_exception_is_caught(core_module, caplog):
     Core = core_module.Core
 
     bot = FakeBot()
@@ -533,8 +532,7 @@ async def test_on_message_secret_role_exception_is_caught(core_module, capsys):
 
     await cog.on_message(msg)
 
-    out = capsys.readouterr().out
-    assert "[SecretRole] Erreur" in out
+    assert "[SecretRole] Erreur" in caplog.text
     bot.process_commands.assert_awaited_once_with(msg)
 
 
@@ -554,7 +552,7 @@ async def test_on_message_secret_role_exception_is_caught(core_module, capsys):
 )
 async def test_on_application_command_error_custom_exceptions(core_module, exc, expected):
     Core = core_module.Core
-    from eldoria.exceptions import general_exceptions as excs  # type: ignore
+    from eldoria.exceptions import general as excs
     from eldoria.utils import interactions as interactions_mod  # type: ignore
 
     bot = FakeBot()
@@ -665,7 +663,7 @@ async def test_on_application_command_error_check_failure(core_module):
 @pytest.mark.asyncio
 async def test_on_application_command_error_uses_original_error(core_module):
     Core = core_module.Core
-    from eldoria.exceptions import general_exceptions as excs  # type: ignore
+    from eldoria.exceptions import general as excs
     from eldoria.utils import interactions as interactions_mod  # type: ignore
 
     bot = FakeBot()
@@ -683,7 +681,7 @@ async def test_on_application_command_error_uses_original_error(core_module):
 
 
 @pytest.mark.asyncio
-async def test_on_application_command_error_falls_back_to_generic_message(core_module, capsys):
+async def test_on_application_command_error_falls_back_to_generic_message(core_module, caplog):
     Core = core_module.Core
     from eldoria.utils import interactions as interactions_mod  # type: ignore
 
@@ -694,8 +692,7 @@ async def test_on_application_command_error_falls_back_to_generic_message(core_m
     err = RuntimeError("boom")
     await cog.on_application_command_error(interaction, err)
 
-    out = capsys.readouterr().out
-    assert "[CommandError] RuntimeError" in out
+    assert "Erreur inattendue lors de l'exécution de la commande" in caplog.text
     interactions_mod.reply_ephemeral.assert_awaited_with(
         interaction, "❌ Une erreur est survenue lors de l'exécution de la commande."
     )

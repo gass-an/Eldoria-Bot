@@ -7,7 +7,7 @@ from typing import Any, cast
 from eldoria.db.connection import get_conn
 from eldoria.db.repo.duel_repo import get_duel_by_id, transition_status, update_duel_if_status
 from eldoria.db.repo.xp_repo import xp_add_xp, xp_get_member
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
 from eldoria.utils.timestamp import now_ts
 
@@ -79,7 +79,7 @@ def load_payload_any(duel: Row) -> dict[str, Any]:
         if not raw:
             return {}
         return cast(dict[str, Any], json.loads(raw))
-    except Exception:
+    except (TypeError, json.JSONDecodeError):
         return {}
 
 def dump_payload(payload: dict[str, Any]) -> str:

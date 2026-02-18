@@ -4,27 +4,24 @@ Permet de défier un autre membre, d'accepter ou refuser le duel, et gère les r
 ainsi que les conséquences sur l'XP des joueurs.
 Inclut également une loop pour annuler les duels expirés et mettre à jour l'interface utilisateur en conséquence.
 """
+import logging
+
 import discord
 from discord.ext import commands, tasks
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.exceptions.duel_exceptions import DuelError
-from eldoria.exceptions.duel_ui_errors import duel_error_message
+from eldoria.exceptions.base import AppError
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed
-from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
+from eldoria.utils.discord_utils import (
+    get_member_by_id_or_raise,
+    get_text_or_thread_channel,
+    require_guild_ctx,
+)
 from eldoria.utils.timestamp import now_ts
 
-
-def require_guild_ctx(ctx: discord.ApplicationContext) -> tuple[discord.Guild, discord.abc.GuildChannel]:
-    """Extrait la guild et le channel d'un contexte de commande, ou lève une exception si le contexte n'est pas dans une guild ou un channel."""
-    if ctx.guild is None or ctx.channel is None:
-        raise RuntimeError("Command used outside guild")
-    
-    if ctx.channel is None or not isinstance(ctx.channel, discord.abc.GuildChannel):
-        raise RuntimeError("Command used outside guild channel")
-    return ctx.guild, ctx.channel
+log = logging.getLogger(__name__)
 
 class Duels(commands.Cog):
     """Cog gérant les duels entre membres, avec des paris d'XP.
@@ -63,9 +60,21 @@ class Duels(commands.Cog):
         for info in expired:
             try:
                 await self._apply_expired_ui(info)
-            except Exception:
-                # On ne casse pas la loop pour un message supprimé / perms / etc.
+            except AppError as e:
+                log.warning(
+                    "Une erreur s'est produite lors de l'application de l'UI des duels expirés (duel_id=%s)",
+                    info.get("duel_id"),
+                    exc_info=e,
+                )
                 continue
+
+            except Exception:
+                log.exception(
+                    "Une erreur inattendue s'est produite lors de l'application de l'UI des duels expirés (duel_id=%s)",
+                    info.get("duel_id"),
+                )
+                continue
+            
             if info.get("xp_changed"):
                 guild = self.bot.get_guild(info["guild_id"])
                 if guild is None:
@@ -136,12 +145,7 @@ class Duels(commands.Cog):
             await ctx.followup.send(content="😅 Tu ne peux pas te défier toi-même.", ephemeral=True)
             return
 
-        try:
-            guild, channel = require_guild_ctx(ctx)
-        except RuntimeError:
-            await ctx.respond("❌ Utilisable uniquement sur un serveur.", ephemeral=True)
-            return
-
+        guild, channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
         if not self.xp.is_enabled(guild_id):
@@ -153,11 +157,7 @@ class Duels(commands.Cog):
         player_a_id = ctx.user.id
         player_b_id = member.id
 
-        try:
-            snapshot = self.duel.new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
-        except DuelError as e:
-            await ctx.followup.send(duel_error_message(e), ephemeral=True)
-            return
+        snapshot = self.duel.new_duel(guild_id=guild_id, channel_id=channel_id, player_a_id=player_a_id, player_b_id=player_b_id)
         
         expires_at = snapshot["duel"]["expires_at"]
         duel_id = snapshot["duel"]["id"]

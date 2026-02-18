@@ -11,6 +11,7 @@ def install_discord_stub() -> None:
             sys.modules.pop(name, None)
 
     discord_mod = ModuleType("discord")
+    discord_mod.__version__ = "0.0-stub"
 
     # ---- discord.abc ----
     abc_mod = ModuleType("discord.abc")
@@ -185,7 +186,14 @@ def install_discord_stub() -> None:
         return []
 
     class Intents:  # pragma: no cover
-        pass
+        def __init__(self):
+            self.message_content = False
+            self.guilds = False
+            self.members = False
+
+        @classmethod
+        def default(cls):
+            return cls()
 
     class AutocompleteContext:
         def __init__(self):

@@ -8,7 +8,7 @@ from sqlite3 import Row
 from typing import Any, cast
 
 from eldoria.db.repo.xp_repo import xp_get_levels, xp_get_role_ids
-from eldoria.exceptions import duel_exceptions as exc
+from eldoria.exceptions import duel as exc
 from eldoria.features.duel._internal import helpers
 from eldoria.features.duel.games.registry import require_game
 from eldoria.features.xp.levels import compute_level

@@ -495,8 +495,9 @@ async def test_add_reaction_role_handles_notfound_and_forbidden(monkeypatch):
 
     # NotFound during reaction add (or role ops)
     msg._raise_add_reaction = discord.NotFound()
-    await cog.add_reaction_role(ctx, "link", "🔥", _FakeRole(42, position=1))
-    assert ctx.followup.sent[-1]["content"] == "Message ou canal introuvable."
+    with pytest.raises(discord.NotFound):
+        await cog.add_reaction_role(ctx, "link", "🔥", _FakeRole(42, position=1))
+
 
     # Forbidden
     ctx2 = _FakeCtx(guild=guild, user=_FakeMember(1))
@@ -504,8 +505,9 @@ async def test_add_reaction_role_handles_notfound_and_forbidden(monkeypatch):
     msg2._raise_add_reaction = discord.Forbidden()
     bot._channels[778] = _FakeChannel(msg2)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
-    await cog.add_reaction_role(ctx2, "link", "🔥", _FakeRole(42, position=1))
-    assert "Un problème est survenu" in ctx2.followup.sent[-1]["content"]
+    with pytest.raises(discord.Forbidden):
+        await cog.add_reaction_role(ctx2, "link", "🔥", _FakeRole(42, position=1))
+
 
 
 @pytest.mark.asyncio
@@ -574,8 +576,9 @@ async def test_remove_specific_reaction_success_and_forbidden(monkeypatch):
     msg2._raise_clear_reaction = discord.Forbidden()
     bot._channels[778] = _FakeChannel(msg2)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
-    await cog.remove_specific_reaction(ctx2, "link", "🔥")
-    assert ctx2.followup.sent[-1]["content"] == "Je n'ai pas la permission de supprimer les réactions."
+
+    with pytest.raises(discord.Forbidden):
+        await cog.remove_specific_reaction(ctx2, "link", "🔥")
 
 
 # ---------- Tests: /remove_all_reactions ----------
@@ -615,8 +618,9 @@ async def test_remove_all_reactions_success_and_forbidden(monkeypatch):
     msg2._raise_clear_reactions = discord.Forbidden()
     bot._channels[778] = _FakeChannel(msg2)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
-    await cog.remove_all_reactions(ctx2, "link")
-    assert ctx2.followup.sent[-1]["content"] == "Je n'ai pas la permission de supprimer les réactions."
+    with pytest.raises(discord.Forbidden):
+        await cog.remove_all_reactions(ctx2, "link")
+
 
 
 # ---------- Tests: /list_of_reaction_roles ----------

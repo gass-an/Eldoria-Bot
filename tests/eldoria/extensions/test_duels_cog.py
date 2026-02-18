@@ -239,9 +239,12 @@ def test_require_guild_ctx_ok():
 
 
 def test_require_guild_ctx_raises_outside_guild():
+    from eldoria.exceptions.general import GuildRequired
+
     ctx = _FakeCtx(guild=None, channel=None, user=_FakeMember(1))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(GuildRequired):
         require_guild_ctx(ctx)
+
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +490,9 @@ async def test_duel_command_rejects_self(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_duel_command_outside_guild_respond(monkeypatch):
+async def test_duel_command_outside_guild_raises(monkeypatch):
+    from eldoria.exceptions.general import GuildRequired
+
     duel = _FakeDuelService()
     xp = _FakeXpService()
     bot = _FakeBot(duel_service=duel, xp_service=xp)
@@ -496,9 +501,9 @@ async def test_duel_command_outside_guild_respond(monkeypatch):
     ctx = _FakeCtx(guild=None, channel=None, user=_FakeMember(1))
     member = _FakeMember(2)
 
-    await d.duel_command(ctx, member)
+    with pytest.raises(GuildRequired):
+        await d.duel_command(ctx, member)
 
-    assert ctx.responded == [{"content": "❌ Utilisable uniquement sur un serveur.", "ephemeral": True}]
     assert duel.new_duel_calls == []
 
 
@@ -530,9 +535,9 @@ async def test_duel_command_xp_disabled_sends_embed(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_duel_command_duel_error(monkeypatch):
-    # DuelError est importé dans le module; on le récupère depuis là
-    DuelError = duels_mod.DuelError
+    from eldoria.exceptions.duel import DuelError
 
     duel = _FakeDuelService()
     duel._new_duel_side_effect = DuelError("nope")
@@ -540,15 +545,14 @@ async def test_duel_command_duel_error(monkeypatch):
     bot = _FakeBot(duel_service=duel, xp_service=xp)
     d = Duels(bot)
 
-    monkeypatch.setattr(duels_mod, "duel_error_message", lambda e: f"ERR:{e}")
-
     ctx = _FakeCtx(guild=_FakeGuild(123), channel=_FakeChannel(99), user=_FakeMember(1))
     member = _FakeMember(2)
 
-    await d.duel_command(ctx, member)
+    with pytest.raises(DuelError):
+        await d.duel_command(ctx, member)
 
-    assert ctx.followup.sent[-1]["content"] == "ERR:nope"
     assert duel.new_duel_calls == [(123, 99, 1, 2)]
+
 
 
 @pytest.mark.asyncio

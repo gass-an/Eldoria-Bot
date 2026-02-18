@@ -69,12 +69,8 @@ class SecretRoles(commands.Cog):
             )
             return
 
-        try:
-            await bot_member.add_roles(role)
-            await bot_member.remove_roles(role)
-        except discord.Forbidden:
-            await ctx.followup.send(content="Je n'ai pas le droit de gérer ce rôle.")
-            return
+        await bot_member.add_roles(role)
+        await bot_member.remove_roles(role)
 
         self.role.sr_upsert(guild_id, channel_id, message_str, role.id)
         await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
