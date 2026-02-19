@@ -10,6 +10,8 @@ from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.welcome.embeds import build_welcome_embed
+from eldoria.ui.welcome.panel import WelcomePanelView
+from eldoria.utils.discord_utils import require_guild_ctx
 
 log = logging.getLogger(__name__)
 
@@ -89,81 +91,17 @@ class WelcomeMessage(commands.Cog):
 
 
     # -------------------- Commands --------------------
-    @commands.slash_command(name="welcome_setup", description="(Admin) Définit le salon des messages d'arrivée et active la fonctionnalité.")
-    @discord.option("channel", discord.TextChannel, description="Salon où envoyer les messages de bienvenue")
+    @commands.slash_command(name="welcome", description="(Admin) Configure les messages de bienvenue via un panneau interactif.")
     @discord.default_permissions(manage_guild=True)
     @commands.has_permissions(manage_guild=True)
-    async def welcome_setup(self, ctx: discord.ApplicationContext, channel: discord.TextChannel) -> None:
-        """Commande slash /welcome_setup : défini le salon des messages d'arrivée et active la fonctionnalité.
-        
-        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
-        et met à jour la configuration dans la base de données pour définir le salon de bienvenue et activer les messages de bienvenue.
-        """
+    async def welcome_panel(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /welcome : panneau interactif (activer/désactiver + choix salon)."""
         await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
+        guild, _channel = require_guild_ctx(ctx)
 
-        guild_id = ctx.guild.id
-
-        # channel_id est NOT NULL -> on s'assure que la ligne existe
-        self.welcome.ensure_defaults(guild_id)
-        self.welcome.set_config(guild_id, channel_id=channel.id, enabled=True)
-
-        await ctx.followup.send(
-            content=f"✅ Messages de bienvenue configurés dans {channel.mention} et **activés**.",
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-
-    @commands.slash_command(name="welcome_enable", description="(Admin) Active les messages d'arrivée.")
-    @discord.default_permissions(manage_guild=True)
-    @commands.has_permissions(manage_guild=True)
-    async def welcome_enable(self, ctx: discord.ApplicationContext) -> None:
-        """Commande slash /welcome_enable : active les messages de bienvenue pour le serveur.
-        
-        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
-        et met à jour la configuration dans la base de données pour activer les messages de bienvenue.
-        Si aucun salon n'est configuré, invite l'utilisateur à utiliser /welcome_setup.
-        """
-        await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
-
-        guild_id = ctx.guild.id
-        self.welcome.ensure_defaults(guild_id)
-
-        channel_id = self.welcome.get_channel_id(guild_id)
-        if not channel_id:
-            await ctx.followup.send(
-                content=(
-                    "⚠️ Aucun salon de bienvenue n'est configuré. "
-                    "Utilise `/welcome_setup` pour choisir un salon."
-                )
-            )
-            return
-
-        self.welcome.set_enabled(guild_id, True)
-        await ctx.followup.send(content="✅ Messages de bienvenue **activés**.")
-
-    @commands.slash_command(name="welcome_disable", description="(Admin) Désactive les messages d'arrivée.")
-    @discord.default_permissions(manage_guild=True)
-    @commands.has_permissions(manage_guild=True)
-    async def welcome_disable(self, ctx: discord.ApplicationContext) -> None:
-        """Commande slash /welcome_disable : désactive les messages de bienvenue pour le serveur.
-        
-        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité,
-        et met à jour la configuration dans la base de données pour désactiver les messages de bienvenue.
-        """
-        await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
-
-        guild_id = ctx.guild.id
-        self.welcome.ensure_defaults(guild_id)
-        self.welcome.set_enabled(guild_id, False)
-        await ctx.followup.send(content="⛔ Messages de bienvenue **désactivés**.")
+        view = WelcomePanelView(welcome_service=self.welcome, author_id=ctx.author.id, guild=guild)
+        embed, files = view.current_embed()
+        await ctx.followup.send(embed=embed, files=files, view=view, ephemeral=True)
 
 
 

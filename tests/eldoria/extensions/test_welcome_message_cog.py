@@ -1,113 +1,18 @@
 from __future__ import annotations
 
-import sys
-import types
-
+import discord  # type: ignore
 import pytest
 
-
-# ---------- Local stubs / shims (complements tests/conftest.py stubs) ----------
-def _ensure_discord_stubs() -> None:
-    """
-    Ensure minimal discord.py surface used by this cog exists at import-time.
-    The source does not use `from __future__ import annotations`, so typing
-    annotations are evaluated at import time.
-    """
-    if "discord" not in sys.modules:
-        sys.modules["discord"] = types.ModuleType("discord")
-    discord = sys.modules["discord"]
-
-    # Exceptions
-    for exc_name in ("Forbidden", "HTTPException", "NotFound"):
-        if not hasattr(discord, exc_name):
-            setattr(discord, exc_name, type(exc_name, (Exception,), {}))
-
-    # Types used
-    if not hasattr(discord, "ApplicationContext"):
-        class ApplicationContext:  # pragma: no cover
-            pass
-        discord.ApplicationContext = ApplicationContext
-
-    if not hasattr(discord, "Member"):
-        class Member:  # pragma: no cover
-            pass
-        discord.Member = Member
-
-    if not hasattr(discord, "TextChannel"):
-        class TextChannel:  # pragma: no cover
-            pass
-        discord.TextChannel = TextChannel
-
-    if not hasattr(discord, "Thread"):
-        class Thread:  # pragma: no cover
-            pass
-        discord.Thread = Thread
-
-    if not hasattr(discord, "AllowedMentions"):
-        class AllowedMentions:  # pragma: no cover
-            @staticmethod
-            def none():
-                return "ALLOWED_MENTIONS_NONE"
-        discord.AllowedMentions = AllowedMentions
-
-    # Decorators
-    if not hasattr(discord, "option"):
-        def option(*_a, **_k):  # pragma: no cover
-            def deco(fn):
-                return fn
-            return deco
-        discord.option = option
-
-    if not hasattr(discord, "default_permissions"):
-        def default_permissions(**_k):  # pragma: no cover
-            def deco(fn):
-                return fn
-            return deco
-        discord.default_permissions = default_permissions
-
-    # discord.ext.commands
-    if "discord.ext" not in sys.modules:
-        sys.modules["discord.ext"] = types.ModuleType("discord.ext")
-    if "discord.ext.commands" not in sys.modules:
-        sys.modules["discord.ext.commands"] = types.ModuleType("discord.ext.commands")
-    commands = sys.modules["discord.ext.commands"]
-
-    if not hasattr(commands, "Cog"):
-        class Cog:  # pragma: no cover
-            @classmethod
-            def listener(cls, *_a, **_k):
-                def deco(fn):
-                    return fn
-                return deco
-        commands.Cog = Cog
-
-    if not hasattr(commands, "slash_command"):
-        def slash_command(*_a, **_k):  # pragma: no cover
-            def deco(fn):
-                return fn
-            return deco
-        commands.slash_command = slash_command
-
-    if not hasattr(commands, "has_permissions"):
-        def has_permissions(**_k):  # pragma: no cover
-            def deco(fn):
-                return fn
-            return deco
-        commands.has_permissions = has_permissions
-
-
-_ensure_discord_stubs()
-
-# ---------- Import module under test (adjust if needed) ----------
-import eldoria.extensions.welcome_message as wm_mod  # noqa: E402
-from eldoria.extensions.welcome_message import WelcomeMessage, setup  # noqa: E402
+import eldoria.extensions.welcome_message as wm_mod
+from eldoria.extensions.welcome_message import WelcomeMessage, setup
 
 
 # ---------- Fakes ----------
 class _FakeMessage:
-    def __init__(self):
-        self.reactions = []
-        self._raise_add_reaction = None
+    def __init__(self, message_id: int = 42):
+        self.id = message_id
+        self.reactions: list[str] = []
+        self._raise_add_reaction: Exception | None = None
 
     async def add_reaction(self, emoji: str):
         if self._raise_add_reaction:
@@ -118,26 +23,20 @@ class _FakeMessage:
 class _BaseChannel:
     def __init__(self, channel_id: int):
         self.id = channel_id
-        self.sent = []
+        self.sent: list[dict] = []
 
     async def send(self, **kwargs):
         self.sent.append(kwargs)
         return _FakeMessage()
 
 
-discord = sys.modules["discord"]
-
-class _FakeTextChannel(_BaseChannel, discord.TextChannel):
-    def __init__(self, channel_id: int, mention: str | None = None):
+class _FakeTextChannel(_BaseChannel, discord.TextChannel):  # type: ignore[misc]
+    def __init__(self, channel_id: int):
         super().__init__(channel_id)
-        self.mention = mention or f"<#{channel_id}>"
-
-class _FakeThread(_BaseChannel, discord.Thread):
-    pass
+        self.mention = f"<#{channel_id}>"
 
 
 class _OtherChannel:
-    """Not TextChannel/Thread -> should be ignored."""
     def __init__(self, channel_id: int):
         self.id = channel_id
 
@@ -145,7 +44,7 @@ class _OtherChannel:
 class _FakeGuild:
     def __init__(self, guild_id: int):
         self.id = guild_id
-        self._channels = {}
+        self._channels: dict[int, object] = {}
 
     def get_channel(self, channel_id: int):
         return self._channels.get(channel_id)
@@ -160,49 +59,38 @@ class _FakeMember:
 
 class _FakeFollowup:
     def __init__(self):
-        self.sent = []
+        self.sent: list[dict] = []
 
     async def send(self, **kwargs):
         self.sent.append(kwargs)
 
 
+class _FakeAuthor:
+    def __init__(self, user_id: int):
+        self.id = user_id
+
+
 class _FakeCtx:
-    def __init__(self, guild=None):
+    def __init__(self, *, guild, author_id: int = 123):
         self.guild = guild
+        self.author = _FakeAuthor(author_id)
         self.followup = _FakeFollowup()
         self.deferred = False
-        self.responded = []
+        self.defer_ephemeral: bool | None = None
 
     async def defer(self, ephemeral: bool = False):
         self.deferred = True
         self.defer_ephemeral = ephemeral
 
-    async def respond(self, content: str, ephemeral: bool = False):
-        self.responded.append({"content": content, "ephemeral": ephemeral})
-
 
 class _FakeWelcomeService:
     def __init__(self):
-        self.calls = []
+        self.calls: list[tuple] = []
         self._config = {"enabled": False, "channel_id": 0}
-        self._channel_id = 0
 
     def get_config(self, guild_id: int):
         self.calls.append(("get_config", guild_id))
         return dict(self._config)
-
-    def ensure_defaults(self, guild_id: int):
-        self.calls.append(("ensure_defaults", guild_id))
-
-    def set_config(self, guild_id: int, **kwargs):
-        self.calls.append(("set_config", guild_id, kwargs))
-
-    def get_channel_id(self, guild_id: int):
-        self.calls.append(("get_channel_id", guild_id))
-        return self._channel_id
-
-    def set_enabled(self, guild_id: int, enabled: bool):
-        self.calls.append(("set_enabled", guild_id, enabled))
 
 
 class _FakeServices:
@@ -223,10 +111,9 @@ class _FakeBot:
 
 # ---------- Tests: on_member_join ----------
 @pytest.mark.asyncio
-async def test_on_member_join_noop_when_disabled(monkeypatch):
+async def test_on_member_join_noop_when_disabled():
     welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
+    cog = WelcomeMessage(_FakeBot(welcome))
 
     guild = _FakeGuild(111)
     member = _FakeMember(1, guild)
@@ -234,16 +121,13 @@ async def test_on_member_join_noop_when_disabled(monkeypatch):
     welcome._config = {"enabled": False, "channel_id": 123}
 
     await cog.on_member_join(member)
-
-    # no channel send
     assert welcome.calls == [("get_config", 111)]
 
 
 @pytest.mark.asyncio
 async def test_on_member_join_noop_when_no_channel_id():
     welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
+    cog = WelcomeMessage(_FakeBot(welcome))
 
     guild = _FakeGuild(111)
     member = _FakeMember(1, guild)
@@ -255,20 +139,20 @@ async def test_on_member_join_noop_when_no_channel_id():
 
 
 @pytest.mark.asyncio
-async def test_on_member_join_noop_when_channel_missing_or_wrong_type(monkeypatch):
+async def test_on_member_join_ignores_missing_or_wrong_channel_type():
     welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
+    cog = WelcomeMessage(_FakeBot(welcome))
 
     guild = _FakeGuild(111)
     member = _FakeMember(1, guild)
 
-    # Channel missing
     welcome._config = {"enabled": True, "channel_id": 555}
+
+    # missing
     await cog.on_member_join(member)
     assert welcome.calls == [("get_config", 111)]
 
-    # Wrong type
+    # wrong type
     welcome.calls.clear()
     guild._channels[555] = _OtherChannel(555)
     await cog.on_member_join(member)
@@ -276,7 +160,7 @@ async def test_on_member_join_noop_when_channel_missing_or_wrong_type(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_on_member_join_sends_message_and_adds_reactions(monkeypatch):
+async def test_on_member_join_sends_message_and_reactions(monkeypatch):
     welcome = _FakeWelcomeService()
     bot = _FakeBot(welcome)
     cog = WelcomeMessage(bot)
@@ -302,8 +186,7 @@ async def test_on_member_join_sends_message_and_adds_reactions(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_on_member_join_ignores_reaction_failures(monkeypatch):
-    discord = sys.modules["discord"]
+async def test_on_member_join_reaction_failure_does_not_crash(monkeypatch):
     welcome = _FakeWelcomeService()
     bot = _FakeBot(welcome)
     cog = WelcomeMessage(bot)
@@ -320,146 +203,70 @@ async def test_on_member_join_ignores_reaction_failures(monkeypatch):
 
     monkeypatch.setattr(wm_mod, "build_welcome_embed", fake_build_welcome_embed, raising=True)
 
-    # Make first reaction fail
-    msg = _FakeMessage()
-    msg._raise_add_reaction = discord.Forbidden()
+    msg = _FakeMessage(message_id=777)
+    msg._raise_add_reaction = discord.Forbidden()  # type: ignore[call-arg]
+
     async def fake_send(**kwargs):
         ch.sent.append(kwargs)
         return msg
+
     ch.send = fake_send  # type: ignore[assignment]
 
     await cog.on_member_join(member)
-    # even if reactions fail, it should not crash; send happened
     assert len(ch.sent) == 1
 
 
 @pytest.mark.asyncio
-async def test_on_member_join_is_fully_safe_on_any_exception(monkeypatch):
+async def test_on_member_join_is_fully_safe(monkeypatch):
     welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
+    cog = WelcomeMessage(_FakeBot(welcome))
 
     guild = _FakeGuild(111)
     member = _FakeMember(1, guild)
-
     welcome._config = {"enabled": True, "channel_id": 555}
 
     def boom(_guild_id):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(welcome, "get_config", boom, raising=True)
-
-    # Should not raise
-    await cog.on_member_join(member)
+    await cog.on_member_join(member)  # should not raise
 
 
-# ---------- Tests: /welcome_setup ----------
+# ---------- Tests: /welcome (panel) ----------
 @pytest.mark.asyncio
-async def test_welcome_setup_requires_guild():
+async def test_welcome_panel_defers_and_sends(monkeypatch):
     welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-    ctx = _FakeCtx(guild=None)
-
-    await cog.welcome_setup(ctx, _FakeTextChannel(1))
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
-
-
-@pytest.mark.asyncio
-async def test_welcome_setup_sets_config_and_confirms(monkeypatch):
-    discord = sys.modules["discord"]
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
+    cog = WelcomeMessage(_FakeBot(welcome))
 
     guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-    ch = _FakeTextChannel(555, mention="#welcome")
+    ctx = _FakeCtx(guild=guild, author_id=456)
 
-    await cog.welcome_setup(ctx, ch)
+    def fake_require_guild_ctx(passed_ctx):
+        assert passed_ctx is ctx
+        return (guild, None)
 
-    assert ("ensure_defaults", 111) in welcome.calls
-    assert ("set_config", 111, {"channel_id": 555, "enabled": True}) in welcome.calls
+    class _FakeView:
+        def __init__(self, *, welcome_service, author_id, guild):
+            assert welcome_service is welcome
+            assert author_id == 456
+            assert guild is guild
+
+        def current_embed(self):
+            return ("PANEL_EMBED", ["FILE1"])
+
+    monkeypatch.setattr(wm_mod, "require_guild_ctx", fake_require_guild_ctx, raising=True)
+    monkeypatch.setattr(wm_mod, "WelcomePanelView", _FakeView, raising=True)
+
+    await cog.welcome_panel(ctx)
+
+    assert ctx.deferred is True
+    assert ctx.defer_ephemeral is True
 
     sent = ctx.followup.sent[-1]
-    assert "configurés" in sent["content"]
-    assert sent["allowed_mentions"] == discord.AllowedMentions.none()
-
-
-# ---------- Tests: /welcome_enable ----------
-@pytest.mark.asyncio
-async def test_welcome_enable_requires_guild():
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-    ctx = _FakeCtx(guild=None)
-
-    await cog.welcome_enable(ctx)
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
-
-
-@pytest.mark.asyncio
-async def test_welcome_enable_requires_channel_setup():
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-
-    guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-
-    welcome._channel_id = 0
-    await cog.welcome_enable(ctx)
-
-    assert ("ensure_defaults", 111) in welcome.calls
-    assert ("get_channel_id", 111) in welcome.calls
-    assert "Aucun salon de bienvenue" in ctx.followup.sent[-1]["content"]
-
-
-@pytest.mark.asyncio
-async def test_welcome_enable_sets_enabled_when_channel_configured():
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-
-    guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-
-    welcome._channel_id = 555
-    await cog.welcome_enable(ctx)
-
-    assert ("set_enabled", 111, True) in welcome.calls
-    assert "activés" in ctx.followup.sent[-1]["content"]
-
-
-# ---------- Tests: /welcome_disable ----------
-@pytest.mark.asyncio
-async def test_welcome_disable_requires_guild():
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-    ctx = _FakeCtx(guild=None)
-
-    await cog.welcome_disable(ctx)
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
-
-
-@pytest.mark.asyncio
-async def test_welcome_disable_sets_enabled_false():
-    welcome = _FakeWelcomeService()
-    bot = _FakeBot(welcome)
-    cog = WelcomeMessage(bot)
-
-    guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-
-    await cog.welcome_disable(ctx)
-
-    assert ("ensure_defaults", 111) in welcome.calls
-    assert ("set_enabled", 111, False) in welcome.calls
-    assert "désactivés" in ctx.followup.sent[-1]["content"]
+    assert sent["embed"] == "PANEL_EMBED"
+    assert sent["files"] == ["FILE1"]
+    assert sent["ephemeral"] is True
+    assert isinstance(sent["view"], _FakeView)
 
 
 # ---------- Tests: setup ----------

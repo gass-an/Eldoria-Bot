@@ -325,12 +325,17 @@ def install_discord_stub() -> None:
 
         def __eq__(self, other):
             return isinstance(other, AllowedMentions) and self.kw == other.kw
+    
+    def slash_command(*_a, **_k):
+        return _passthrough_decorator()
+
 
     commands_mod.Cog = Cog
     commands_mod.Bot = Bot
     commands_mod.AutoShardedBot = AutoShardedBot
     commands_mod.when_mentioned = when_mentioned
     commands_mod.has_permissions = has_permissions
+    commands_mod.slash_command = slash_command
 
     # ---- discord.commands (py-cord) ----
     commands_root_mod = ModuleType("discord.commands")
