@@ -6,6 +6,7 @@ supprimer et lister les associations de réactions et de rôles.
 import logging
 
 import discord
+from discord.commands import SlashCommandGroup
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
@@ -22,6 +23,11 @@ class ReactionRoles(commands.Cog):
     supprimer et lister les associations de réactions et de rôles.
     """
 
+    reactionrole = SlashCommandGroup(
+        name="reactionrole",
+        description="Gère les rôles par réaction (ajouter, retirer, lister)."
+    )
+    
     def __init__(self, bot: EldoriaBot) -> None:
         """Initialise le cog ReactionRoles avec une référence au bot et à son service de rôle."""
         self.bot = bot
@@ -98,14 +104,14 @@ class ReactionRoles(commands.Cog):
             log.warning("ReactionRole: HTTPException remove_roles (guild=%s user=%s role=%s)", guild_id, payload.user_id, role_id)
 
     # -------------------- Commands --------------------
-    @commands.slash_command(name="add_reaction_role", description="Associe une réaction sur un message défini à un rôle.")
+    @reactionrole.command(name="add", description="Associe une réaction à un rôle sur un message.")
     @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
     @discord.option("emoji", str, description="L'émoji de la réaction.")
     @discord.option("role", discord.Role, description="Le rôle attribué.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def add_reaction_role(self, ctx: discord.ApplicationContext, message_link: str, emoji: str, role: discord.Role) -> None:
-        """Commande slash /add_reaction_role : associe une réaction sur un message défini à un rôle.
+    async def rr_add(self, ctx: discord.ApplicationContext, message_link: str, emoji: str, role: discord.Role) -> None:
+        """Commande slash /reactionrole add : associe une réaction sur un message défini à un rôle.
         
         Vérifie les permissions du bot, les conflits d'association existants, ajoute la réaction au message,
         et enregistre la règle de rôle par réaction dans la base de données.
@@ -163,13 +169,13 @@ class ReactionRoles(commands.Cog):
         )
 
 
-    @commands.slash_command(name="remove_specific_reaction", description="Retire une réaction spécifique d'un message.")
+    @reactionrole.command(name="remove", description="Retire une réaction spécifique d'un message.")
     @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
     @discord.option("emoji", str, description="L'émoji de la réaction.")
     @discord.default_permissions(manage_roles=True, manage_messages=True)
     @commands.has_permissions(manage_roles=True, manage_messages=True)
-    async def remove_specific_reaction(self, ctx: discord.ApplicationContext, message_link: str, emoji: str) -> None:
-        """Commande slash /remove_specific_reaction : retire une réaction spécifique d'un message.
+    async def rr_remove(self, ctx: discord.ApplicationContext, message_link: str, emoji: str) -> None:
+        """Commande slash /reactionrole remove : retire une réaction spécifique d'un message.
         
         Vérifie les permissions du bot, supprime la réaction du message,
         et supprime la règle de rôle par réaction correspondante de la base de données.
@@ -196,12 +202,12 @@ class ReactionRoles(commands.Cog):
             content=f"## L'emoji {emoji} a bien été retiré du message.\n**Message** : {message_link}\n{message.content}"
         )
 
-    @commands.slash_command(name="remove_all_reactions", description="Retire toutes les réaction d'un message.")
+    @reactionrole.command(name="clear", description="Retire toutes les réactions d'un message.")
     @discord.option("message_link", str, description="Le lien du message qui contiendra la réaction.")
     @discord.default_permissions(manage_roles=True, manage_messages=True)
     @commands.has_permissions(manage_roles=True, manage_messages=True)
-    async def remove_all_reactions(self, ctx: discord.ApplicationContext, message_link: str) -> None:
-        """Commande slash /remove_all_reactions : retire toutes les réactions d'un message.
+    async def rr_clear(self, ctx: discord.ApplicationContext, message_link: str) -> None:
+        """Commande slash /reactionrole clear : retire toutes les réactions d'un message.
         
         Vérifie les permissions du bot,supprime toutes les réactions du message,
         et supprime toutes les règles de rôle par réaction correspondantes de la base de données.
@@ -228,11 +234,11 @@ class ReactionRoles(commands.Cog):
         )
 
 
-    @commands.slash_command(name="list_of_reaction_roles",description="Affiche la liste des tous les rôles attribués avec une réaction à un message.")
+    @reactionrole.command(name="list", description="Affiche la liste des tous les rôles attribués avec une réaction à un message.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def list_reaction_roles(self, ctx: discord.ApplicationContext) -> None:
-        """Commande slash /list_reaction_roles : affiche la liste des tous les rôles attribués avec une réaction à un message.
+    async def rr_list(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /reactionrole list : affiche la liste des tous les rôles attribués avec une réaction à un message.
         
         Récupère les règles de rôle par réaction du serveur, les organise par message, et affiche le tout dans un embed paginé.
         """

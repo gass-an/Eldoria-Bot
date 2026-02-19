@@ -28,6 +28,7 @@ force_real_mentions_module()
 # ------------------------------------------------------------
 pytest_plugins = [
     "tests._fixtures.sqlite",
+    "tests._fixtures.discord_ui",
 ]
 
 # ------------------------------------------------------------

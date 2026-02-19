@@ -417,7 +417,7 @@ async def test_add_reaction_role_rejects_other_guild(monkeypatch):
 
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
 
-    await cog.add_reaction_role(ctx, "link", "🔥", _FakeRole(10))
+    await cog.rr_add(ctx, "link", "🔥", _FakeRole(10))
     assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
 
 
@@ -440,7 +440,7 @@ async def test_add_reaction_role_rejects_role_above_bot(monkeypatch):
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 777, 888), raising=True)
 
     role = _FakeRole(10, position=5)  # equal => reject (>=)
-    await cog.add_reaction_role(ctx, "link", "🔥", role)
+    await cog.rr_add(ctx, "link", "🔥", role)
 
     assert "Je ne peux pas attribuer le rôle" in ctx.followup.sent[-1]["content"]
     assert role_svc.calls == [("rr_list_by_message", 111, 888)] or role_svc.calls == []  # may return earlier
@@ -465,13 +465,13 @@ async def test_add_reaction_role_detects_conflicts(monkeypatch):
     # existing same role different emoji => reject
     role_svc._by_message = {"😀": 42}
     role = _FakeRole(42, position=1)
-    await cog.add_reaction_role(ctx, "link", "🔥", role)
+    await cog.rr_add(ctx, "link", "🔥", role)
     assert "déjà associé à l'emoji" in ctx.followup.sent[-1]["content"]
 
     # existing same emoji different role => reject
     ctx2 = _FakeCtx(guild=guild, user=_FakeMember(1))
     role_svc._by_message = {"🔥": 99}
-    await cog.add_reaction_role(ctx2, "link", "🔥", _FakeRole(42, position=1))
+    await cog.rr_add(ctx2, "link", "🔥", _FakeRole(42, position=1))
     assert "déjà associé au rôle" in ctx2.followup.sent[-1]["content"]
 
 
@@ -496,7 +496,7 @@ async def test_add_reaction_role_handles_notfound_and_forbidden(monkeypatch):
     # NotFound during reaction add (or role ops)
     msg._raise_add_reaction = discord.NotFound()
     with pytest.raises(discord.NotFound):
-        await cog.add_reaction_role(ctx, "link", "🔥", _FakeRole(42, position=1))
+            await cog.rr_add(ctx, "link", "🔥", _FakeRole(42, position=1))
 
 
     # Forbidden
@@ -506,7 +506,7 @@ async def test_add_reaction_role_handles_notfound_and_forbidden(monkeypatch):
     bot._channels[778] = _FakeChannel(msg2)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
     with pytest.raises(discord.Forbidden):
-        await cog.add_reaction_role(ctx2, "link", "🔥", _FakeRole(42, position=1))
+        await cog.rr_add(ctx2, "link", "🔥", _FakeRole(42, position=1))
 
 
 
@@ -528,7 +528,7 @@ async def test_add_reaction_role_success(monkeypatch):
     role_svc._by_message = {}
 
     role = _FakeRole(42, position=1)
-    await cog.add_reaction_role(ctx, "https://msg", "🔥", role)
+    await cog.rr_add(ctx, "https://msg", "🔥", role)
 
     # bot role check "can manage" did a dummy add/remove
     assert bot_member.added == [role]
@@ -549,7 +549,7 @@ async def test_remove_specific_reaction_other_guild(monkeypatch):
     cog = ReactionRoles(bot)
 
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
-    await cog.remove_specific_reaction(ctx, "link", "🔥")
+    await cog.rr_remove(ctx, "link", "🔥")
     assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
 
 
@@ -566,7 +566,7 @@ async def test_remove_specific_reaction_success_and_forbidden(monkeypatch):
     bot._channels[777] = _FakeChannel(msg)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 777, 888), raising=True)
 
-    await cog.remove_specific_reaction(ctx, "link", "🔥")
+    await cog.rr_remove(ctx, "link", "🔥")
     assert ("rr_delete", 111, 888, "🔥") in role_svc.calls
     assert msg.reaction_cleared == ["🔥"]
 
@@ -578,7 +578,7 @@ async def test_remove_specific_reaction_success_and_forbidden(monkeypatch):
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
 
     with pytest.raises(discord.Forbidden):
-        await cog.remove_specific_reaction(ctx2, "link", "🔥")
+        await cog.rr_remove(ctx2, "link", "🔥")
 
 
 # ---------- Tests: /remove_all_reactions ----------
@@ -591,7 +591,7 @@ async def test_remove_all_reactions_other_guild(monkeypatch):
     cog = ReactionRoles(bot)
 
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
-    await cog.remove_all_reactions(ctx, "link")
+    await cog.rr_clear(ctx, "link")
     assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
 
 
@@ -608,7 +608,7 @@ async def test_remove_all_reactions_success_and_forbidden(monkeypatch):
     bot._channels[777] = _FakeChannel(msg)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 777, 888), raising=True)
 
-    await cog.remove_all_reactions(ctx, "link")
+    await cog.rr_clear(ctx, "link")
     assert ("rr_delete_message", 111, 888) in role_svc.calls
     assert msg.reactions_cleared == 1
 
@@ -619,7 +619,7 @@ async def test_remove_all_reactions_success_and_forbidden(monkeypatch):
     bot._channels[778] = _FakeChannel(msg2)
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 778, 888), raising=True)
     with pytest.raises(discord.Forbidden):
-        await cog.remove_all_reactions(ctx2, "link")
+        await cog.rr_clear(ctx2, "link")
 
 
 
@@ -631,7 +631,7 @@ async def test_list_reaction_roles_requires_guild():
     ctx = _FakeCtx(guild=None, user=_FakeMember(1))
     cog = ReactionRoles(bot)
 
-    await cog.list_reaction_roles(ctx)
+    await cog.rr_list(ctx)
     assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
     assert ctx.responded[-1]["ephemeral"] is True
 
@@ -661,7 +661,7 @@ async def test_list_reaction_roles_uses_paginator(monkeypatch):
     monkeypatch.setattr(rr_mod, "Paginator", _FakePaginator, raising=True)
     monkeypatch.setattr(rr_mod, "build_list_roles_embed", lambda *_a, **_k: "X", raising=True)
 
-    await cog.list_reaction_roles(ctx)
+    await cog.rr_list(ctx)
 
     assert created["ident"] == 111
     assert created["bot"] is bot

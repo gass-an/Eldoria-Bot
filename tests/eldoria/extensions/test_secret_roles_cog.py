@@ -200,7 +200,7 @@ async def test_add_secret_role_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.add_secret_role(ctx, "msg", _FakeTextChannel(10), _FakeRole(1))
+    await cog.sr_add(ctx, "msg", _FakeTextChannel(10), _FakeRole(1))
     assert ctx.deferred is True
     assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
 
@@ -217,7 +217,7 @@ async def test_add_secret_role_rejects_role_above_bot():
     cog = SecretRoles(bot)
 
     role = _FakeRole(1, position=5)  # equal => reject
-    await cog.add_secret_role(ctx, "msg", _FakeTextChannel(10), role)
+    await cog.sr_add(ctx, "msg", _FakeTextChannel(10), role)
     assert "au-dessus de mes permissions" in ctx.followup.sent[-1]["content"]
 
 
@@ -232,7 +232,7 @@ async def test_add_secret_role_rejects_existing_other_role():
     cog = SecretRoles(bot)
 
     role_svc._sr_match_role_id = 9999
-    await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
+    await cog.sr_add(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
     assert "déjà associé au rôle" in ctx.followup.sent[-1]["content"]
 
 
@@ -250,7 +250,7 @@ async def test_add_secret_role_propagates_forbidden_when_probing_role():
     cog = SecretRoles(bot)
 
     with pytest.raises(discord.Forbidden):
-        await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
+        await cog.sr_add(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
 
 
 @pytest.mark.asyncio
@@ -265,7 +265,7 @@ async def test_add_secret_role_success_upserts_and_confirms():
 
     role_svc._sr_match_role_id = None
     role = _FakeRole(1, position=1)
-    await cog.add_secret_role(ctx, "hello", _FakeTextChannel(10), role)
+    await cog.sr_add(ctx, "hello", _FakeTextChannel(10), role)
 
     # probes add/remove worked
     assert me.added == [role]
@@ -283,7 +283,7 @@ async def test_delete_secret_role_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.delete_secret_role(ctx, _FakeTextChannel(10), "msg")
+    await cog.sr_remove(ctx, _FakeTextChannel(10), "msg")
     assert ctx.deferred is True
     assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
 
@@ -299,7 +299,7 @@ async def test_delete_secret_role_handles_not_found():
     cog = SecretRoles(bot)
 
     role_svc._sr_match_role_id = None
-    await cog.delete_secret_role(ctx, _FakeTextChannel(10), "hello")
+    await cog.sr_remove(ctx, _FakeTextChannel(10), "hello")
     assert "Aucune attribution trouvée" in ctx.followup.sent[-1]["content"]
 
 
@@ -314,7 +314,7 @@ async def test_delete_secret_role_deletes_when_exists():
     cog = SecretRoles(bot)
 
     role_svc._sr_match_role_id = 42
-    await cog.delete_secret_role(ctx, _FakeTextChannel(10), "hello")
+    await cog.sr_remove(ctx, _FakeTextChannel(10), "hello")
     assert ("sr_delete", 111, 10, "hello") in role_svc.calls
     assert "n'attribue plus de rôle" in ctx.followup.sent[-1]["content"]
 
@@ -327,7 +327,7 @@ async def test_list_of_secret_roles_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.list_of_secret_roles(ctx)
+    await cog.sr_list(ctx)
     assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
     assert ctx.responded[-1]["ephemeral"] is True
 
@@ -359,7 +359,7 @@ async def test_list_of_secret_roles_uses_paginator(monkeypatch):
     monkeypatch.setattr(sr_mod, "Paginator", _FakePaginator, raising=True)
     monkeypatch.setattr(sr_mod, "build_list_secret_roles_embed", lambda *_a, **_k: "X", raising=True)
 
-    await cog.list_of_secret_roles(ctx)
+    await cog.sr_list(ctx)
 
     assert ("sr_list_by_guild_grouped", 111) in role_svc.calls
     assert created["ident"] == 111

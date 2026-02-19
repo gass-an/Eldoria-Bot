@@ -152,13 +152,17 @@ class _FakeFollowup:
     def __init__(self):
         self.sent = []
 
-    async def send(self, **kwargs):
+    async def send(self, *args, **kwargs):
+        # discord.py/pycord accept `content` positionnel. On le normalise.
+        if args and "content" not in kwargs:
+            kwargs["content"] = args[0]
         self.sent.append(kwargs)
 
 
 class _FakeCtx:
     def __init__(self, guild=None):
         self.guild = guild
+        self.author = types.SimpleNamespace(id=123)
         self.followup = _FakeFollowup()
         self.deferred = False
         self.responded = []
@@ -321,21 +325,25 @@ async def test_voice_state_update_does_nothing_if_not_parent():
     assert member.moved_to == []
 
 
-# ---------- Tests: commands ----------
+# ---------- Tests: commands (refacto) ----------
+# Le cog a été refactorisé : les commandes "init/remove/list" ont été remplacées par
+# un panel (/tempvoice config) et un listing (/tempvoice list).
+
+
 @pytest.mark.asyncio
-async def test_init_creation_voice_channel_requires_guild():
+async def test_tv_config_requires_guild():
     svc = _FakeTempVoiceService()
     bot = _FakeBot(svc)
     cog = TempVoice(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.init_creation_voice_channel(ctx, _FakeVoiceChannel(1), 5)
+    await cog.tv_config(ctx)
     assert ctx.deferred is True
     assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
 
 
 @pytest.mark.asyncio
-async def test_init_creation_voice_channel_upserts_and_confirms():
+async def test_tv_config_sends_panel(monkeypatch):
     svc = _FakeTempVoiceService()
     bot = _FakeBot(svc)
     cog = TempVoice(bot)
@@ -343,73 +351,35 @@ async def test_init_creation_voice_channel_upserts_and_confirms():
     guild = _FakeGuild(111)
     ctx = _FakeCtx(guild=guild)
 
-    parent = _FakeVoiceChannel(123)
-    await cog.init_creation_voice_channel(ctx, parent, 12)
+    monkeypatch.setattr(tv_mod, "TempVoiceHomeView", lambda **kw: ("VIEW", kw), raising=True)
+    monkeypatch.setattr(tv_mod, "build_tempvoice_home_embed", lambda: ("EMBED", ["F"]), raising=True)
 
-    assert ("upsert_parent", 111, 123, 12) in svc.calls
-    assert "désormais paramétré" in ctx.followup.sent[-1]["content"]
+    await cog.tv_config(ctx)
 
-
-@pytest.mark.asyncio
-async def test_remove_creation_voice_channel_requires_guild():
-    svc = _FakeTempVoiceService()
-    bot = _FakeBot(svc)
-    cog = TempVoice(bot)
-    ctx = _FakeCtx(guild=None)
-
-    await cog.remove_creation_voice_channel(ctx, _FakeVoiceChannel(1),)
     assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    sent = ctx.followup.sent[-1]
+    assert sent["embed"] == "EMBED"
+    assert sent["files"] == ["F"]
+    assert sent["ephemeral"] is True
+    # view est un tuple ("VIEW", kwargs)
+    assert sent["view"][0] == "VIEW"
+    assert sent["view"][1]["guild"].id == 111
 
 
 @pytest.mark.asyncio
-async def test_remove_creation_voice_channel_rejects_if_not_configured():
-    svc = _FakeTempVoiceService()
-    bot = _FakeBot(svc)
-    cog = TempVoice(bot)
-
-    guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-
-    ch = _FakeVoiceChannel(123)
-    await cog.remove_creation_voice_channel(ctx, ch)
-
-    assert "n'est pas configuré" in ctx.followup.sent[-1]["content"]
-    assert ("delete_parent", 111, 123) not in svc.calls
-
-
-@pytest.mark.asyncio
-async def test_remove_creation_voice_channel_deletes_and_confirms():
-    svc = _FakeTempVoiceService()
-    bot = _FakeBot(svc)
-    cog = TempVoice(bot)
-
-    guild = _FakeGuild(111)
-    ctx = _FakeCtx(guild=guild)
-
-    ch = _FakeVoiceChannel(123)
-    svc._parents[(111, 123)] = 5
-
-    await cog.remove_creation_voice_channel(ctx, ch)
-
-    assert ("delete_parent", 111, 123) in svc.calls
-    assert "n'est plus un salon" in ctx.followup.sent[-1]["content"]
-
-
-@pytest.mark.asyncio
-async def test_list_creation_voice_channels_requires_guild():
+async def test_tv_list_requires_guild():
     svc = _FakeTempVoiceService()
     bot = _FakeBot(svc)
     cog = TempVoice(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.list_creation_voice_channels(ctx)
+    await cog.tv_list(ctx)
     assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
     assert ctx.responded[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
-async def test_list_creation_voice_channels_uses_paginator(monkeypatch):
+async def test_tv_list_uses_paginator(monkeypatch):
     svc = _FakeTempVoiceService()
     bot = _FakeBot(svc)
     cog = TempVoice(bot)
@@ -434,7 +404,7 @@ async def test_list_creation_voice_channels_uses_paginator(monkeypatch):
     monkeypatch.setattr(tv_mod, "Paginator", _FakePaginator, raising=True)
     monkeypatch.setattr(tv_mod, "build_list_temp_voice_parents_embed", lambda *_a, **_k: "X", raising=True)
 
-    await cog.list_creation_voice_channels(ctx)
+    await cog.tv_list(ctx)
 
     assert ("list_parents", 111) in svc.calls
     assert created["ident"] == 111

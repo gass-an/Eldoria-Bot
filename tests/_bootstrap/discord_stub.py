@@ -13,6 +13,20 @@ def install_discord_stub() -> None:
     discord_mod = ModuleType("discord")
     discord_mod.__version__ = "0.0-stub"
 
+    # ------------------------------------------------------------
+    # Decorators / helpers used by py-cord / nextcord style APIs
+    # (tests only need import-time compatibility)
+    # ------------------------------------------------------------
+    def _passthrough_decorator(*_a, **_k):
+        def deco(fn):
+            return fn
+
+        return deco
+
+    # py-cord style option/decorators
+    discord_mod.option = _passthrough_decorator
+    discord_mod.default_permissions = _passthrough_decorator
+
     # ---- discord.abc ----
     abc_mod = ModuleType("discord.abc")
 
@@ -100,6 +114,46 @@ def install_discord_stub() -> None:
     class ApplicationContext:
         pass
 
+    # ---- Permissions / reactions / voice ----
+    class Permissions:
+        def __init__(self, **kwargs):
+            self.kwargs = dict(kwargs)
+
+    class PermissionOverwrite:
+        def __init__(self, **kwargs):
+            self.kwargs = dict(kwargs)
+
+    class VoiceState:
+        def __init__(self, channel=None):
+            self.channel = channel
+
+    class _Emoji:
+        def __init__(self, name=None):
+            self.name = name
+
+    class RawReactionActionEvent:
+        def __init__(self, *, guild_id=None, user_id=0, message_id=0, emoji=None):
+            self.guild_id = guild_id
+            self.user_id = user_id
+            self.message_id = message_id
+            self.emoji = emoji
+
+    class SelectOption:
+        def __init__(
+            self,
+            *,
+            label: str = "",
+            value: str | None = None,
+            description: str | None = None,
+            emoji: str | None = None,
+            default: bool = False,
+        ):
+            self.label = label
+            self.value = value or label
+            self.description = description
+            self.emoji = emoji
+            self.default = default
+
     class Attachment:
         def __init__(self, *, filename: str = ""):
             self.filename = filename
@@ -164,6 +218,55 @@ def install_discord_stub() -> None:
     ui_mod.Button = Button
     ui_mod.button = button
 
+    class Select:
+        def __init__(
+            self,
+            *,
+            placeholder: str = "",
+            options=None,
+            custom_id: str | None = None,
+            min_values: int = 1,
+            max_values: int = 1,
+            disabled: bool = False,
+        ):
+            self.placeholder = placeholder
+            self.options = list(options or [])
+            self.custom_id = custom_id
+            self.min_values = min_values
+            self.max_values = max_values
+            self.disabled = disabled
+            self.values: list[str] = []
+
+    class InputText:
+        def __init__(
+            self,
+            *,
+            label: str = "",
+            placeholder: str = "",
+            required: bool = True,
+            min_length: int = 0,
+            max_length: int = 0,
+        ):
+            self.label = label
+            self.placeholder = placeholder
+            self.required = required
+            self.min_length = min_length
+            self.max_length = max_length
+            self.value: str | None = None
+
+    class Modal:
+        def __init__(self, *, title: str = ""):
+            self.title = title
+            self.children = []
+
+        def add_item(self, item):
+            self.children.append(item)
+            return None
+
+    ui_mod.Select = Select
+    ui_mod.InputText = InputText
+    ui_mod.Modal = Modal
+
     # ---- discord.ext.commands ----
     ext_mod = ModuleType("discord.ext")
     commands_mod = ModuleType("discord.ext.commands")
@@ -175,6 +278,9 @@ def install_discord_stub() -> None:
                 return fn
 
             return deco
+
+    def has_permissions(**_perms):
+        return _passthrough_decorator()
 
     class Bot(Client):
         pass
@@ -220,6 +326,20 @@ def install_discord_stub() -> None:
     commands_mod.Bot = Bot
     commands_mod.AutoShardedBot = AutoShardedBot
     commands_mod.when_mentioned = when_mentioned
+    commands_mod.has_permissions = has_permissions
+
+    # ---- discord.commands (py-cord) ----
+    commands_root_mod = ModuleType("discord.commands")
+
+    class SlashCommandGroup:
+        def __init__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = dict(kwargs)
+
+        def command(self, *args, **kwargs):
+            return _passthrough_decorator(*args, **kwargs)
+
+    commands_root_mod.SlashCommandGroup = SlashCommandGroup
 
     # ---- discord.ext.tasks ----
     tasks_mod = ModuleType("discord.ext.tasks")
@@ -326,6 +446,12 @@ def install_discord_stub() -> None:
     discord_mod.Role = Role
     discord_mod.Interaction = Interaction
     discord_mod.ApplicationContext = ApplicationContext
+    discord_mod.Permissions = Permissions
+    discord_mod.PermissionOverwrite = PermissionOverwrite
+    discord_mod.VoiceState = VoiceState
+    discord_mod.RawReactionActionEvent = RawReactionActionEvent
+    discord_mod.PartialEmoji = _Emoji
+    discord_mod.SelectOption = SelectOption
     discord_mod.Attachment = Attachment
     discord_mod.AutocompleteContext = AutocompleteContext
     discord_mod.AllowedMentions = AllowedMentions
@@ -347,6 +473,9 @@ def install_discord_stub() -> None:
     ext_mod.commands = commands_mod
     ext_mod.tasks = tasks_mod
 
+    # Inject discord.commands
+    discord_mod.commands = commands_root_mod
+
     sys.modules["discord"] = discord_mod
     sys.modules["discord.abc"] = abc_mod
     sys.modules["discord.utils"] = utils_mod
@@ -354,6 +483,7 @@ def install_discord_stub() -> None:
     sys.modules["discord.ext"] = ext_mod
     sys.modules["discord.ext.commands"] = commands_mod
     sys.modules["discord.ext.tasks"] = tasks_mod
+    sys.modules["discord.commands"] = commands_root_mod
 
     # Remplace Color/Embed/File par vos fakes (OK, ça ne casse pas isinstance Interaction)
     from tests._fakes import _embed_fakes

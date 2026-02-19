@@ -6,11 +6,13 @@ Inclut des commandes pour configurer les salons parents, supprimer la configurat
 import logging
 
 import discord
+from discord.commands import SlashCommandGroup
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
-from eldoria.ui.temp_voice.embeds import build_list_temp_voice_parents_embed
+from eldoria.ui.temp_voice.home import TempVoiceHomeView, build_tempvoice_home_embed
+from eldoria.ui.temp_voice.list import build_list_temp_voice_parents_embed
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +22,12 @@ class TempVoice(commands.Cog):
     Permet aux utilisateurs de créer automatiquement un salon vocal temporaire en rejoignant un salon vocal parent spécifique.
     Inclut des commandes pour configurer les salons parents, supprimer la configuration et lister les salons parents configurés sur le serveur.
     """
+
+    tempvoice = SlashCommandGroup(
+        name="tempvoice",
+        description="Gère les salons vocaux temporaires.",
+        default_member_permissions=discord.Permissions(manage_channels=True)
+    )
 
     def __init__(self, bot: EldoriaBot) -> None:
         """Initialise le cog TempVoice avec une référence au bot et à son service de gestion des salons vocaux temporaires."""
@@ -88,68 +96,25 @@ class TempVoice(commands.Cog):
                 await member.move_to(new_channel)
 
     # -------------------- Commands --------------------
-    @commands.slash_command(
-        name="init_creation_voice_channel",
-        description="Défini le salon qui permettra à chacun de créer son propre salon vocal temporaire",
-    )
-    @discord.option("channel", discord.VoiceChannel, description="Le channel cible pour la création d'autres salon vocaux.")
-    @discord.option("user_limit", int, description="Le nombre de personnes qui pourront rejoindre les salons créés", min_value=1, max_value=99)
-    @discord.default_permissions(manage_channels=True)
+    @tempvoice.command(name="config", description="Gestion des vocaux temporaires (panel).")
     @commands.has_permissions(manage_channels=True)
-    async def init_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel, user_limit: int)-> None:
-        """Commande slash /init_creation_voice_channel : défini le salon qui permettra à chacun de créer son propre salon vocal temporaire.
-        
-        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, 
-        et ajoute ou met à jour la configuration du salon parent dans la base de données avec la limite d'utilisateurs spécifiée.
-        """
-        await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
-
-        guild_id = ctx.guild.id
-        channel_id = channel.id
-        self.temp_voice.upsert_parent(guild_id, channel_id, user_limit)
-
-        await ctx.followup.send(content=f"Le salon {channel.mention} est désormais paramétré pour créer des salons pour {user_limit} personnes maximum")
-
-    @commands.slash_command(
-        name="remove_creation_voice_channel",
-        description="Désactive la création automatique de salons vocaux temporaires pour un salon donné",
-    )
-    @discord.option("channel", discord.VoiceChannel, description="Le salon parent à désactiver")
-    @discord.default_permissions(manage_channels=True)
-    @commands.has_permissions(manage_channels=True)
-    async def remove_creation_voice_channel(self, ctx: discord.ApplicationContext, channel: discord.VoiceChannel) -> None:
-        """Commande slash /remove_creation_voice_channel : désactive la création automatique de salons vocaux temporaires pour un salon donné.
-        
-        Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, et supprime la configuration du salon parent de la base de données.
-        """
+    async def tv_config(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /tempvoice config : affiche un panel de gestion des vocaux temporaires."""
         await ctx.defer(ephemeral=True)
 
         if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
+            await ctx.followup.send("Commande uniquement disponible sur un serveur.", ephemeral=True)
             return
 
-        guild_id = ctx.guild.id
-        channel_id = channel.id
+        view = TempVoiceHomeView(temp_voice_service=self.temp_voice, author_id=ctx.author.id, guild=ctx.guild)
+        embed, files = build_tempvoice_home_embed()
+        await ctx.followup.send(embed=embed, files=files, view=view, ephemeral=True)
 
-        if self.temp_voice.get_parent(guild_id, channel_id) is None:
-            await ctx.followup.send(content=f"❌ Le salon {channel.mention} n'est pas configuré comme salon parent.")
-            return
 
-        self.temp_voice.delete_parent(guild_id, channel_id)
-
-        await ctx.followup.send(content=f"✅ Le salon {channel.mention} n'est plus un salon de création automatique.")
-
-    @commands.slash_command(
-        name="list_creation_voice_channels",
-        description="Affiche la liste des salons parents qui créent des vocaux temporaires.",
-    )
-    @discord.default_permissions(manage_channels=True)
+    @tempvoice.command(name="list", description="Affiche la liste des salons parents qui créent des vocaux temporaires.")
     @commands.has_permissions(manage_channels=True)
-    async def list_creation_voice_channels(self, ctx: discord.ApplicationContext) -> None:
-        """Commande slash /list_creation_voice_channels : affiche la liste des salons parents qui créent des vocaux temporaires.
+    async def tv_list(self, ctx: discord.ApplicationContext) -> None:
+        """Commande slash /tempvoice list : affiche la liste des salons parents qui créent des vocaux temporaires.
         
         Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, récupère les salons parents configurés pour le serveur,
         et affiche le tout dans un embed paginé.

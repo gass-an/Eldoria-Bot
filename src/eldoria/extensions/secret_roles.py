@@ -5,6 +5,7 @@ Inclut des commandes pour ajouter, supprimer et lister les rôles secrets config
 """
 
 import discord
+from discord.commands import SlashCommandGroup
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
@@ -19,23 +20,25 @@ class SecretRoles(commands.Cog):
     Permet d'attribuer un rôle à un utilisateur lorsqu'il envoie un message spécifique dans un channel spécifique.
     Inclut des commandes pour ajouter, supprimer et lister les rôles secrets configurés sur le serveur.
     """
+    
+    secretrole = SlashCommandGroup(
+        name="secretrole",
+        description="Gère les rôles secrets (ajouter, supprimer, lister)."
+    )
 
     def __init__(self, bot: EldoriaBot) -> None:
         """Initialise le cog SecretRoles avec une référence au bot et à son service de gestion des rôles."""
         self.bot = bot
         self.role = self.bot.services.role
 
-    @commands.slash_command(
-        name="add_secret_role",
-        description="Attribue un role défini si l'utilisateur entre le bon message dans le bon channel.",
-    )
+    @secretrole.command(name="add", description="Attribue un role défini si l'utilisateur entre le bon message dans le bon channel.")
     @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.")
     @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
     @discord.option("role", discord.Role, description="Le rôle attribué.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def add_secret_role(self, ctx: discord.ApplicationContext, message: str, channel: discord.TextChannel, role: discord.Role) -> None:
-        """Commande slash /add_secret_role : attribue un role défini si l'utilisateur entre le bon message dans le bon channel.
+    async def sr_add(self, ctx: discord.ApplicationContext, message: str, channel: discord.TextChannel, role: discord.Role) -> None:
+        """Commande slash /secretrole add : attribue un role défini si l'utilisateur entre le bon message dans le bon channel.
         
         Vérifie les permissions du bot, la configuration de la fonctionnalité, et
         ajoute une règle de rôle secret dans la base de données pour le message,
@@ -75,13 +78,13 @@ class SecretRoles(commands.Cog):
         self.role.sr_upsert(guild_id, channel_id, message_str, role.id)
         await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
 
-    @commands.slash_command(name="delete_secret_role", description="Supprime l'attibution d'un secret_role déjà paramétré.")
+    @secretrole.command(name="remove", description="Supprime l'attibution d'un secret_role déjà paramétré.")
     @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")
     @discord.option("message", str, description="Le message exact pour que le rôle soit attribué.", autocomplete=message_secret_role_autocomplete)
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def delete_secret_role(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message: str)-> None:
-        """Commande slash /delete_secret_role : supprime l'atibution d'un secret_role déjà paramétré.
+    async def sr_remove(self, ctx: discord.ApplicationContext, channel: discord.TextChannel, message: str)-> None:
+        """Commande slash /secretrole remove : supprime l'atibution d'un secret_role déjà paramétré.
         
         Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, et
         supprime la règle de rôle secret correspondante de la base de données.
@@ -104,11 +107,11 @@ class SecretRoles(commands.Cog):
         self.role.sr_delete(guild_id, channel_id, message_str)
         await ctx.followup.send(content=f"Le message `{message_str}` n'attribue plus de rôle")
 
-    @commands.slash_command(name="list_of_secret_roles", description="Affiche la liste des tous les rôles attribués avec un message secret.")
+    @secretrole.command(name="list", description="Affiche la liste des tous les rôles attribués avec un message secret.")
     @discord.default_permissions(manage_roles=True)
     @commands.has_permissions(manage_roles=True)
-    async def list_of_secret_roles(self, ctx: discord.ApplicationContext)-> None:
-        """Commande slash /list_of_secret_roles : affiche la liste des tous les rôles attribués avec un message secret.
+    async def sr_list(self, ctx: discord.ApplicationContext)-> None:
+        """Commande slash /secretrole list : affiche la liste des tous les rôles attribués avec un message secret.
         
         Récupère les rôles secrets du serveur, les organise par channel et message, et affiche le tout dans un embed paginé.
         """

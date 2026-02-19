@@ -23,6 +23,7 @@ class ServicesAlreadyInitialized(InternalStateError):
 class TestsFailed(InternalStateError):
     """Les tests unitaires ont échoué."""
 
+    __test__ = False
     def __init__(self) -> None:
         """Initialise l'exception avec un message indiquant que les tests unitaires ont échoué."""
-        super().__init__("Les tests unitaires ont échoué. Abandon du démarrage du bot.")
+        super().__init__("Les tests unitaires ont échoué.")

@@ -3,7 +3,8 @@ from __future__ import annotations
 import discord  # type: ignore
 import pytest
 
-from eldoria.ui.temp_voice import embeds as M
+# Le module "embeds" a été refacto : les embeds de listing sont désormais dans `list.py`.
+from eldoria.ui.temp_voice import list as M
 from tests._fakes._embed_fakes import FakeChannel
 
 

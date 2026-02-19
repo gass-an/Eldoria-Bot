@@ -37,6 +37,7 @@ class FakeResponse:
         self.edits: list[dict] = []
         self.deferred = False
         self.sent: list[dict] = []
+        self.modals: list[object] = []
 
         # Permet de simuler un cas où Discord refuse un second send_message()
         # (ex: discord.InteractionResponded)
@@ -45,9 +46,9 @@ class FakeResponse:
     def is_done(self) -> bool:
         return self._done
 
-    async def edit_message(self, *, embed=None, view=None):
+    async def edit_message(self, **kwargs):
         self._done = True
-        self.edits.append({"embed": embed, "view": view})
+        self.edits.append(kwargs)
 
     async def defer(self):
         self._done = True
@@ -58,6 +59,10 @@ class FakeResponse:
             raise self.raise_on_send
         self._done = True
         self.sent.append({"content": content, "ephemeral": ephemeral})
+
+    async def send_modal(self, modal):
+        self._done = True
+        self.modals.append(modal)
 
 
 class FakeFollowup:
@@ -99,9 +104,10 @@ class FakeInteraction:
     - edit_original_response()
     """
 
-    def __init__(self, *, user: FakeUser, message=None):
+    def __init__(self, *, user: FakeUser, message=None, data: dict | None = None):
         self.user = user
         self.message = message
+        self.data = data or {}
         self.response = FakeResponse()
         self.followup = FakeFollowup()
 
