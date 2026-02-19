@@ -67,37 +67,17 @@ def test_home_view_init_adds_three_buttons(monkeypatch):
 
     btn_add = _find_child(view, custom_id="tv:go:add")
     btn_remove = _find_child(view, custom_id="tv:go:remove")
-    btn_close = _find_child(view, custom_id="tv:close")
 
     assert btn_add is not None
     assert btn_remove is not None
-    assert btn_close is not None
 
     assert getattr(btn_add, "label", None) == "Ajouter"
     assert getattr(btn_remove, "label", None) == "Retirer"
-    assert getattr(btn_close, "label", None) == "Fermer"
 
 
 # ---------------------------------------------------------------------------
 # route_button
 # ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_route_button_close_edits_message(monkeypatch):
-    svc = FakeTempVoiceService()
-    guild = FakeGuild(123)
-    view = M.TempVoiceHomeView(temp_voice_service=svc, author_id=42, guild=guild)
-
-    inter = FakeInteraction(user=FakeUser(42), data={"custom_id": "tv:close"})
-    await view.route_button(inter)
-
-    assert inter.response.edits
-    last = inter.response.edits[-1]
-    assert last["content"] == "✅ Fermé."
-    assert last["embed"] is None
-    assert last["view"] is None
-    assert last["attachments"] == []
-
 
 @pytest.mark.asyncio
 async def test_route_button_go_add_instantiates_add_view_and_edits(monkeypatch):

@@ -4,9 +4,9 @@ from __future__ import annotations
 import discord
 
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
+from eldoria.ui.common.components import BasePanelView, RoutedButton, RoutedSelect
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_VALIDATION
 from eldoria.ui.common.embeds.images import decorate
-from eldoria.ui.temp_voice.components import BasePanelView, RoutedButton, RoutedSelect
 from eldoria.ui.temp_voice.modals import UserLimitModal
 
 
@@ -41,6 +41,8 @@ def build_tempvoice_add_embed(
         value=str(user_limit) if user_limit else "Non définie",
         inline=True,
     )
+
+    embed.set_footer(text="Sélectionne un salon parent pour les vocaux temporaires.")
     decorate(embed, None, None)
     return embed
 

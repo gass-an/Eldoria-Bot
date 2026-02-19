@@ -201,11 +201,13 @@ def install_discord_stub() -> None:
             return None
 
     class Button:
-        def __init__(self, *, label: str = "", style=None, disabled: bool = False, custom_id: str | None = None):
+        def __init__(self, *, label: str = "", style=None, disabled: bool = False, custom_id: str | None = None, row: int | None = None, emoji: str | None = None):
             self.label = label
             self.style = style
             self.disabled = disabled
             self.custom_id = custom_id
+            self.row = row
+            self.emoji = emoji
             # Ne pas écraser une méthode `callback` définie dans les sous-classes.
 
     def button(*args, **kwargs):  # pragma: no cover
@@ -228,6 +230,7 @@ def install_discord_stub() -> None:
             min_values: int = 1,
             max_values: int = 1,
             disabled: bool = False,
+            row: int | None = None,
         ):
             self.placeholder = placeholder
             self.options = list(options or [])
@@ -235,6 +238,7 @@ def install_discord_stub() -> None:
             self.min_values = min_values
             self.max_values = max_values
             self.disabled = disabled
+            self.row = row
             self.values: list[str] = []
 
     class InputText:

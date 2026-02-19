@@ -4,9 +4,9 @@ from __future__ import annotations
 import discord
 
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
+from eldoria.ui.common.components import BasePanelView, RoutedButton, RoutedSelect
 from eldoria.ui.common.embeds.colors import EMBED_COLOUR_ERROR
 from eldoria.ui.common.embeds.images import decorate
-from eldoria.ui.temp_voice.components import BasePanelView, RoutedButton, RoutedSelect
 
 
 def build_tempvoice_remove_embed(
@@ -32,6 +32,8 @@ def build_tempvoice_remove_embed(
         value=selected.mention if selected else "Aucune",
         inline=False,
     )
+
+    embed.set_footer(text="Seule la configuration sera retirée. Les salons créés ne seront pas supprimés.")
     decorate(embed, None, None)
     return embed
 

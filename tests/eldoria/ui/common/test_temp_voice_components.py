@@ -3,7 +3,7 @@ from __future__ import annotations
 import discord  # type: ignore
 import pytest
 
-from eldoria.ui.temp_voice.components import BasePanelView, RoutedButton, RoutedSelect
+from eldoria.ui.common.components import BasePanelView, RoutedButton, RoutedSelect
 from tests._fakes._pages_fakes import FakeInteraction, FakeUser
 
 # ---------------------------------------------------------------------------

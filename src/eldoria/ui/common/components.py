@@ -43,9 +43,10 @@ class RoutedButton(discord.ui.Button):
         custom_id: str,
         disabled: bool = False,
         emoji: str | None = None,
+        row: int | None = None,
     ) -> None:
         """Initialise le RoutedButton avec les paramètres standard d'un bouton Discord, ainsi qu'un custom_id pour l'identification dans le router de la View."""
-        super().__init__(label=label, style=style, custom_id=custom_id, disabled=disabled, emoji=emoji)
+        super().__init__(label=label, style=style, custom_id=custom_id, disabled=disabled, emoji=emoji, row=row)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         """Lorsqu'un bouton est cliqué, délègue le traitement à la méthode route_button de la View, en lui passant l'interaction."""
@@ -67,6 +68,7 @@ class RoutedSelect(discord.ui.Select):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        row: int | None = None,
     ) -> None:
         """Initialise le RoutedSelect avec les paramètres standard d'un select Discord, ainsi qu'un custom_id pour l'identification dans le router de la View."""
         super().__init__(
@@ -76,6 +78,7 @@ class RoutedSelect(discord.ui.Select):
             min_values=min_values,
             max_values=max_values,
             disabled=disabled,
+            row=row,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
