@@ -120,10 +120,10 @@ class TempVoiceAddView(BasePanelView):
             return
 
         if cid == "tv:add:limit":
-            async def on_value(i: discord.Interaction, value: int) -> None:
+            async def on_value(interaction: discord.Interaction, value: int) -> None:
                 self.user_limit = value
                 self._render()
-                await i.response.edit_message(embed=self.current_embed(), view=self)
+                await interaction.response.edit_message(embed=self.current_embed(), view=self)
 
             await interaction.response.send_modal(UserLimitModal(on_value=on_value))
             return
