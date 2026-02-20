@@ -15,14 +15,19 @@ from tests._fakes._pages_fakes import (
 # ------------------------------------------------------------
 # CompatInteraction : support edit_original_response(embed/files/view)
 # + enregistre aussi response.edit_message
+# + support .data["custom_id"] pour RoutedButton
 # ------------------------------------------------------------
 class CompatInteraction(FakeInteraction):
-    def __init__(self, *, user: FakeUser, message=None):
+    def __init__(self, *, user: FakeUser, message=None, custom_id: str | None = None):
         super().__init__(user=user, message=message)
+
+        # discord.py: Interaction.data est un dict
+        self.data = {}
+        if custom_id is not None:
+            self.data["custom_id"] = custom_id
+
         self.response_edit_calls: list[dict] = []
 
-        # Patch: FakeResponse.edit_message stocke déjà .edits
-        # mais on garde aussi ici si tu veux inspecter.
         orig_edit = self.response.edit_message
 
         async def wrapped_edit_message(*, embed=None, view=None):
@@ -57,13 +62,14 @@ class CompatInteraction(FakeInteraction):
         )
 
 
-
 class FakePerms:
     def __init__(self, value: int):
         self.value = value
 
 
 class FakeCmd:
+    """Commande fake compatible avec le resolver (name + can_run + perms)."""
+
     def __init__(self, name: str, *, dp=None, can_run=True):
         self.name = name
         self.default_member_permissions = dp
@@ -80,16 +86,13 @@ class FakeBot:
         self.application_commands = cmds
 
 
-
-def _make_view(monkeypatch, *, author_id=1, visible_by_cat=None):
+def _make_view(*, author_id=1, visible_by_cat=None):
     visible_by_cat = visible_by_cat or {"XP": ["xp_rank"], "Duels": ["duel"]}
-    bot = object()
-    cmd_map = {}
-    help_infos = {}
+    cmd_map: dict[str, object] = {}
+    help_infos: dict[str, str] = {}
     cat_desc = {"XP": "Système XP", "Duels": "Duels !"}
     view = M.HelpMenuView(
         author_id=author_id,
-        bot=bot,
         cmd_map=cmd_map,
         help_infos=help_infos,
         visible_by_cat=visible_by_cat,
@@ -98,8 +101,8 @@ def _make_view(monkeypatch, *, author_id=1, visible_by_cat=None):
     return view
 
 
-def test_help_menu_view_init_creates_buttons_and_sets_home_active(monkeypatch):
-    view = _make_view(monkeypatch)
+def test_help_menu_view_init_creates_buttons_and_sets_home_active():
+    view = _make_view()
 
     # 1 bouton Accueil + 1 bouton par catégorie
     assert view.home_button.label == "Accueil"
@@ -117,37 +120,17 @@ def test_help_menu_view_init_creates_buttons_and_sets_home_active(monkeypatch):
         assert btn.style == discord.ButtonStyle.secondary
 
 
-@pytest.mark.asyncio
-async def test_home_button_callback_with_no_view_noops(monkeypatch):
-    btn = M.HomeButton()
-    btn.view = None  # type: ignore[attr-defined]
-    # Par défaut, btn.view est None (pas ajouté dans une View)
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
-    await btn.callback(inter)  # ne doit pas lever
-
-
-@pytest.mark.asyncio
-async def test_category_button_callback_with_no_view_noops(monkeypatch):
-    btn = M.CategoryButton("XP")
-    btn.view = None  # type: ignore[attr-defined]
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
-    await btn.callback(inter)  # ne doit pas lever
-
-
-def test_common_files_and_decorate_helpers(monkeypatch):
-    view = _make_view(monkeypatch)
+def test_common_files_helper(monkeypatch):
+    view = _make_view()
     view._thumb_url = "T"
     view._banner_url = "B"
 
     monkeypatch.setattr(M, "common_files", lambda *_a: ["F"], raising=True)
-    monkeypatch.setattr(M, "decorate", lambda e, *_a: f"DECOR({e})", raising=True)
-
     assert view._common_files() == ["F"]
-    assert view._decorate("E") == "DECOR(E)"
 
 
 def test_build_home_and_category_call_builders(monkeypatch):
-    view = _make_view(monkeypatch)
+    view = _make_view()
     view._thumb_url = "T"
     view._banner_url = "B"
 
@@ -175,8 +158,8 @@ def test_build_home_and_category_call_builders(monkeypatch):
     assert cat_files == ["FILES"]
 
 
-def test_refresh_nav_buttons_when_in_category_marks_category_active(monkeypatch):
-    view = _make_view(monkeypatch)
+def test_refresh_nav_buttons_when_in_category_marks_category_active():
+    view = _make_view()
 
     view.current = "Duels"
     view._refresh_nav_buttons()
@@ -196,67 +179,33 @@ def test_refresh_nav_buttons_when_in_category_marks_category_active(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_interaction_check_blocks_other_user_and_uses_response_send(monkeypatch):
-    view = _make_view(monkeypatch, author_id=1)
+    # interaction_check est fourni par BasePanelView (message différent)
+    view = _make_view(author_id=1)
 
     inter = CompatInteraction(user=FakeUser(2))  # pas l'auteur
     ok = await view.interaction_check(inter)
 
     assert ok is False
     assert inter.response.sent
-    assert inter.response.sent[-1]["content"] == "❌ Ce menu ne t'appartient pas."
+    assert inter.response.sent[-1]["content"] == "❌ Seul l'auteur de la commande peut utiliser ce panneau."
     assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
-async def test_interaction_check_blocks_other_user_and_falls_back_to_followup(monkeypatch):
-    view = _make_view(monkeypatch, author_id=1)
-
-    inter = CompatInteraction(user=FakeUser(2))
-    # Simule "déjà répondu" => response.send_message lève InteractionResponded
-    inter.response.raise_on_send = discord.InteractionResponded  # type: ignore[attr-defined]
-
-    ok = await view.interaction_check(inter)
-
-    assert ok is False
-    assert inter.followup.sent
-    assert inter.followup.sent[-1]["content"] == "❌ Ce menu ne t'appartient pas."
-    assert inter.followup.sent[-1]["ephemeral"] is True
-
-
-@pytest.mark.asyncio
-async def test_on_timeout_disables_all_buttons(monkeypatch):
-    view = _make_view(monkeypatch)
-    # sanity: avant
+async def test_on_timeout_disables_all_buttons():
+    view = _make_view()
     assert any(isinstance(i, discord.ui.Button) and not i.disabled for i in view.children)
 
     await view.on_timeout()
 
     for item in view.children:
-        if isinstance(item, discord.ui.Button):
+        if isinstance(item, (discord.ui.Button, discord.ui.Select)):
             assert item.disabled is True
 
 
 @pytest.mark.asyncio
-async def test_safe_edit_fast_path_when_urls_known_uses_response_edit_message(monkeypatch):
-    view = _make_view(monkeypatch)
-    view._thumb_url = "T"
-    view._banner_url = "B"
-
-    # message avec attachments non nécessaire ici
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
-
-    await view._safe_edit(inter, embed="EMBED", files=["FILES"])
-
-    # fast_no_files => response.edit_message appelé et return
-    assert inter.response_edit_calls == [{"embed": "EMBED", "view": view}]
-    assert inter.response.deferred is False
-    assert inter.original_edits == []
-
-
-@pytest.mark.asyncio
-async def test_safe_edit_when_response_not_done_uses_response_edit_message(monkeypatch):
-    view = _make_view(monkeypatch)
-
+async def test_safe_edit_when_response_not_done_uses_response_edit_message():
+    view = _make_view()
     inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())  # is_done False par défaut
 
     await view._safe_edit(inter, embed="EMBED", files=["FILES"])
@@ -267,20 +216,22 @@ async def test_safe_edit_when_response_not_done_uses_response_edit_message(monke
 
 
 @pytest.mark.asyncio
-async def test_safe_edit_when_response_done_and_uploaded_once_edits_original_without_files(monkeypatch):
-    view = _make_view(monkeypatch)
+async def test_safe_edit_when_response_done_and_uploaded_once_edits_original_without_files():
+    view = _make_view()
     view._uploaded_once = True
 
     inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
     inter.response._done = True  # type: ignore[attr-defined]
 
     await view._safe_edit(inter, embed="E", files=["F"])
-    assert inter.original_edits == [{"content": None, "embeds": None, "attachments": None, "view": view, "embed": "E", "files": None}]
+    assert inter.original_edits == [
+        {"content": None, "embeds": None, "attachments": None, "view": view, "embed": "E", "files": None}
+    ]
 
 
 @pytest.mark.asyncio
-async def test_safe_edit_when_response_done_first_time_sends_files_and_sets_flag(monkeypatch):
-    view = _make_view(monkeypatch)
+async def test_safe_edit_when_response_done_first_time_sends_files_and_sets_flag():
+    view = _make_view()
     view._uploaded_once = False
 
     inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
@@ -292,8 +243,8 @@ async def test_safe_edit_when_response_done_first_time_sends_files_and_sets_flag
 
 
 @pytest.mark.asyncio
-async def test_safe_edit_handles_notfound_and_http_exception(monkeypatch):
-    view = _make_view(monkeypatch)
+async def test_safe_edit_handles_notfound_and_http_exception():
+    view = _make_view()
 
     # NotFound
     inter1 = CompatInteraction(user=FakeUser(1), message=FakeMessage())
@@ -309,8 +260,8 @@ async def test_safe_edit_handles_notfound_and_http_exception(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_make_cat_cb_sets_current_refreshes_and_calls_safe_edit(monkeypatch):
-    view = _make_view(monkeypatch)
+async def test_click_category_button_routes_sets_current_refreshes_and_calls_safe_edit(monkeypatch):
+    view = _make_view()
 
     # mock build_category + _safe_edit
     view.build_category = lambda cat: ("EMBED_CAT", ["FILES_CAT"])  # type: ignore[assignment]
@@ -322,11 +273,11 @@ async def test_make_cat_cb_sets_current_refreshes_and_calls_safe_edit(monkeypatc
 
     view._safe_edit = fake_safe  # type: ignore[assignment]
 
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
-
-    # Nouveau code: les boutons de catégorie sont des instances de CategoryButton.
+    # Simule un clic sur le bouton XP (RoutedButton -> view.route_button)
     btn = view._cat_buttons["XP"]
-    await btn.callback(inter)  # type: ignore[attr-defined]
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage(), custom_id="help:cat:XP")
+
+    await btn.callback(inter)  # RoutedButton.callback
 
     assert view.current == "XP"
     assert safe_calls == [{"embed": "EMBED_CAT", "files": ["FILES_CAT"], "current": "XP"}]
@@ -335,8 +286,8 @@ async def test_make_cat_cb_sets_current_refreshes_and_calls_safe_edit(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_go_home_sets_current_none_refreshes_and_calls_safe_edit(monkeypatch):
-    view = _make_view(monkeypatch)
+async def test_click_home_button_routes_go_home(monkeypatch):
+    view = _make_view()
     view.current = "XP"
     view._refresh_nav_buttons()
 
@@ -349,9 +300,9 @@ async def test_go_home_sets_current_none_refreshes_and_calls_safe_edit(monkeypat
 
     view._safe_edit = fake_safe  # type: ignore[assignment]
 
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage(), custom_id="help:home")
 
-    await view._go_home(inter)
+    await view.home_button.callback(inter)  # RoutedButton.callback -> route_button -> _go_home
 
     assert view.current is None
     assert safe_calls == [{"embed": "EMBED_HOME", "files": ["FILES_HOME"], "current": None}]
@@ -378,21 +329,16 @@ async def test_send_help_menu_no_visible_commands_sends_message(monkeypatch):
 
     await M.send_help_menu(ctx, bot)
 
-    # followup send "Aucune commande..."
     assert ctx.followup.sent
     last = ctx.followup.sent[-1]
-
-    assert "Aucune commande disponible avec vos permissions." in (
-    last.get("content") or (last.get("args") or [""])[0]
-)
+    assert "Aucune commande disponible avec vos permissions." in (last.get("content") or (last.get("args") or [""])[0])
 
 
 @pytest.mark.asyncio
 async def test_send_help_menu_handles_ctx_without_defer_and_bot_without_application_commands(monkeypatch):
-    # load_help_config minimal
     monkeypatch.setattr(M, "load_help_config", lambda: ({}, {"Cat": ["a"]}, {}))
 
-    # Bot without application_commands attribute triggers cmds None branch
+    # Bot without application_commands attribute triggers getattr None branch
     class Bot:
         pass
 
@@ -406,7 +352,6 @@ async def test_send_help_menu_handles_ctx_without_defer_and_bot_without_applicat
     ctx = CtxNoDefer(user)
 
     await M.send_help_menu(ctx, Bot())
-    # no visible commands -> followup message
     assert ctx.followup.sent
 
 
@@ -421,7 +366,7 @@ async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_a
 
     monkeypatch.setattr(M, "load_help_config", fake_load_help_config)
 
-    # Commands: a visible, b non déclaré visible, help ignoré, manual_save excluded
+    # Commands: a visible, b non déclaré visible, help ignoré pour Autres, manual_save/insert_db excluded
     cmd_a = FakeCmd("a", dp=None, can_run=True)
     cmd_b = FakeCmd("b", dp=None, can_run=True)
     cmd_help = FakeCmd("help", dp=None, can_run=True)
@@ -433,11 +378,10 @@ async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_a
     user = FakeUser(42, guild_permissions=FakePerms(0xFFFF))
     ctx = FakeCtx(user=user)
 
-    # On veut éviter de tester les builders internes: on patch view + build_home
     created = {"view": None, "visible_by_cat": None}
 
     class FakeView:
-        def __init__(self, *, author_id, bot, cmd_map, help_infos, visible_by_cat, cat_descriptions):
+        def __init__(self, *, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
             created["view"] = self
             created["visible_by_cat"] = visible_by_cat
 
@@ -448,12 +392,8 @@ async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_a
 
     await M.send_help_menu(ctx, bot)
 
-    # visible_by_cat attendu :
-    # - Utils contient "a" (manual_save filtré)
-    # - Autres contient "b" (non déclaré)
     assert created["visible_by_cat"] == {"Utils": ["a"], "Autres": ["b"]}
 
-    # followup send embed/files/view
     assert ctx.followup.sent
     last = ctx.followup.sent[-1]
     assert last["embed"] == "EMBED_HOME"
@@ -481,7 +421,7 @@ async def test_send_help_menu_visibility_checks_can_run_false_or_exception(monke
     created = {"visible_by_cat": None}
 
     class FakeView:
-        def __init__(self, *, author_id, bot, cmd_map, help_infos, visible_by_cat, cat_descriptions):
+        def __init__(self, *, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
             created["visible_by_cat"] = visible_by_cat
 
         def build_home(self):

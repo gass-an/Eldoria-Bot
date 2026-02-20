@@ -5,103 +5,85 @@ import discord
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.json_tools.help_json import load_help_config
-from eldoria.ui.common.embeds.images import common_files, decorate
+from eldoria.ui.common.components import BasePanelView, RoutedButton
+from eldoria.ui.common.embeds.images import common_files
 from eldoria.ui.help.embeds import build_category_embed, build_home_embed
+from eldoria.ui.help.resolver import build_command_index, resolve_visible_by_category
 
 
-class HomeButton(discord.ui.Button):
-    """Bouton de retour à l'accueil du menu de help."""
-
-    def __init__(self) -> None:
-        """Initialise le bouton."""
-        super().__init__(label="Accueil", style=discord.ButtonStyle.secondary)
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        """Gère le clic sur le bouton Accueil."""
-        view = self.view
-        if view is None:
-            return
-        await view._go_home(interaction)
-
-
-class CategoryButton(discord.ui.Button):
-    """Bouton de navigation vers une catégorie du menu de help."""
-
-    def __init__(self, cat: str) -> None:
-        """Initialise le bouton."""
-        super().__init__(label=cat, style=discord.ButtonStyle.secondary)
-        self.cat = cat
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        """Gère le clic sur le bouton de catégorie."""
-        view = self.view
-        if view is None:
-            return
-        view.current = self.cat
-        view._refresh_nav_buttons()
-        embed, files = view.build_category(self.cat)
-        await view._safe_edit(interaction, embed=embed, files=files)
-
-
-class HelpMenuView(discord.ui.View):
-    """Menu de help interactif (embeds + boutons).
-
-    - Affiche une page d'accueil avec les fonctionnalités accessibles.
-    - Chaque fonctionnalité ouvre une page détaillant les commandes accessibles.
-
-    Le menu est "permission-aware" : on n'affiche que ce que l'utilisateur peut exécuter.
-    """
+class HelpMenuView(BasePanelView):
+    """Menu de help interactif (embeds + boutons), permission-aware."""
 
     def __init__(
         self,
+        *,
         author_id: int,
-        bot: EldoriaBot,
-        cmd_map: dict,
-        help_infos: dict,
+        cmd_map: dict[str, object],
+        help_infos: dict[str, str],
         visible_by_cat: dict[str, list[str]],
         cat_descriptions: dict[str, str] | None = None,
     ) -> None:
-        """Initialise le menu."""
-        super().__init__(timeout=240)
-        self.author_id = author_id
-        self.bot = bot
+        """Initialise la view."""
+        super().__init__(author_id=author_id, timeout=240)
         self.cmd_map = cmd_map
         self.help_infos = help_infos
         self.visible_by_cat = visible_by_cat
         self.cat_descriptions = cat_descriptions or {}
+
         self.current: str | None = None  # None = home
 
-        # URLs des images une fois le message envoyé.
-        # Objectif: éviter de ré-uploader les mêmes fichiers à chaque clic (latence).
+        # URLs des images une fois le message envoyé (si tu décides de les set plus tard)
         self._thumb_url: str | None = None
         self._banner_url: str | None = None
-        
-        # Marque si on a déjà uploadé les fichiers au moins une fois (pour ne plus les renvoyer ensuite)
-        self._uploaded_once = False  
 
-        # On garde une référence aux boutons de catégories pour pouvoir
-        # mettre en évidence la page courante (couleur différente + non cliquable).
+        # Marque si on a déjà uploadé les fichiers au moins une fois
+        self._uploaded_once = False
+
+        # Boutons
         self._cat_buttons: dict[str, discord.ui.Button] = {}
 
-        # Construit les boutons (accueil + 1 bouton par catégorie)
-        self.home_button = HomeButton()
+        self.home_button = RoutedButton(
+            label="Accueil",
+            style=discord.ButtonStyle.secondary,
+            custom_id="help:home",
+        )
         self.add_item(self.home_button)
 
-        # Boutons catégories
         for cat in self.visible_by_cat.keys():
-            btn = CategoryButton(cat)
+            btn = RoutedButton(
+                label=cat,
+                style=discord.ButtonStyle.secondary,
+                custom_id=f"help:cat:{cat}",
+            )
             self.add_item(btn)
             self._cat_buttons[cat] = btn
 
-        # Styles initiaux (Home = page courante)
         self._refresh_nav_buttons()
 
-    def _refresh_nav_buttons(self) -> None:
-        """Met en évidence la page actuelle.
+    # -------------------- Routing --------------------
+    async def route_button(self, interaction: discord.Interaction) -> None:
+        """Router unique pour tous les boutons de la view."""
+        cid = getattr(interaction.data, "get", lambda _k, _d=None: None)("custom_id")  # type: ignore[attr-defined]
+        if not isinstance(cid, str):
+            return
 
-        - Bouton de la page courante : couleur différente + disabled
-        - Tous les autres : cliquables et même couleur
-        """
+        if cid == "help:home":
+            await self._go_home(interaction)
+            return
+
+        if cid.startswith("help:cat:"):
+            cat = cid.removeprefix("help:cat:")
+            if cat not in self.visible_by_cat:
+                return
+            self.current = cat
+            self._refresh_nav_buttons()
+            embed, files = self.build_category(cat)
+            await self._safe_edit(interaction, embed=embed, files=files)
+            return
+
+    # -------------------- UI helpers --------------------
+    def _refresh_nav_buttons(self) -> None:
+        """Met en évidence la page actuelle (couleur + disabled)."""
         default_style = discord.ButtonStyle.secondary
         active_style = discord.ButtonStyle.primary
 
@@ -122,13 +104,9 @@ class HelpMenuView(discord.ui.View):
                 btn.style = default_style
                 btn.disabled = False
 
-    # -------------------- Embeds builders --------------------
     def _common_files(self) -> list[discord.File]:
         return common_files(self._thumb_url, self._banner_url)
-    def _decorate(self, embed: discord.Embed) -> discord.Embed:
-        return decorate(embed, self._thumb_url, self._banner_url)
 
-    
     def build_home(self) -> tuple[discord.Embed, list[discord.File]]:
         """Construit l'embed de la page d'accueil."""
         embed = build_home_embed(
@@ -138,9 +116,9 @@ class HelpMenuView(discord.ui.View):
             banner_url=self._banner_url,
         )
         return embed, self._common_files()
-    
+
     def build_category(self, cat: str) -> tuple[discord.Embed, list[discord.File]]:
-        """Construit l'embed d'une page de catégorie."""
+        """Construit l'embed d'une catégorie donnée."""
         cmds = self.visible_by_cat.get(cat, [])
         embed = build_category_embed(
             cat=cat,
@@ -152,30 +130,14 @@ class HelpMenuView(discord.ui.View):
         )
         return embed, self._common_files()
 
-    # -------------------- Interaction guards --------------------
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Vérifie que l'interaction vient de l'utilisateur qui a ouvert le menu."""
-        # Empêche les autres utilisateurs de manipuler le menu (utile même en non-ephemeral)
-        if interaction.user and interaction.user.id != self.author_id:
-            try:
-                await interaction.response.send_message(
-                    "❌ Ce menu ne t'appartient pas.", ephemeral=True
-                )
-            except discord.InteractionResponded:
-                await interaction.followup.send(
-                    "❌ Ce menu ne t'appartient pas.", ephemeral=True
-                )
-            return False
-        return True
-
-    async def on_timeout(self) -> None:
-        """Désactive tous les boutons à l'expiration du menu."""
-        for item in self.children:
-            if isinstance(item, discord.ui.Button):
-                item.disabled = True
-
-
-    async def _safe_edit(self, interaction: discord.Interaction, *, embed: discord.Embed, files: list[discord.File] | None = None) -> None:
+    async def _safe_edit(
+        self,
+        interaction: discord.Interaction,
+        *,
+        embed: discord.Embed,
+        files: list[discord.File] | None = None,
+    ) -> None:
+        """Edite le message sans ré-uploader les fichiers après le 1er envoi (comportement conservé)."""
         try:
             # 1) Si on peut répondre directement, on le fait (1 call)
             if not interaction.response.is_done():
@@ -193,8 +155,7 @@ class HelpMenuView(discord.ui.View):
 
         except (discord.NotFound, discord.HTTPException):
             return
-    
-    # -------------------- Button callbacks --------------------
+
     async def _go_home(self, interaction: discord.Interaction) -> None:
         self.current = None
         self._refresh_nav_buttons()
@@ -205,30 +166,21 @@ class HelpMenuView(discord.ui.View):
 # -------------------- Slash command helper --------------------
 async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> None:
     """Commande d'ouverture du menu de help."""
-    # Certains fakes n’implémentent pas defer exactement comme discord.py.
-    # On essaye, mais on ne doit jamais casser les tests à cause de ça.
+    # Compat tests/fakes: defer peut ne pas être totalement conforme
     try:
         if hasattr(ctx, "defer"):
             await ctx.defer(ephemeral=True)
     except Exception:
         pass
 
-    # Récupère les commandes
-    cmds = getattr(bot, "application_commands", None)
-    if cmds is None:
-        cmds = []
-    cmd_map = {c.name: c for c in cmds}
+    # Index commandes (inclut SlashCommandGroup -> sous-commandes)
+    pairs, cmd_map = build_command_index(bot)
 
-    # Permissions user
-    member_perms = getattr(getattr(ctx, "user", None), "guild_permissions", None)
-    member_perm_value = getattr(member_perms, "value", 0)
-
-    # Help config
+    # Help config (json)
     help_infos, categories, cat_descriptions = load_help_config()
 
-    # Commandes internes qu'on ne veut pas exposer
+    # Commandes internes à masquer
     excluded_cmds = {"manual_save", "insert_db"}
-
     for name in excluded_cmds:
         cmd_map.pop(name, None)
         help_infos.pop(name, None)
@@ -237,57 +189,15 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> No
     for cat, lst in list(categories.items()):
         categories[cat] = [c for c in lst if c not in excluded_cmds]
 
-    async def _can_run(cmd: discord.ApplicationCommand, ctx: discord.ApplicationContext) -> bool:
-        fn = getattr(cmd, "can_run", None)
-        if fn is None:
-            return True
-        try:
-            res = fn(ctx)
-            if hasattr(res, "__await__"):
-                res = await res
-            return bool(res)
-        except Exception:
-            return False
+    # Filtrage permission-aware + "Autres"
+    visible_by_cat = await resolve_visible_by_category(
+        ctx=ctx,
+        cmd_map=cmd_map,
+        pairs=pairs,
+        categories=categories,
+        excluded_cmds=excluded_cmds,
+    )
 
-    async def is_command_visible(cmd_name: str) -> bool:
-        cmd = cmd_map.get(cmd_name)
-        if cmd is None:
-            return False
-
-        dp = getattr(cmd, "default_member_permissions", None)
-        if dp is None:
-            dp = getattr(cmd, "default_permissions", None)
-        if dp is not None:
-            dp_value = getattr(dp, "value", 0)
-            # L'utilisateur doit posséder toutes les perms requises
-            if (member_perm_value & dp_value) != dp_value:
-                return False
-
-        return await _can_run(cmd, ctx)
-
-    # ---- Catégorisation : ajoute les commandes non déclarées dans "Autres"
-    declared = {c for lst in categories.values() for c in lst}
-    for cmd_name in list(cmd_map.keys()):
-        if cmd_name == "help":
-            continue
-        if cmd_name in excluded_cmds:
-            continue
-        if cmd_name not in declared:
-            categories.setdefault("Autres", []).append(cmd_name)
-
-    # ---- Filtrage par visibilité
-    visible_by_cat: dict[str, list[str]] = {}
-    for cat, cmd_names in categories.items():
-        visible = []
-        for name in cmd_names:
-            if name in excluded_cmds or name == "help":
-                continue
-            if await is_command_visible(name):
-                visible.append(name)
-        if visible:
-            visible_by_cat[cat] = visible
-
-    # ---- Aucun résultat -> message
     if not visible_by_cat:
         await ctx.followup.send(
             content="Aucune commande disponible avec vos permissions.",
@@ -297,7 +207,6 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> No
 
     view = HelpMenuView(
         author_id=ctx.user.id,
-        bot=bot,
         cmd_map=cmd_map,
         help_infos=help_infos,
         visible_by_cat=visible_by_cat,
@@ -305,4 +214,4 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> No
     )
     embed, files = view.build_home()
     await ctx.followup.send(embed=embed, files=files, view=view, ephemeral=True)
-    view._uploaded_once = True  # Marque que les fichiers ont été envoyés une fois (pour ne plus les renvoyer)
+    view._uploaded_once = True

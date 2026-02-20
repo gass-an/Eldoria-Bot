@@ -1,65 +1,70 @@
 {
-    "categories": {
+  "categories": {
         "Général": {
-            "description": "Commandes de base pour vérifier l'état du bot et accéder rapidement à l'aide.",
-            "commands": {
-                "ping": "Vérifie si le bot est en ligne et répond correctement.",
-                "help": "Affiche le menu d'aide interactif et la liste des commandes disponibles.",
-                "duel": "Defi un autre membre en duel (et pari de l'xp)",
-                "version": "Affiche la version actuelle du bot"
+        "description": "Commandes de base pour vérifier que le bot fonctionne et accéder à l'aide.",
+        "commands": {
+            "ping": "Teste si le bot répond correctement.",
+            "help": "Affiche le menu d'aide interactif avec les commandes que tu peux utiliser.",
+            "version": "Affiche la version actuelle du bot."
             }
         },
-        "Vocaux temporaires": {
-            "description": "Gestion des salons vocaux temporaires créés automatiquement lorsque les membres rejoignent un salon.",
-            "commands": {
-                "init_creation_voice_channel": "Définit un salon vocal servant de point de création pour les salons vocaux temporaires.",
-                "remove_creation_voice_channel": "Désactive la création automatique de salons vocaux pour un salon donné.",
-                "list_creation_voice_channels": "Affiche la liste des salons utilisés pour créer des vocaux temporaires."
-            }
+
+        "Duels": {
+        "description": "Défie un autre membre et mise de l'XP (si le système XP est activé).",
+        "commands": {
+            "duel": "Lance un duel contre un membre avec une mise d'XP."
+            } 
         },
-        "Reaction roles": {
-            "description": "Attribution automatique de rôles via des réactions sur des messages.",
-            "commands": {
-                "add_reaction_role": "Associe une réaction sur un message à un rôle.",
-                "remove_specific_reaction": "Supprime une réaction spécifique et le rôle associé sur un message.",
-                "remove_all_reactions": "Supprime toutes les réactions d'un message et les rôles associés.",
-                "list_of_reaction_roles": "Affiche la liste des rôles attribués par réaction sur un message."
-            }
-        },
-        "Secret roles": {
-            "description": "Gestion de rôles cachés attribués via des messages secrets.",
-            "commands": {
-                "add_secret_role": "Configure un rôle attribué lorsqu'un utilisateur envoie un message secret dans un salon précis.",
-                "delete_secret_role": "Supprime une configuration de rôle secret existante.",
-                "list_of_secret_roles": "Affiche la liste des rôles secrets configurés sur le serveur."
-            }
-        },
-        "Message d'arrivée": {
-            "description": "Gestion des messages d'arrivée.",
-            "commands": {
-                "welcome_setup": "Définit le salon des messages d'arrivée et active la fonctionnalité.",
-                "welcome_enable": "Active les messages d'arrivée.",
-                "welcome_disable": "Désactive les messages d'arrivée."
-            }
-        },
+
         "Système XP": {
-            "description": "Système d'expérience basé sur l'activité, avec niveaux, rôles et classement.",
-            "commands": {
-                "xp_enable": "Active le système d'XP sur le serveur.",
-                "xp_disable": "Désactive le système d'XP sur le serveur.",
-                "xp_status": "Affiche l'état actuel du système d'XP.",
-                "xp": "Affiche ton niveau et ton expérience actuelle.",
-                "xp_roles": "Affiche les rôles de niveau et l'XP nécessaire pour les obtenir.",
-                "xp_classement": "Affiche le classement des membres selon leur XP.",
-                "xp_set_level": "Définit l'XP requise pour atteindre un niveau spécifique.",
-                "xp_set_config": "Configure les gains d'XP, le cooldown, les bonus et les malus.",
-                "xp_set_role": "Associe un rôle à un niveau XP (remplace l'ancien rôle lié).",
-                "xp_modify": "Ajoute ou retire de l'XP à un membre."
+        "description": "Système d'expérience basé sur l'activité, avec niveaux, rôles et classement.",
+        "commands": {
+            "xp profile": "Affiche ton niveau, ton XP et ta progression.",
+            "xp roles": "Affiche les rôles de niveau et l'XP nécessaire pour les obtenir.",
+            "xp leaderboard": "Affiche le classement des membres selon leur XP.",
+            "xp status": "Affiche l'état actuel du système XP.",
+            "xp_admin": "(Staff) Ouvre le panneau de configuration du système XP.",
+            "xp_modify": "(Staff) Ajoute ou retire de l'XP à un membre."
             }
         },
+
+        "Vocaux temporaires": {
+        "description": "Gestion automatique de salons vocaux temporaires.",
+        "commands": {
+            "tempvoice config": "(Staff) Configure le salon vocal parent servant à créer des vocaux temporaires.",
+            "tempvoice list": "(Staff) Affiche la liste des salons configurés pour la création automatique."
+            }
+        },
+
+        "Reaction roles": {
+        "description": "Attribution automatique de rôles via des réactions sur des messages.",
+        "commands": {
+            "reactionrole add": "(Staff) Associe une réaction sur un message à un rôle.",
+            "reactionrole remove": "(Staff) Supprime un rôle-réaction spécifique.",
+            "reactionrole clear": "(Staff) Supprime toutes les réactions configurées sur un message.",
+            "reactionrole list": "(Staff) Affiche la liste des rôles attribués par réaction."
+            }
+        },
+
+        "Secret roles": {
+        "description": "Gestion de rôles attribués via un message secret.",
+        "commands": {
+            "secretrole add": "(Staff) Configure un rôle attribué via un mot secret.",
+            "secretrole remove": "(Staff) Supprime une configuration de rôle secret.",
+            "secretrole list": "(Staff) Affiche la liste des rôles secrets configurés."
+            }
+        },
+
+        "Message d'arrivée": {
+        "description": "Configuration du message envoyé lorsqu'un nouveau membre rejoint le serveur.",
+        "commands": {
+            "welcome": "(Staff) Ouvre un panneau interactif pour configurer le message de bienvenue."
+            }
+        },
+
         "Autres": {
-            "description": "Commandes diverses ne correspondant pas à une catégorie spécifique.",
-            "commands": {}
+        "description": "Commandes diverses ne correspondant pas à une catégorie spécifique.",
+        "commands": {}
         }
     }
 }
