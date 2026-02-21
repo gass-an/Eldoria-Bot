@@ -193,6 +193,5 @@ async def test_build_xp_disable_embed_matches_disabled_layout(monkeypatch):
     assert embed.colour == 55
     assert len(embed.fields) == 2
     assert embed.fields[0]["value"] == "⛔ Désactivé"
-    assert "/xp_enable" in embed.fields[1]["value"]
     assert embed.footer == {"text": "Serveur : Srv"}
     assert files == ["FILES"]

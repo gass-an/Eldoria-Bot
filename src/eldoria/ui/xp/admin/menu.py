@@ -83,6 +83,7 @@ class XpAdminMenuView(BasePanelView):
         if cid == "xp:enable":
             self.xp.ensure_defaults(gid)
             self.xp.set_config(gid, enabled=True)
+            await self.xp.ensure_guild_xp_setup(self.guild)
             view = XpAdminMenuView(xp=self.xp, author_id=self.author_id, guild=self.guild)
             embed, _files = view.current_embed()
             await interaction.response.edit_message(embed=embed, view=view)

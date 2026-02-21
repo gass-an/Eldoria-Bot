@@ -20,11 +20,18 @@ async def message_secret_role_autocomplete(
 
     guild_id = guild.id
 
-    channel_id_raw = interaction.options.get("channel")
-    if not isinstance(channel_id_raw, int):
+    channel_opt = interaction.options.get("channel")
+
+    if channel_opt is None:
         return []
 
-    channel_id = channel_id_raw
+    # Si c'est un objet Discord → il a un .id
+    channel_id = getattr(channel_opt, "id", channel_opt)
+
+    try:
+        channel_id = int(channel_id)
+    except (TypeError, ValueError):
+        return []
 
     user_input = (interaction.value or "").lower()
 

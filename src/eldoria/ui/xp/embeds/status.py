@@ -117,7 +117,7 @@ async def build_xp_disable_embed(guild_id: int, bot: EldoriaBot) -> tuple[discor
     )
     embed.add_field(
         name="Information",
-        value="Demandez à un administrateur d'utiliser `/xp_enable` pour activer le système.",
+        value="Demandez à un administrateur d'activer le système d'xp sur ce serveur.",
         inline=False
     )
 

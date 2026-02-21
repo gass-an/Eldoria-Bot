@@ -56,6 +56,9 @@ class FakeXpService:
         # keep internal cfg somewhat consistent
         self._cfg.update(kwargs)
 
+    async def ensure_guild_xp_setup(self, guild):
+        self.calls.append(("ensure_guild_xp_setup", guild.id))
+
 
 class FakeResponse:
     def __init__(self):
