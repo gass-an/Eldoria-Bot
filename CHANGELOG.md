@@ -5,8 +5,18 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/)
 et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
-
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Notes
+
+
+## [0.6.0] - 2026-02-21
 
 ### Added
 - Duels de mini-jeux pour miser de l'XP : disponible que pour Pierre-Feuille-Ciseaux (1 manche)

@@ -4,4 +4,4 @@ Définit une constante VERSION qui peut être utilisée dans tout le projet pour
 """
 from typing import Final
 
-VERSION: Final[str] ="0.5.1"
+VERSION: Final[str] ="0.6.0"
