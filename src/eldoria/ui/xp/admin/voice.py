@@ -35,7 +35,7 @@ class XpAdminVoiceView(BasePanelView):
                 style=discord.ButtonStyle.success,
                 custom_id="xp:voice:on",
                 disabled=voice_enabled,
-                row=1,
+                row=0,
             )
         )
 
@@ -45,7 +45,7 @@ class XpAdminVoiceView(BasePanelView):
                 style=discord.ButtonStyle.danger,
                 custom_id="xp:voice:off",
                 disabled=not voice_enabled,
-                row=1,
+                row=0,
             )
         )
 
@@ -55,7 +55,7 @@ class XpAdminVoiceView(BasePanelView):
             style=discord.ButtonStyle.primary,
             custom_id="xp:voice:modal",
             emoji="✏️",
-            row=2
+            row=0
             ))
 
         # Channel select (only useful even if voice off, allow setting it)
@@ -70,7 +70,7 @@ class XpAdminVoiceView(BasePanelView):
             min_values=1,
             max_values=1,
             disabled=not voice_enabled,
-            row=3,
+            row=1,
         )
 
         async def _on_channel_select(interaction: discord.Interaction) -> None:

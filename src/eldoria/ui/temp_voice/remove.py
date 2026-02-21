@@ -80,24 +80,24 @@ class TempVoiceRemoveView(BasePanelView):
         configured = self._get_configured()
         options = [discord.SelectOption(label=ch.name, value=str(ch.id)) for ch, _limit in configured[:25]]
 
-        select = RoutedSelect(
+        self.add_item(RoutedSelect(
             placeholder="Sélectionner un salon configuré…",
             options=options if options else [discord.SelectOption(label="Aucun salon configuré", value="none")],
             custom_id="tv:remove:select",
             disabled=(len(options) == 0),
-        )
-        btn_delete = RoutedButton(
+            row=0,
+        ))
+        
+        self.add_item(RoutedButton(label="Retour", style=discord.ButtonStyle.secondary, custom_id="tv:back", emoji="⬅️", row=1))
+
+        self.add_item(RoutedButton(
             label="Supprimer",
             style=discord.ButtonStyle.danger,
             custom_id="tv:remove:delete",
             disabled=(self.selected_channel is None),
             emoji="🗑️",
-        )
-        btn_back = RoutedButton(label="Retour", style=discord.ButtonStyle.secondary, custom_id="tv:back")
-
-        self.add_item(select)
-        self.add_item(btn_delete)
-        self.add_item(btn_back)
+            row=1,
+            ))
 
     async def route_button(self, interaction: discord.Interaction) -> None:
         """Route les interactions des boutons en fonction de leur custom_id."""

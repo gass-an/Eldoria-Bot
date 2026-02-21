@@ -84,27 +84,25 @@ class TempVoiceAddView(BasePanelView):
         if not options:
             options = [discord.SelectOption(label="Aucun salon vocal", value="none")]
 
-        select = RoutedSelect(
+        self.add_item(RoutedSelect(
             placeholder="Sélectionner un salon vocal…",
             options=options,
             custom_id="tv:add:select",
             disabled=(options[0].value == "none"),
-        )
+            row=0,
+        ))
+        self.add_item(RoutedButton(label="Retour", style=discord.ButtonStyle.secondary, custom_id="tv:back", emoji="⬅️", row=1))
 
-        btn_limit = RoutedButton(label="Définir limite", style=discord.ButtonStyle.primary, custom_id="tv:add:limit")
-        btn_save = RoutedButton(
+        self.add_item(RoutedButton(label="Définir limite", style=discord.ButtonStyle.primary, custom_id="tv:add:limit", row=1))
+        
+        self.add_item(RoutedButton(
             label="Enregistrer",
             style=discord.ButtonStyle.success,
             custom_id="tv:add:save",
             disabled=not (self.selected_channel and self.user_limit),
             emoji="✅",
-        )
-        btn_back = RoutedButton(label="Retour", style=discord.ButtonStyle.secondary, custom_id="tv:back")
-
-        self.add_item(select)
-        self.add_item(btn_limit)
-        self.add_item(btn_save)
-        self.add_item(btn_back)
+            row=1,
+        ))
 
     async def route_button(self, interaction: discord.Interaction) -> None:
         """Route les interactions des boutons en fonction de leur custom_id."""
