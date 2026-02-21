@@ -14,15 +14,17 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 - Refacto Tests unitaires + Ajout tests unitaires manquant
 - Système global de gestion d’erreurs avec hiérarchie d’exceptions métier
 - Centralisation du traitement des erreurs via un handler dédié
+- Nouveaux menus interactifs (panneaux UI) pour certaines commandes
 
 ### Changed
 - Amélioration de l’affichage du terminal au lancement (banner + logs structurés)
+- Refonte complète de l’architecture des commandes
 
 ### Fixed
 - Réduction de la latence du menu d’aide en supprimant les ré-uploads inutiles de fichiers lors des éditions d’embed.
 
 ### Notes
-
+- Certaines commandes ont été restructurées en sous-commandes pour plus de cohérence et de maintenabilité.
 
 
 ## [0.5.1] – 2026-01-18
