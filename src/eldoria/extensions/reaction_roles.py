@@ -12,7 +12,11 @@ from discord.ext import commands
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.embeds import build_list_roles_embed
-from eldoria.utils.discord_utils import extract_id_from_link, get_text_or_thread_channel
+from eldoria.utils.discord_utils import (
+    extract_id_from_link,
+    get_text_or_thread_channel,
+    require_guild_ctx,
+)
 
 log = logging.getLogger(__name__)
 
@@ -240,14 +244,12 @@ class ReactionRoles(commands.Cog):
         
         Récupère les règles de rôle par réaction du serveur, les organise par message, et affiche le tout dans un embed paginé.
         """
-        if ctx.guild is None:
-            await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
+        await ctx.defer(ephemeral=True)
 
-        guild_id = ctx.guild.id
+        guild, _channel = require_guild_ctx(ctx)
+        guild_id = guild.id
         role_config_guild_list = self.role.rr_list_by_guild_grouped(guild_id)
 
-        await ctx.defer(ephemeral=True)
         paginator = Paginator(
             items=role_config_guild_list,
             embed_generator=build_list_roles_embed,

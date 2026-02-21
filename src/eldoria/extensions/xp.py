@@ -19,6 +19,7 @@ from eldoria.ui.xp.embeds.leaderboard import build_list_xp_embed
 from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
 from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
+from eldoria.utils.discord_utils import require_guild_ctx
 from eldoria.utils.mentions import level_label
 
 log = logging.getLogger(__name__)
@@ -53,11 +54,9 @@ class Xp(commands.Cog):
         affiche un embed avec les informations de profil d'XP (XP actuel, niveau actuel, XP requis pour le prochain niveau, etc.).
         """
         await ctx.defer(ephemeral=True)
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
-
-        guild = ctx.guild
+        
+        guild, _channel = require_guild_ctx(ctx)
+        
         guild_id = guild.id
         user = ctx.user
         user_id = user.id
@@ -92,11 +91,8 @@ class Xp(commands.Cog):
         ainsi que les paramètres de configuration actuels (points par message, cooldown, bonus, etc.).
         """
         await ctx.defer(ephemeral=True)
-        guild = ctx.guild
-        if guild is None:
-            await ctx.followup.send("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
-
+        guild, _channel = require_guild_ctx(ctx)
+        
         cfg = self.xp.get_config(guild.id)
         embed, files = await build_xp_status_embed(cfg=cfg, guild_id=guild.id, bot=self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
@@ -108,12 +104,9 @@ class Xp(commands.Cog):
         Vérifie la configuration du système d'XP, récupère les données de classement (XP et niveau) pour les membres du serveur et 
         affiche un embed paginé avec le classement des joueurs.
         """
-        if ctx.guild is None:
-            await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
         await ctx.defer(ephemeral=True)
-
-        guild = ctx.guild
+        
+        guild, _channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
         if not self.xp.is_enabled(guild_id):
@@ -141,12 +134,8 @@ class Xp(commands.Cog):
         Vérifie la configuration du système d'XP, récupère les rôles associés à chaque niveau et les seuils d'XP correspondants et 
         affiche un embed avec les informations de rôles de niveau.
         """
-        if ctx.guild is None:
-            await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
         await ctx.defer(ephemeral=True)
-
-        guild = ctx.guild
+        guild, _channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
         if not self.xp.is_enabled(guild_id):
@@ -168,10 +157,8 @@ class Xp(commands.Cog):
     async def xp_admin(self, ctx: discord.ApplicationContext) -> None:
         """Ouvre le panneau admin XP (UI)."""
         await ctx.defer(ephemeral=True)
-        guild = ctx.guild
-        if guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
+        
+        guild, _channel = require_guild_ctx(ctx)
 
         self.xp.ensure_defaults(guild.id)
 
@@ -194,10 +181,8 @@ class Xp(commands.Cog):
         et affiche un message de confirmation avec le nouveau total d'XP et le niveau du membre.
         """
         await ctx.defer(ephemeral=True)
-        guild = ctx.guild
-        if guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
+        guild, _channel = require_guild_ctx(ctx)
+        
         if member.bot:
             await ctx.followup.send(content="❌ Impossible de modifier l'XP d'un bot.")
             return

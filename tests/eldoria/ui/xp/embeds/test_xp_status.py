@@ -36,7 +36,9 @@ async def test_build_xp_status_embed_disabled_branch(monkeypatch):
     assert len(embed.fields) == 2
     assert embed.fields[0] == {"name": "État", "value": "⛔ Désactivé", "inline": True}
     assert embed.fields[1]["name"] == "Information"
-    assert "/xp_enable" in embed.fields[1]["value"]
+    # Nouveau wording: plus de mention explicite de la commande, juste une indication générale.
+    assert "administrateur" in embed.fields[1]["value"].lower()
+    assert "activer" in embed.fields[1]["value"].lower()
     assert embed.fields[1]["inline"] is False
 
     assert embed.footer == {"text": "Serveur : Srv"}

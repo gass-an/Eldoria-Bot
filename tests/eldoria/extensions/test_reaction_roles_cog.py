@@ -94,6 +94,7 @@ _ensure_discord_stubs()
 
 # ---------- Import module under test (adjust path if needed) ----------
 import eldoria.extensions.reaction_roles as rr_mod  # noqa: E402
+from eldoria.exceptions.general import GuildRequired
 from eldoria.extensions.reaction_roles import ReactionRoles, setup  # noqa: E402
 
 
@@ -205,9 +206,19 @@ class _FakeFollowup:
 
 
 class _FakeCtx:
-    def __init__(self, guild=None, user=None):
+    def __init__(self, guild=None, user=None, channel=None):
+        import sys
+
+        discord = sys.modules["discord"]
+
+        class _GuildChan(discord.abc.GuildChannel):
+            id: int = 0
+
         self.guild = guild
         self.user = user
+        # Voir commentaire dans d'autres tests: on force un channel qui hérite
+        # de discord.abc.GuildChannel pour satisfaire require_guild_ctx.
+        self.channel = channel or _GuildChan()
         self.followup = _FakeFollowup()
         self.deferred = False
         self.responded = []
@@ -631,9 +642,8 @@ async def test_list_reaction_roles_requires_guild():
     ctx = _FakeCtx(guild=None, user=_FakeMember(1))
     cog = ReactionRoles(bot)
 
-    await cog.rr_list(ctx)
-    assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
-    assert ctx.responded[-1]["ephemeral"] is True
+    with pytest.raises(GuildRequired):
+        await cog.rr_list(ctx)
 
 
 @pytest.mark.asyncio

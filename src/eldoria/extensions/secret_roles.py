@@ -12,6 +12,7 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.autocompletion import message_secret_role_autocomplete
 from eldoria.ui.roles.embeds import build_list_secret_roles_embed
+from eldoria.utils.discord_utils import require_guild_ctx
 
 
 class SecretRoles(commands.Cog):
@@ -46,10 +47,8 @@ class SecretRoles(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
-        guild = ctx.guild
-        if guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
+        guild, _channel = require_guild_ctx(ctx)
+        guild_id = guild.id
 
         bot_member = guild.me
         if bot_member is None:
@@ -60,8 +59,7 @@ class SecretRoles(commands.Cog):
         if role.position >= bot_highest_role.position:
             await ctx.followup.send(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
             return
-
-        guild_id = guild.id
+        
         channel_id = channel.id
         message_str = str(message)
 
@@ -90,11 +88,9 @@ class SecretRoles(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
-        if ctx.guild is None:
-            await ctx.followup.send(content="Commande uniquement disponible sur un serveur.")
-            return
-
-        guild_id = ctx.guild.id
+        guild, _channel = require_guild_ctx(ctx)
+        
+        guild_id = guild.id
         channel_id = channel.id
         message_str = str(message)
 
@@ -113,14 +109,13 @@ class SecretRoles(commands.Cog):
         
         Récupère les rôles secrets du serveur, les organise par channel et message, et affiche le tout dans un embed paginé.
         """
-        if ctx.guild is None:
-            await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
-
-        guild_id = ctx.guild.id
+        await ctx.defer(ephemeral=True)
+        
+        guild, _channel = require_guild_ctx(ctx)
+        
+        guild_id = guild.id
         secret_roles_guild_list = self.role.sr_list_by_guild_grouped(guild_id)
 
-        await ctx.defer(ephemeral=True)
         paginator = Paginator(
             items=secret_roles_guild_list,
             embed_generator=build_list_secret_roles_embed,

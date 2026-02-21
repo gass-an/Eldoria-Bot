@@ -123,9 +123,18 @@ class _FakeFollowup:
 
 class _FakeCtx:
     def __init__(self, *, guild=None, user=None, author=None):
+        import sys
+
+        discord = sys.modules["discord"]
+
+        class _GuildChan(discord.abc.GuildChannel):
+            id: int = 0
+
         self.guild = guild
         self.user = user or _FakeMember(123)
         self.author = author or self.user  # used by xp_admin
+        # Nouveau contrat: require_guild_ctx exige un channel de guild valide.
+        self.channel = _GuildChan()
         self.followup = _FakeFollowup()
         self.deferred = False
         self.responded: list[dict] = []
@@ -251,10 +260,10 @@ async def test_xp_profile_requires_guild(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_profile(ctx)
+    from eldoria.exceptions.general import GuildRequired
 
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    with pytest.raises(GuildRequired):
+        await cog.xp_profile(ctx)
 
 
 @pytest.mark.asyncio
@@ -298,11 +307,10 @@ async def test_xp_status_requires_guild(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_status(ctx)
+    from eldoria.exceptions.general import GuildRequired
 
-    sent = ctx.followup.sent[-1]
-    assert sent["content"] == "Commande uniquement disponible sur un serveur."
-    assert sent["ephemeral"] is True
+    with pytest.raises(GuildRequired):
+        await cog.xp_status(ctx)
 
 
 @pytest.mark.asyncio
@@ -328,10 +336,10 @@ async def test_xp_leaderboard_requires_guild_responds(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_leaderboard(ctx)
+    from eldoria.exceptions.general import GuildRequired
 
-    assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
-    assert ctx.responded[-1]["ephemeral"] is True
+    with pytest.raises(GuildRequired):
+        await cog.xp_leaderboard(ctx)
 
 
 @pytest.mark.asyncio
@@ -382,10 +390,10 @@ async def test_xp_roles_requires_guild_responds(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_roles(ctx)
+    from eldoria.exceptions.general import GuildRequired
 
-    assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
-    assert ctx.responded[-1]["ephemeral"] is True
+    with pytest.raises(GuildRequired):
+        await cog.xp_roles(ctx)
 
 
 @pytest.mark.asyncio
@@ -423,9 +431,10 @@ async def test_xp_admin_requires_guild(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_admin(ctx)
+    from eldoria.exceptions.general import GuildRequired
 
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    with pytest.raises(GuildRequired):
+        await cog.xp_admin(ctx)
 
 
 @pytest.mark.asyncio
@@ -461,8 +470,10 @@ async def test_xp_modify_requires_guild(_patch_ui):
     cog = Xp(_FakeBot(xp))
     ctx = _FakeCtx(guild=None)
 
-    await cog.xp_modify(ctx, _FakeMember(1), 10)
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.xp_modify(ctx, _FakeMember(1), 10)
 
 
 @pytest.mark.asyncio

@@ -112,8 +112,21 @@ class _FakeFollowup:
 
 
 class _FakeCtx:
-    def __init__(self, guild=None):
+    def __init__(self, guild=None, channel=None):
+        # Nouveau contrat: les commandes exigent un contexte de guild *et* un channel de guild.
+        # On fournit donc un channel compatible avec isinstance(..., discord.abc.GuildChannel).
+        import sys
+
+        discord = sys.modules["discord"]
+
+        class _GuildChan(discord.abc.GuildChannel):
+            id: int = 0
+
         self.guild = guild
+        # IMPORTANT: le stub discord.TextChannel ne passe pas isinstance(..., discord.abc.GuildChannel)
+        # à cause d'une redéfinition interne dans le stub. On force donc un channel qui hérite
+        # directement de discord.abc.GuildChannel.
+        self.channel = channel or _GuildChan()
         self.followup = _FakeFollowup()
         self.deferred = False
         self.responded = []
@@ -200,9 +213,11 @@ async def test_add_secret_role_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.sr_add(ctx, "msg", _FakeTextChannel(10), _FakeRole(1))
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    # Nouveau contrat: la commande lève GuildRequired quand elle n'est pas dans une guild.
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.sr_add(ctx, "msg", _FakeTextChannel(10), _FakeRole(1))
 
 
 @pytest.mark.asyncio
@@ -283,9 +298,10 @@ async def test_delete_secret_role_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.sr_remove(ctx, _FakeTextChannel(10), "msg")
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.sr_remove(ctx, _FakeTextChannel(10), "msg")
 
 
 @pytest.mark.asyncio
@@ -327,9 +343,10 @@ async def test_list_of_secret_roles_requires_guild():
     cog = SecretRoles(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.sr_list(ctx)
-    assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
-    assert ctx.responded[-1]["ephemeral"] is True
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.sr_list(ctx)
 
 
 @pytest.mark.asyncio
