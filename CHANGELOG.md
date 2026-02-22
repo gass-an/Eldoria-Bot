@@ -9,6 +9,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Added
 - Ajout de la CI github-actions : setup pytest + docker build
+- Scripts pour automatiser les prochaines release
 
 ### Changed
 
