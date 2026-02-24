@@ -48,7 +48,7 @@ class Core(commands.Cog):
         discord_started_at = getattr(self.bot, "_discord_started_at", time.perf_counter())
         
         discord_time = (time.perf_counter() - discord_started_at) * 1000
-        log.info("✅ %-53s %8.1f ms", "Préparation Discord", discord_time)
+        log.info("✅ %-53s %8.1f ms", "Connexion à Discord terminée avec succès", discord_time)
 
         total_time = (time.perf_counter() - started_at)
         log.info("✅ %s %.2fs", "Bot opérationnel en", total_time)

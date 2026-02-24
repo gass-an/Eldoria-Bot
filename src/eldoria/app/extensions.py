@@ -13,6 +13,7 @@ _base_extensions: list[str] = [
     "eldoria.extensions.secret_roles",
     "eldoria.extensions.temp_voice",
     "eldoria.extensions.welcome_message",
+    "eldoria.extensions.logs",
 ]
 
 if SAVE_ENABLED:

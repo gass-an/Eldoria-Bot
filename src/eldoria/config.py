@@ -70,3 +70,11 @@ AUTO_SAVE_TIME: Final[str | None] = env_str_optional("AUTO_SAVE_TIME")
 AUTO_SAVE_TZ: Final[str] = os.getenv("AUTO_SAVE_TZ") or "UTC"
 
 AUTO_SAVE_ENABLED: Final[bool] = AUTO_SAVE_TIME is not None and AUTO_SAVE_TIME.strip() != ""
+
+
+# === Logs ===
+LOG_PATH: Final[str] = "logs/bot.log"
+LOG_ENABLED: Final[bool] = MY_ID is not None
+if LOG_ENABLED:
+    assert MY_ID is not None
+    LOG_ADMIN_ID: Final[int] = MY_ID

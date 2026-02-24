@@ -6,3 +6,5 @@ eldoria.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+logs/

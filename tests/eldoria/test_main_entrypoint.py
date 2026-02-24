@@ -8,8 +8,8 @@ import types
 def test_main_module_runs_setup_logging_and_calls_app_main(monkeypatch):
     calls = {"setup": [], "main": []}
 
-    # Fake eldoria.utils.logging.setup_logging
-    fake_logging_mod = types.ModuleType("eldoria.utils.logging")
+    # Fake eldoria.app.logging.setup_logging
+    fake_logging_mod = types.ModuleType("eldoria.app.logging")
 
     def setup_logging(level):
         calls["setup"].append(level)
@@ -29,7 +29,7 @@ def test_main_module_runs_setup_logging_and_calls_app_main(monkeypatch):
     sys.modules.setdefault("eldoria.utils", types.ModuleType("eldoria.utils"))
     sys.modules.setdefault("eldoria.app", types.ModuleType("eldoria.app"))
 
-    monkeypatch.setitem(sys.modules, "eldoria.utils.logging", fake_logging_mod)
+    monkeypatch.setitem(sys.modules, "eldoria.app.logging", fake_logging_mod)
     monkeypatch.setitem(sys.modules, "eldoria.app.app", fake_app_mod)
 
     # Stabilise perf_counter

@@ -359,7 +359,7 @@ async def test_send_help_menu_handles_ctx_without_defer_and_bot_without_applicat
 async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_autres(monkeypatch):
     # Config : une catégorie déclarée + une commande non déclarée
     def fake_load_help_config():
-        help_infos = {"a": "A", "manual_save": "X", "insert_db": "Y"}  # excluded doit être retiré
+        help_infos = {"a": "A", "manual_save": "X", "insert_db": "Y", "logs": "Z"}  # excluded doit être retiré
         categories = {"Utils": ["a", "manual_save"]}
         cat_desc = {"Utils": "Utils desc", "Autres": "Other"}
         return help_infos, categories, cat_desc
@@ -372,8 +372,9 @@ async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_a
     cmd_help = FakeCmd("help", dp=None, can_run=True)
     cmd_manual = FakeCmd("manual_save", dp=None, can_run=True)
     cmd_insert = FakeCmd("insert_db", dp=None, can_run=True)
+    cmd_logs = FakeCmd("logs", dp=None, can_run=True)
 
-    bot = FakeBot([cmd_a, cmd_b, cmd_help, cmd_manual, cmd_insert])
+    bot = FakeBot([cmd_a, cmd_b, cmd_help, cmd_manual, cmd_insert, cmd_logs ])
 
     user = FakeUser(42, guild_permissions=FakePerms(0xFFFF))
     ctx = FakeCtx(user=user)

@@ -41,3 +41,6 @@ class InvalidMessageId(AppError):
 
 class DatabaseRestoreError(AppError):
     """Erreur lors du remplacement de la base de données."""
+
+class LogFileNotFound(AppError):
+    """Le fichier de log est introuvable."""

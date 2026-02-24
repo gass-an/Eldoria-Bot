@@ -7,8 +7,10 @@ services:
     env_file:
       - .env
     volumes:
-      # Persiste la DB SQLite (./data/eldoria.db) et tout ce qui est écrit dans /app/data
+        # Persiste la DB SQLite (./data/eldoria.db) et tout ce qui est écrit dans /app/data
       - ./data:/app/data
-      # Fichiers JSON du projet (lecture seule)
+        # Fichiers JSON du projet (lecture seule)
       - ./resources:/app/resources:ro
+        # Logs du bot (lecture/écriture)
+      - ./logs:/app/logs
     command: ["python", "src/main.py"]

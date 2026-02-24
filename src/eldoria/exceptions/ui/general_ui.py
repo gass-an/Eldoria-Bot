@@ -29,6 +29,9 @@ def general_error_message(e: exc.AppError) -> str:
         
         case exc.InvalidMessageId():
             return "❌ L'identifiant de message fourni est invalide."
+        
+        case exc.LogFileNotFound():
+            return "❌ Le fichier de log est introuvable."
 
         case _:
             return "❌ Une erreur est survenue."

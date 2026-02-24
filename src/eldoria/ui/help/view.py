@@ -180,7 +180,7 @@ async def send_help_menu(ctx: discord.ApplicationContext, bot: EldoriaBot) -> No
     help_infos, categories, cat_descriptions = load_help_config()
 
     # Commandes internes à masquer
-    excluded_cmds = {"manual_save", "insert_db"}
+    excluded_cmds = {"manual_save", "insert_db", "logs"}
     for name in excluded_cmds:
         cmd_map.pop(name, None)
         help_infos.pop(name, None)

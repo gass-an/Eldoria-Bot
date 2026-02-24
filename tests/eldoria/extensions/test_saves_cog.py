@@ -261,9 +261,9 @@ def test_parse_auto_time_invalid_returns_none(monkeypatch):
 def test_init_starts_auto_save_when_config_valid(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
@@ -349,9 +349,9 @@ async def test_auto_save_guards_disabled_noop(monkeypatch):
 async def test_auto_save_no_parsed_time_noop(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", None)
@@ -367,9 +367,9 @@ async def test_auto_save_no_parsed_time_noop(monkeypatch):
 async def test_auto_save_channel_none_noop(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
@@ -401,9 +401,9 @@ async def test_auto_save_channel_none_noop(monkeypatch):
 async def test_manual_save_channel_missing(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
@@ -425,9 +425,9 @@ async def test_manual_save_channel_missing(monkeypatch):
 async def test_manual_save_db_missing_sends_both_channel_and_followup(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
@@ -466,9 +466,9 @@ def test_cog_unload_ignores_cancel_errors(monkeypatch):
 async def test_insert_db_fetch_message_error(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
@@ -490,9 +490,9 @@ async def test_insert_db_fetch_message_error(monkeypatch):
 async def test_insert_db_no_attachments(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
@@ -514,9 +514,9 @@ async def test_insert_db_no_attachments(monkeypatch):
 async def test_insert_db_invalid_sqlite(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
@@ -544,9 +544,9 @@ async def test_insert_db_invalid_sqlite(monkeypatch):
 async def test_insert_db_replace_failure_unlinks_tmp_and_reports(monkeypatch, tmp_path):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
@@ -626,9 +626,9 @@ async def test_auto_save_calls_send_once_per_day(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
     # config enabled
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
     monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
@@ -676,9 +676,9 @@ async def test_auto_save_calls_send_once_per_day(monkeypatch):
 async def test_auto_save_returns_if_wrong_minute(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
     monkeypatch.setattr(M, "AUTO_SAVE_TIME", "08:30")
     monkeypatch.setattr(M, "AUTO_SAVE_TZ", "UTC")
@@ -716,9 +716,9 @@ async def test_auto_save_returns_if_wrong_minute(monkeypatch):
 async def test_manual_save_not_configured(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", None)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", None)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", False)
 
 
@@ -736,9 +736,9 @@ async def test_manual_save_not_configured(monkeypatch):
 async def test_manual_save_wrong_user(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 999)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 999)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
@@ -758,9 +758,9 @@ async def test_manual_save_wrong_user(monkeypatch):
 async def test_insert_db_success(monkeypatch):
     M = _import_module_with_patched_decorators(monkeypatch)
 
-    monkeypatch.setattr(M, "MY_ID", 1)
-    monkeypatch.setattr(M, "SAVE_GUILD_ID", 10)
-    monkeypatch.setattr(M, "SAVE_CHANNEL_ID", 20)
+    monkeypatch.setattr(M, "SAVE_ADMIN_ID", 1)
+    monkeypatch.setattr(M, "SAVE_GUILD", 10)
+    monkeypatch.setattr(M, "SAVE_CHANNEL", 20)
     monkeypatch.setattr(M, "SAVE_ENABLED", True)
 
     ch = FakeChannel()
