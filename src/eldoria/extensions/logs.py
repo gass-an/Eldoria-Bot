@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.config import LOG_ADMIN_ID, LOG_ENABLED, SAVE_GUILD_ID
+from eldoria.config import LOG_ENABLED, SAVE_GUILD_ID, get_log_admin_id
 from eldoria.utils.reader import tail_lines
 
 log = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class Logs(commands.Cog):
 
         self.log_enabled: bool = LOG_ENABLED
         if self.log_enabled:
-            self.admin_user_id: int = LOG_ADMIN_ID
+            self.admin_user_id: int = get_log_admin_id()
 
     def _enabled(self) -> bool:
         return self.log_enabled
@@ -55,7 +55,7 @@ class Logs(commands.Cog):
         await ctx.defer(ephemeral=True)
         
         if not self._enabled():
-            await ctx.followup.send(content="Feature logs non configurée (.env).")
+            await ctx.followup.send(content="Feature logs non configurée.")
             return
         
         if ctx.user.id != self.admin_user_id:

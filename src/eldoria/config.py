@@ -57,13 +57,25 @@ if SAVE_ENABLED:
     if missing:
         raise IncompleteFeatureConfig("sauvegarde", missing)
     
-    assert MY_ID is not None
-    assert SAVE_GUILD_ID is not None
-    assert SAVE_CHANNEL_ID is not None
+def get_save_admin_id() -> int:
+    """Récupère l'ID de l'admin pour la sauvegarde, ou lève une exception si la feature est activée mais que l'ID est manquant."""
+    if not SAVE_ENABLED or MY_ID is None:
+        raise MissingEnvVar("ADMIN_USER_ID")
+    return MY_ID
 
-    SAVE_ADMIN_ID: Final[int] = MY_ID
-    SAVE_GUILD: Final[int] = SAVE_GUILD_ID
-    SAVE_CHANNEL: Final[int] = SAVE_CHANNEL_ID
+
+def get_save_guild_id() -> int:
+    """Récupère l'ID du serveur pour la sauvegarde, ou lève une exception si la feature est activée mais que l'ID est manquant."""
+    if not SAVE_ENABLED or SAVE_GUILD_ID is None:
+        raise MissingEnvVar("GUILD_FOR_SAVE")
+    return SAVE_GUILD_ID
+
+
+def get_save_channel_id() -> int:
+    """Récupère l'ID du salon pour la sauvegarde, ou lève une exception si la feature est activée mais que l'ID est manquant."""
+    if not SAVE_ENABLED or SAVE_CHANNEL_ID is None:
+        raise MissingEnvVar("CHANNEL_FOR_SAVE")
+    return SAVE_CHANNEL_ID
 
 # === Automatic backup (optional) ===
 AUTO_SAVE_TIME: Final[str | None] = env_str_optional("AUTO_SAVE_TIME")
@@ -75,6 +87,8 @@ AUTO_SAVE_ENABLED: Final[bool] = AUTO_SAVE_TIME is not None and AUTO_SAVE_TIME.s
 # === Logs ===
 LOG_PATH: Final[str] = "logs/bot.log"
 LOG_ENABLED: Final[bool] = MY_ID is not None
-if LOG_ENABLED:
-    assert MY_ID is not None
-    LOG_ADMIN_ID: Final[int] = MY_ID
+def get_log_admin_id() -> int:
+    """Récupère l'ID de l'admin pour les logs, ou lève une exception si la feature est activée mais que l'ID est manquant."""
+    if MY_ID is None:
+        raise MissingEnvVar("ADMIN_USER_ID")
+    return MY_ID

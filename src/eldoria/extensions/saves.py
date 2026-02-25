@@ -18,11 +18,11 @@ from eldoria.config import (
     AUTO_SAVE_ENABLED,
     AUTO_SAVE_TIME,
     AUTO_SAVE_TZ,
-    SAVE_ADMIN_ID,
-    SAVE_CHANNEL,
     SAVE_ENABLED,
-    SAVE_GUILD,
     SAVE_GUILD_ID,
+    get_save_admin_id,
+    get_save_channel_id,
+    get_save_guild_id,
 )
 from eldoria.exceptions.general import InvalidMessageId
 from eldoria.utils.db_validation import is_valid_sqlite_db
@@ -48,9 +48,9 @@ class Saves(commands.Cog):
 
         self.save_enabled: bool = SAVE_ENABLED
         if self.save_enabled:
-            self.admin_user_id: int = SAVE_ADMIN_ID
-            self.save_guild_id: int = SAVE_GUILD
-            self.save_channel_id: int = SAVE_CHANNEL
+            self.admin_user_id: int = get_save_admin_id()
+            self.save_guild_id: int = get_save_guild_id()
+            self.save_channel_id: int = get_save_channel_id()
 
         if self.save_enabled and AUTO_SAVE_ENABLED:
             self._auto_save_time = self._parse_auto_time(AUTO_SAVE_TIME)
