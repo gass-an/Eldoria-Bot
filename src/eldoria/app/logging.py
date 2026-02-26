@@ -62,3 +62,13 @@ def setup_logging(
     file_handler.setFormatter(formatter)
     root.addHandler(file_handler)
     file_handler.addFilter(DiscordReconnectNoiseFilter())
+
+    # ---- Marqueur de démarrage (dans le fichier uniquement) ----
+    try:
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write("\n\n")
+            f.write("========== DÉMARRAGE DU BOT ==========\n")
+    except OSError:
+        # si jamais le disque / permissions posent souci, on ne casse pas le bot
+        pass
