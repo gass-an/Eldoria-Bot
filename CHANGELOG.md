@@ -15,6 +15,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Changed
 
 ### Fixed
+- Modification de la user_limit dans les channels parents (temp_voice)
 
 ### Notes
 

@@ -130,6 +130,8 @@ class TempVoiceAddView(BasePanelView):
             if self.selected_channel is None or self.user_limit is None:
                 return
 
+            await self.selected_channel.edit(user_limit=self.user_limit)
+
             self.temp_voice.upsert_parent(self.guild.id, self.selected_channel.id, self.user_limit)
 
             self.last_saved = (self.selected_channel, self.user_limit)

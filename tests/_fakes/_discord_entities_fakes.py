@@ -32,6 +32,9 @@ class FakeVoiceChannel:
         self.id = channel_id
         self.name = name
         self.mention = f"<#{channel_id}>"
+    
+    async def edit(self, *, user_limit: int):
+        self.user_limit = user_limit
 
 
 class FakeGuild:
