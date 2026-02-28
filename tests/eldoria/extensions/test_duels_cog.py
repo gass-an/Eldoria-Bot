@@ -222,6 +222,12 @@ class _FakeXpService:
     def is_enabled(self, guild_id: int) -> bool:
         return self._enabled
 
+    def require_enabled(self, guild_id: int) -> None:
+        if not self._enabled:
+            from eldoria.exceptions.general import XpDisabled
+
+            raise XpDisabled(guild_id)
+
     async def sync_xp_roles_for_users(self, guild, user_ids):
         self.sync_calls.append((guild, list(user_ids)))
 
@@ -466,10 +472,12 @@ async def test_duel_command_rejects_bot_member(monkeypatch):
     ctx = _FakeCtx(guild=_FakeGuild(), channel=_FakeChannel(), user=_FakeMember(1))
     member = _FakeMember(2, bot=True)
 
-    await d.duel_command(ctx, member)
+    from eldoria.exceptions.general import BotTargetNotAllowed
+
+    with pytest.raises(BotTargetNotAllowed):
+        await d.duel_command(ctx, member)
 
     assert ctx.deferred == [{"ephemeral": True}]
-    assert ctx.followup.sent[-1]["content"] == "🤖 Tu ne peux pas défier un bot."
     assert duel.new_duel_calls == []
 
 
@@ -483,9 +491,11 @@ async def test_duel_command_rejects_self(monkeypatch):
     ctx = _FakeCtx(guild=_FakeGuild(), channel=_FakeChannel(), user=_FakeMember(1))
     member = _FakeMember(1)
 
-    await d.duel_command(ctx, member)
+    from eldoria.exceptions.duel import SamePlayerDuel
 
-    assert ctx.followup.sent[-1]["content"] == "😅 Tu ne peux pas te défier toi-même."
+    with pytest.raises(SamePlayerDuel):
+        await d.duel_command(ctx, member)
+
     assert duel.new_duel_calls == []
 
 
@@ -516,21 +526,14 @@ async def test_duel_command_xp_disabled_sends_embed(monkeypatch):
     bot = _FakeBot(duel_service=duel, xp_service=xp)
     d = Duels(bot)
 
-    async def fake_xp_disable_embed(guild_id, _bot):
-        assert guild_id == 123
-        return ("EMBED", ["FILES"])
-
-    monkeypatch.setattr(duels_mod, "build_xp_disable_embed", fake_xp_disable_embed)
-
     ctx = _FakeCtx(guild=_FakeGuild(123), channel=_FakeChannel(99), user=_FakeMember(1))
     member = _FakeMember(2)
 
-    await d.duel_command(ctx, member)
+    from eldoria.exceptions.general import XpDisabled
 
-    last = ctx.followup.sent[-1]
-    assert last["embed"] == "EMBED"
-    assert last["files"] == ["FILES"]
-    assert last["ephemeral"] is True
+    with pytest.raises(XpDisabled):
+        await d.duel_command(ctx, member)
+
     assert duel.new_duel_calls == []
 
 

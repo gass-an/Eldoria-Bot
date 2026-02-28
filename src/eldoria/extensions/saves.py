@@ -27,6 +27,7 @@ from eldoria.config import (
 from eldoria.exceptions.general import InvalidMessageId
 from eldoria.utils.db_validation import is_valid_sqlite_db
 from eldoria.utils.discord_utils import get_text_or_thread_channel
+from eldoria.utils.guards import require_feature_enabled, require_specific_user_id
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class Saves(commands.Cog):
             if self._auto_save_time is not None:
                 self.auto_save.start()
 
+    # -------- Helpers --------
     def _enabled(self) -> bool:
         return self.save_enabled
 
@@ -116,6 +118,7 @@ class Saves(commands.Cog):
             except OSError:
                 log.warning("Impossible de supprimer le fichier temporaire (%s)", tmp_backup)
 
+    # -------- Loop --------
     @tasks.loop(minutes=1)
     async def auto_save(self) -> None:
         """Envoie automatiquement la DB une fois par jour à l'heure configurée."""
@@ -157,6 +160,8 @@ class Saves(commands.Cog):
         except Exception:
             log.exception("Erreur lors de l'arrêt de la loop d'auto-save.")
 
+
+    # -------- Commands --------
     @commands.slash_command(name="manual_save", description="Envoie la base SQLite (.db) dans un channel précis", 
                             guild_ids=[SAVE_GUILD_ID] if SAVE_GUILD_ID else None)
     async def manual_save_command(self, ctx: discord.ApplicationContext) -> None:
@@ -166,13 +171,8 @@ class Saves(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
-        if not self._enabled():
-            await ctx.followup.send(content="Feature save non configurée (.env).")
-            return
-
-        if ctx.user.id != self.admin_user_id:
-            await ctx.followup.send(content="Vous ne pouvez pas faire cela")
-            return
+        require_feature_enabled(self._enabled(), "save")
+        require_specific_user_id(ctx, self.admin_user_id)
 
         channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
 
@@ -200,13 +200,8 @@ class Saves(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
-        if not self._enabled():
-            await ctx.followup.send(content="Feature save non configurée (.env).")
-            return
-
-        if ctx.user.id != self.admin_user_id:
-            await ctx.followup.send(content="Vous ne pouvez pas faire cela")
-            return
+        require_feature_enabled(self._enabled(), "save")
+        require_specific_user_id(ctx, self.admin_user_id)
 
         channel = await get_text_or_thread_channel(self.bot, self.save_channel_id)
         

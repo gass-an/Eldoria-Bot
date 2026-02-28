@@ -180,14 +180,14 @@ async def test_build_xp_status_embed_minutes_min_1(monkeypatch):
     assert gain["value"] == "1 XP / 1min"
 
 @pytest.mark.asyncio
-async def test_build_xp_disable_embed_matches_disabled_layout(monkeypatch):
+async def test_build_xp_status_embed_disabled_layout_matches_previous_helper(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 55)
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: ["FILES"])
 
     bot = FakeBot(guild=FakeGuild("Srv"))
 
-    embed, files = await M.build_xp_disable_embed(guild_id=42, bot=bot)
+    embed, files = await M.build_xp_status_embed({"enabled": False}, guild_id=42, bot=bot)
 
     assert embed.title == "Statut du système XP"
     assert embed.colour == 55

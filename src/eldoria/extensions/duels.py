@@ -13,12 +13,8 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.base import AppError
 from eldoria.ui.duels.flow.home import HomeView, build_home_duels_embed
 from eldoria.ui.duels.result.expired import build_expired_duels_embed
-from eldoria.ui.xp.embeds.status import build_xp_disable_embed
-from eldoria.utils.discord_utils import (
-    get_member_by_id_or_raise,
-    get_text_or_thread_channel,
-    require_guild_ctx,
-)
+from eldoria.utils.discord_utils import get_member_by_id_or_raise, get_text_or_thread_channel
+from eldoria.utils.guards import require_guild_ctx, require_not_bot, require_not_self
 from eldoria.utils.timestamp import now_ts
 
 log = logging.getLogger(__name__)
@@ -137,21 +133,13 @@ class Duels(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
-        if member.bot:
-            await ctx.followup.send(content="🤖 Tu ne peux pas défier un bot.", ephemeral=True)
-            return
-
-        if member.id == ctx.user.id:
-            await ctx.followup.send(content="😅 Tu ne peux pas te défier toi-même.", ephemeral=True)
-            return
+        require_not_bot(member)
+        require_not_self(ctx, member)
 
         guild, channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
-        if not self.xp.is_enabled(guild_id):
-            embed, files = await build_xp_disable_embed(guild_id, self.bot)
-            await ctx.followup.send(embed=embed, files=files, ephemeral=True)
-            return
+        self.xp.require_enabled(guild_id)
 
         channel_id = channel.id
         player_a_id = ctx.user.id

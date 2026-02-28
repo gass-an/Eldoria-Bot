@@ -4,18 +4,26 @@ import re
 
 import discord
 
-from eldoria.exceptions.general import ChannelRequired, GuildRequired, MemberNotFound, UserRequired
+from eldoria.exceptions.general import (
+    ChannelRequired,
+    GuildRequired,
+    MemberNotFound,
+    UserRequired,
+)
+from eldoria.exceptions.role import (
+    InvalidLink,
+)
 
 
-def extract_id_from_link(link: str) -> tuple[int | None, int | None, int | None]:
-    """Extrait les IDs de serveur, canal et message d'un lien Discord, ou retourne (None, None, None) si le format est invalide."""
-    ids_match = re.match(r"https://discord\.com/channels/(\d+)/(\d+)/(\d+)", link)
-    if ids_match:
-        guild_id = int(ids_match.group(1))
-        channel_id = int(ids_match.group(2))
-        message_id = int(ids_match.group(3))
-        return guild_id, channel_id, message_id
-    return None, None, None
+def extract_id_from_link(link: str) -> tuple[int, int, int]:
+    """Extrait les IDs de serveur, canal et message d'un lien Discord, ou raise une exception si le format est invalide."""
+    ids_match = re.fullmatch(r"https://discord\.com/channels/(\d+)/(\d+)/(\d+)", link)
+    if not ids_match:
+        raise InvalidLink()
+    guild_id = int(ids_match.group(1))
+    channel_id = int(ids_match.group(2))
+    message_id = int(ids_match.group(3))
+    return guild_id, channel_id, message_id
 
 async def find_channel_id(bot: discord.Client, message_id: int, guild_id: int) -> int | None:
     """Parcourt les canaux textuels d'un serveur pour trouver celui contenant un message donné, et retourne son ID, ou None si non trouvé."""
@@ -70,28 +78,12 @@ async def get_text_or_thread_channel(bot: discord.Client, channel_id: int) -> di
 
     return channel
 
-def require_guild_ctx(ctx: discord.ApplicationContext) -> tuple[discord.Guild, discord.abc.GuildChannel]:
-    """Garantit que la commande est exécutée dans une guild et un channel valide."""
-    if ctx.guild is None:
-        raise GuildRequired()
-
-    if ctx.channel is None or not isinstance(ctx.channel, discord.abc.GuildChannel):
-        raise ChannelRequired()
-
-    return ctx.guild, ctx.channel
-
 
 def require_guild(interaction: discord.Interaction) -> discord.Guild:
     """Extrait le serveur d'une interaction, ou lève une exception si elle n'est pas dans un contexte de serveur."""
     if interaction.guild is None:
         raise GuildRequired()
     return interaction.guild
-
-def require_user(interaction: discord.Interaction) -> discord.User | discord.Member:
-    """Extrait l'utilisateur d'une interaction, ou lève une exception si elle n'est pas dans un contexte de message ou d'interaction utilisateur."""
-    if interaction.user is None:
-        raise UserRequired()
-    return interaction.user
 
 def require_user_id(interaction: discord.Interaction) -> int:
     """Extrait l'identifiant de l'utilisateur d'une interaction, ou lève une exception si elle n'est pas dans un contexte de message ou d'interaction utilisateur."""

@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.config import LOG_ENABLED, SAVE_GUILD_ID, get_log_admin_id
+from eldoria.utils.guards import require_feature_enabled, require_specific_user_id
 from eldoria.utils.reader import tail_lines
 
 log = logging.getLogger(__name__)
@@ -54,13 +55,9 @@ class Logs(commands.Cog):
         """Commande slash pour envoyer la fin du dernier fichier de log du bot dans le salon."""
         await ctx.defer(ephemeral=True)
         
-        if not self._enabled():
-            await ctx.followup.send(content="Feature logs non configurée.")
-            return
+        require_feature_enabled(self._enabled(), "logs")
+        require_specific_user_id(ctx, self.admin_user_id)
         
-        if ctx.user.id != self.admin_user_id:
-            await ctx.followup.send(content="Vous ne pouvez pas faire cela")
-            return
         log.info("Utilisation de la commande logs par %s", ctx.user.name)
         
         content = tail_lines()

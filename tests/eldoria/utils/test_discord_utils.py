@@ -1,14 +1,14 @@
 import discord  # type: ignore
 import pytest
 
-from eldoria.exceptions.general import ChannelRequired, GuildRequired, UserRequired, MemberNotFound
+from eldoria.exceptions.general import ChannelRequired, GuildRequired, MemberNotFound, UserRequired
+from eldoria.exceptions.role import InvalidLink
 from eldoria.utils.discord_utils import (
     extract_id_from_link,
     find_channel_id,
     get_member_by_id_or_raise,
     get_text_or_thread_channel,
     require_guild,
-    require_user,
     require_user_id,
 )
 
@@ -103,8 +103,9 @@ def test_extract_id_from_link_valid():
         "",
     ],
 )
-def test_extract_id_from_link_invalid_returns_nones(link):
-    assert extract_id_from_link(link) == (None, None, None)
+def test_extract_id_from_link_invalid_raises(link):
+    with pytest.raises(InvalidLink):
+        extract_id_from_link(link)
 
 
 # ------------------------------------------------------------
@@ -205,7 +206,7 @@ async def test_get_text_or_thread_channel_raises_when_not_messageable_type():
 
 
 # ------------------------------------------------------------
-# Tests require_guild / require_user / require_user_id
+# Tests require_guild / require_user_id
 # ------------------------------------------------------------
 def test_require_guild_raises_without_guild():
     inter = FakeInteraction(guild=None, user=object())
@@ -217,18 +218,6 @@ def test_require_guild_returns_guild():
     g = object()
     inter = FakeInteraction(guild=g, user=object())
     assert require_guild(inter) is g  # type: ignore[return-value]
-
-
-def test_require_user_raises_without_user():
-    inter = FakeInteraction(guild=object(), user=None)
-    with pytest.raises(UserRequired):
-        require_user(inter)  # type: ignore[arg-type]
-
-
-def test_require_user_returns_user():
-    u = type("U", (), {"id": 123})()
-    inter = FakeInteraction(guild=object(), user=u)
-    assert require_user(inter) is u  # type: ignore[return-value]
 
 
 def test_require_user_id_raises_without_user():

@@ -17,7 +17,6 @@ class DuelInsertFailed(DuelRepositoryError):
         """Initialise l'exception avec un message indiquant l'échec de la récupération de l'ID du duel."""
         super().__init__("Duel inséré mais impossible de récupérer son ID.")
 
-
 # ---------------- exceptions métier ----------------
 class DuelNotFound(DuelError):
     """Exception levée lorsqu'un duel n'est pas trouvé dans la base de données, ou a expiré."""

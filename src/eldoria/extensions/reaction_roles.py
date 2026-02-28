@@ -12,10 +12,12 @@ from discord.ext import commands
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.embeds import build_list_roles_embed
-from eldoria.utils.discord_utils import (
-    extract_id_from_link,
-    get_text_or_thread_channel,
+from eldoria.utils.discord_utils import extract_id_from_link, get_text_or_thread_channel
+from eldoria.utils.guards import (
     require_guild_ctx,
+    require_no_rr_conflict,
+    require_role_assignable_by_bot,
+    require_specific_guild,
 )
 
 log = logging.getLogger(__name__)
@@ -122,44 +124,18 @@ class ReactionRoles(commands.Cog):
         """
         await ctx.defer(ephemeral=True)
 
+        guild, _channel = require_guild_ctx(ctx)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
-        if guild_id is None or channel_id is None or message_id is None:
-            await ctx.followup.send(content="Lien de message invalide.")
-            return
+        require_specific_guild(guild_id, guild.id)
 
-        if ctx.guild is None or guild_id != ctx.guild.id:
-            await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
-            return
-
-        guild = ctx.guild
         channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)
 
         bot_member = guild.me
-        if bot_member is None:
-            await ctx.followup.send(content="Je ne suis pas correctement initialisé sur ce serveur.")
-            return
-        bot_highest_role = max(bot_member.roles, key=lambda r: r.position)
-
-        if role.position >= bot_highest_role.position:
-            await ctx.followup.send(
-                content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions."
-            )
-            return
+        require_role_assignable_by_bot(bot_member, role)
 
         existing = self.role.rr_list_by_message(guild_id, message_id)  # dict: {emoji: role_id}
-
-        for existing_emoji, existing_role_id in existing.items():
-            if existing_role_id == role.id and existing_emoji != emoji:
-                await ctx.followup.send(
-                    content=f"Le rôle <@&{role.id}> est déjà associé à l'emoji {existing_emoji} sur le même message."
-                )
-                return
-            if existing_role_id != role.id and existing_emoji == emoji:
-                await ctx.followup.send(
-                    content=f"L'emoji {existing_emoji} est déjà associé au rôle <@&{existing_role_id}> sur le même message."
-                )
-                return
+        require_no_rr_conflict(message_id=message_id, emoji=emoji, role_id=role.id, existing=existing)
 
         await bot_member.add_roles(role)
         await bot_member.remove_roles(role)
@@ -184,20 +160,14 @@ class ReactionRoles(commands.Cog):
         et supprime la règle de rôle par réaction correspondante de la base de données.
         """
         await ctx.defer(ephemeral=True)
+        guild, _channel = require_guild_ctx(ctx)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
-        if guild_id is None or channel_id is None or message_id is None:
-            await ctx.followup.send(content="Lien de message invalide.")
-            return
-
-        if ctx.guild is None or guild_id != ctx.guild.id:
-            await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
-            return
+        require_specific_guild(guild_id, guild.id)
 
         channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)
 
         self.role.rr_delete(guild_id, message_id, emoji)
-
 
         await message.clear_reaction(emoji)
 
@@ -215,14 +185,10 @@ class ReactionRoles(commands.Cog):
         et supprime toutes les règles de rôle par réaction correspondantes de la base de données.
         """
         await ctx.defer(ephemeral=True)
+        
+        guild, _channel = require_guild_ctx(ctx)
         guild_id, channel_id, message_id = extract_id_from_link(message_link)
-        if guild_id is None or channel_id is None or message_id is None:
-            await ctx.followup.send(content="Lien de message invalide.")
-            return
-
-        if ctx.guild is None or guild_id != ctx.guild.id:
-            await ctx.followup.send(content="Le lien que vous m'avez fourni provient d'un autre serveur.")
-            return
+        require_specific_guild(guild_id, guild.id)
 
         channel = await get_text_or_thread_channel(self.bot, channel_id)
         message = await channel.fetch_message(message_id)

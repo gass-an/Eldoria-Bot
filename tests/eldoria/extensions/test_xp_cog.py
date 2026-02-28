@@ -183,6 +183,14 @@ class _FakeXpService:
         self.calls.append(("is_enabled", guild_id))
         return bool(self._enabled)
 
+    def require_enabled(self, guild_id: int) -> None:
+        """Simule le guard prod: lève XpDisabled si le système XP est désactivé."""
+        self.calls.append(("require_enabled", guild_id))
+        if not self._enabled:
+            from eldoria.exceptions.general import XpDisabled
+
+            raise XpDisabled(guild_id)
+
     def build_snapshot_for_xp_profile(self, guild, user_id: int):
         self.calls.append(("build_snapshot_for_xp_profile", guild.id, user_id))
         return dict(self._snapshot)
@@ -232,10 +240,7 @@ class _FakeBot:
 # ---------- UI/embed patches ----------
 @pytest.fixture
 def _patch_ui(monkeypatch: pytest.MonkeyPatch):
-    async def _fake_build_xp_disable_embed(guild_id, bot):
-        return ("DISABLED", ["F"])
-
-    async def _fake_build_xp_status_embed(*, cfg, guild_id, bot):
+    async def _fake_build_xp_status_embed(*, config, guild_id, bot):
         return ("STATUS", ["F"])
 
     async def _fake_build_xp_profile_embed(**kwargs):
@@ -244,7 +249,6 @@ def _patch_ui(monkeypatch: pytest.MonkeyPatch):
     async def _fake_build_xp_roles_embed(levels_with_roles, guild_id, bot):
         return ("ROLES", ["F"])
 
-    monkeypatch.setattr(xp_mod, "build_xp_disable_embed", _fake_build_xp_disable_embed, raising=True)
     monkeypatch.setattr(xp_mod, "build_xp_status_embed", _fake_build_xp_status_embed, raising=True)
     monkeypatch.setattr(xp_mod, "build_xp_profile_embed", _fake_build_xp_profile_embed, raising=True)
     monkeypatch.setattr(xp_mod, "build_xp_roles_embed", _fake_build_xp_roles_embed, raising=True)
@@ -274,12 +278,10 @@ async def test_xp_profile_disabled_shows_disable_embed(_patch_ui):
     guild = _FakeGuild(1)
     ctx = _FakeCtx(guild=guild, user=_FakeMember(42))
 
-    await cog.xp_profile(ctx)
+    from eldoria.exceptions.general import XpDisabled
 
-    sent = ctx.followup.sent[-1]
-    assert sent["embed"] == "DISABLED"
-    assert sent["files"] == ["F"]
-    assert sent["ephemeral"] is True
+    with pytest.raises(XpDisabled):
+        await cog.xp_profile(ctx)
 
 
 @pytest.mark.asyncio
@@ -350,9 +352,10 @@ async def test_xp_leaderboard_disabled_embed(_patch_ui):
     guild = _FakeGuild(1)
     ctx = _FakeCtx(guild=guild)
 
-    await cog.xp_leaderboard(ctx)
+    from eldoria.exceptions.general import XpDisabled
 
-    assert ctx.followup.sent[-1]["embed"] == "DISABLED"
+    with pytest.raises(XpDisabled):
+        await cog.xp_leaderboard(ctx)
 
 
 @pytest.mark.asyncio
@@ -404,9 +407,10 @@ async def test_xp_roles_disabled_embed(_patch_ui):
     guild = _FakeGuild(1)
     ctx = _FakeCtx(guild=guild)
 
-    await cog.xp_roles(ctx)
+    from eldoria.exceptions.general import XpDisabled
 
-    assert ctx.followup.sent[-1]["embed"] == "DISABLED"
+    with pytest.raises(XpDisabled):
+        await cog.xp_roles(ctx)
 
 
 @pytest.mark.asyncio
@@ -484,9 +488,10 @@ async def test_xp_modify_rejects_bot_member(_patch_ui):
     ctx = _FakeCtx(guild=guild)
 
     bot_member = _FakeMember(99, bot=True)
-    await cog.xp_modify(ctx, bot_member, 10)
+    from eldoria.exceptions.general import BotTargetNotAllowed
 
-    assert "Impossible de modifier l'XP d'un bot" in ctx.followup.sent[-1]["content"]
+    with pytest.raises(BotTargetNotAllowed):
+        await cog.xp_modify(ctx, bot_member, 10)
 
 
 @pytest.mark.asyncio

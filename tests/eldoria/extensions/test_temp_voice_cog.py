@@ -49,6 +49,14 @@ def _ensure_discord_stubs() -> None:
                 self.kw = _k
         discord.PermissionOverwrite = PermissionOverwrite
 
+    # discord.abc.GuildChannel utilisé par require_guild_ctx
+    if not hasattr(discord, "abc"):
+        discord.abc = types.SimpleNamespace()  # type: ignore[attr-defined]
+    if not hasattr(discord.abc, "GuildChannel"):
+        class GuildChannel:  # pragma: no cover
+            id: int = 0
+        discord.abc.GuildChannel = GuildChannel  # type: ignore[attr-defined]
+
     # decorators (no-op for tests)
     if not hasattr(discord, "option"):
         def option(*_a, **_k):  # pragma: no cover
@@ -160,8 +168,16 @@ class _FakeFollowup:
 
 
 class _FakeCtx:
-    def __init__(self, guild=None):
+    def __init__(self, guild=None, channel=None):
         self.guild = guild
+        import sys
+
+        discord = sys.modules["discord"]
+
+        class _Chan(discord.abc.GuildChannel):
+            id: int = 999
+
+        self.channel = channel or _Chan()
         self.author = types.SimpleNamespace(id=123)
         self.followup = _FakeFollowup()
         self.deferred = False
@@ -337,9 +353,10 @@ async def test_tv_config_requires_guild():
     cog = TempVoice(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.tv_config(ctx)
-    assert ctx.deferred is True
-    assert ctx.followup.sent[-1]["content"] == "Commande uniquement disponible sur un serveur."
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.tv_config(ctx)
 
 
 @pytest.mark.asyncio
@@ -373,9 +390,10 @@ async def test_tv_list_requires_guild():
     cog = TempVoice(bot)
     ctx = _FakeCtx(guild=None)
 
-    await cog.tv_list(ctx)
-    assert ctx.responded[-1]["content"] == "Commande uniquement disponible sur un serveur."
-    assert ctx.responded[-1]["ephemeral"] is True
+    from eldoria.exceptions.general import GuildRequired
+
+    with pytest.raises(GuildRequired):
+        await cog.tv_list(ctx)
 
 
 @pytest.mark.asyncio

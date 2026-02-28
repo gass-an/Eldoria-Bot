@@ -32,6 +32,15 @@ def general_error_message(e: exc.AppError) -> str:
         
         case exc.LogFileNotFound():
             return "❌ Le fichier de log est introuvable."
+        
+        case exc.FeatureNotConfigured(feature=feature):
+            return f"⚙️ Feature **{feature}** non configurée."
+
+        case exc.NotAllowed():
+            return "⛔ Vous ne pouvez pas faire cela."
+        
+        case exc.BotTargetNotAllowed():
+            return "🤖 Tu ne peux pas cibler un bot avec cette commande."
 
         case _:
             return "❌ Une erreur est survenue."

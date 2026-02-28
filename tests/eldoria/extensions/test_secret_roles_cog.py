@@ -140,9 +140,10 @@ class _FakeCtx:
 
 
 class _FakeMember:
-    def __init__(self, member_id: int, roles=None):
+    def __init__(self, member_id: int, roles=None, *, top_role_position: int = 10_000):
         self.id = member_id
         self.roles = roles or []
+        self.top_role = types.SimpleNamespace(position=top_role_position)
         self.added = []
         self.removed = []
         self._raise_add_remove = None
@@ -226,14 +227,16 @@ async def test_add_secret_role_rejects_role_above_bot():
     bot = _FakeBot(role_svc)
 
     
-    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)])
+    me = _FakeMember(123456789, roles=[_FakeRole(101, position=4)], top_role_position=5)
     guild = _FakeGuild(111, me)
     ctx = _FakeCtx(guild=guild)
     cog = SecretRoles(bot)
 
+    from eldoria.exceptions.role import RoleAboveBot
+
     role = _FakeRole(1, position=5)  # equal => reject
-    await cog.sr_add(ctx, "msg", _FakeTextChannel(10), role)
-    assert "au-dessus de mes permissions" in ctx.followup.sent[-1]["content"]
+    with pytest.raises(RoleAboveBot):
+        await cog.sr_add(ctx, "msg", _FakeTextChannel(10), role)
 
 
 @pytest.mark.asyncio
@@ -247,8 +250,10 @@ async def test_add_secret_role_rejects_existing_other_role():
     cog = SecretRoles(bot)
 
     role_svc._sr_match_role_id = 9999
-    await cog.sr_add(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
-    assert "déjà associé au rôle" in ctx.followup.sent[-1]["content"]
+    from eldoria.exceptions.role import MessageAlreadyBound
+
+    with pytest.raises(MessageAlreadyBound):
+        await cog.sr_add(ctx, "hello", _FakeTextChannel(10), _FakeRole(1, position=1))
 
 
 @pytest.mark.asyncio
@@ -315,8 +320,10 @@ async def test_delete_secret_role_handles_not_found():
     cog = SecretRoles(bot)
 
     role_svc._sr_match_role_id = None
-    await cog.sr_remove(ctx, _FakeTextChannel(10), "hello")
-    assert "Aucune attribution trouvée" in ctx.followup.sent[-1]["content"]
+    from eldoria.exceptions.role import SecretRoleNotFound
+
+    with pytest.raises(SecretRoleNotFound):
+        await cog.sr_remove(ctx, _FakeTextChannel(10), "hello")
 
 
 @pytest.mark.asyncio

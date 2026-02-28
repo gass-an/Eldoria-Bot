@@ -11,7 +11,7 @@ from discord.ext import commands
 from eldoria.app.bot import EldoriaBot
 from eldoria.ui.welcome.embeds import build_welcome_embed
 from eldoria.ui.welcome.panel import WelcomePanelView
-from eldoria.utils.discord_utils import require_guild_ctx
+from eldoria.utils.guards import require_guild_ctx
 
 log = logging.getLogger(__name__)
 

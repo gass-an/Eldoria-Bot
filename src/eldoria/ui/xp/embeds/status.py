@@ -7,10 +7,10 @@ from eldoria.ui.common.embeds.colors import EMBED_COLOUR_PRIMARY
 from eldoria.ui.common.embeds.images import common_files, decorate
 
 
-async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
+async def build_xp_status_embed(config: dict, guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
     """Construit l'embed affichant le statut et la configuration du système XP."""
     guild = bot.get_guild(guild_id)
-    enabled = bool(cfg.get("enabled", False))
+    enabled = bool(config.get("enabled", False))
     
     embed = discord.Embed(
         title="Statut du système XP",
@@ -26,27 +26,27 @@ async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot) -> tu
         )
         embed.add_field(
             name="XP / message",
-            value=str(cfg.get("points_per_message", 8)),
+            value=str(config.get("points_per_message", 8)),
             inline=True
         )
         embed.add_field(
             name="Cooldown",
-            value=f"{cfg.get('cooldown_seconds', 90)} secondes",
+            value=f"{config.get('cooldown_seconds', 90)} secondes",
             inline=True
         )
         embed.add_field(
             name="Bonus Server Tag",
-            value=f"+{cfg.get('bonus_percent', 20)}%",
+            value=f"+{config.get('bonus_percent', 20)}%",
             inline=True
         )
         embed.add_field(
             name="Malus Karuta (k<=10)",
-            value=f"{cfg.get('karuta_k_small_percent', 30)}%",
+            value=f"{config.get('karuta_k_small_percent', 30)}%",
             inline=False
         )
 
         # ---- Vocal XP ----
-        voice_enabled = bool(cfg.get("voice_enabled", True))
+        voice_enabled = bool(config.get("voice_enabled", True))
         embed.add_field(
             name="XP Vocal",
             value="✅ Activé" if voice_enabled else "⛔ Désactivé",
@@ -54,9 +54,9 @@ async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot) -> tu
         )
 
         if voice_enabled:
-            interval_s = int(cfg.get("voice_interval_seconds", 180))
-            per_int = int(cfg.get("voice_xp_per_interval", 1))
-            cap_xp = int(cfg.get("voice_daily_cap_xp", 100))
+            interval_s = int(config.get("voice_interval_seconds", 180))
+            per_int = int(config.get("voice_xp_per_interval", 1))
+            cap_xp = int(config.get("voice_daily_cap_xp", 100))
 
             minutes = max(interval_s // 60, 1)  # affichage propre
             embed.add_field(
@@ -92,34 +92,6 @@ async def build_xp_status_embed(cfg: dict, guild_id: int, bot: EldoriaBot) -> tu
         value="Demandez à un administrateur d'activer le système d'xp sur ce serveur.",
         inline=False
         )
-
-    embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
-
-    # Images centralisées (thumbnail + banner)
-    decorate(embed, None, None)
-    files = common_files(None, None)
-    return embed, files
-
-
-async def build_xp_disable_embed(guild_id: int, bot: EldoriaBot) -> tuple[discord.Embed, list[discord.File]]:
-    """Construit l'embed affichant que le système XP est désactivé."""
-    guild = bot.get_guild(guild_id)
-    embed = discord.Embed(
-        title="Statut du système XP",
-        description="Configuration actuelle du système d'expérience sur ce serveur.",
-        colour=EMBED_COLOUR_PRIMARY
-    )
-
-    embed.add_field(
-            name="État",
-            value="⛔ Désactivé",
-            inline=True
-    )
-    embed.add_field(
-        name="Information",
-        value="Demandez à un administrateur d'activer le système d'xp sur ce serveur.",
-        inline=False
-    )
 
     embed.set_footer(text=f"Serveur : {guild.name if guild else guild_id}")
 

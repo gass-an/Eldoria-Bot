@@ -719,11 +719,11 @@ async def test_manual_save_not_configured(monkeypatch):
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
     cog = M.Saves(bot)
 
-    ctx = FakeCtx(uid=1)
-    await cog.manual_save_command(ctx)
+    from eldoria.exceptions.general import FeatureNotConfigured
 
-    assert ctx.deferred == [{"ephemeral": True}]
-    assert ctx.followup.sent[-1]["content"].startswith("Feature save non configurée")
+    ctx = FakeCtx(uid=1)
+    with pytest.raises(FeatureNotConfigured):
+        await cog.manual_save_command(ctx)
 
 
 @pytest.mark.asyncio
@@ -738,10 +738,11 @@ async def test_manual_save_wrong_user(monkeypatch):
     bot = FakeBot(guild=None, save=FakeSaveService(), temp_voice=FakeTempVoiceService())
     cog = M.Saves(bot)
 
-    ctx = FakeCtx(uid=1)
-    await cog.manual_save_command(ctx)
+    from eldoria.exceptions.general import NotAllowed
 
-    assert ctx.followup.sent[-1]["content"] == "Vous ne pouvez pas faire cela"
+    ctx = FakeCtx(uid=1)
+    with pytest.raises(NotAllowed):
+        await cog.manual_save_command(ctx)
 
 
 # -----------------------------

@@ -142,23 +142,57 @@ def _install_eldoria_stubs(mp: MonkeyPatch) -> None:
     mp.setitem(sys.modules, "eldoria.app.bot", bot_mod)
     app_pkg.bot = bot_mod  # pour `from eldoria.app import bot`
 
-    # --- eldoria.exceptions.general_exceptions
-    exc_mod = ModuleType("eldoria.exceptions.general_exceptions")
+    # --- eldoria.exceptions.base
+    base_mod = ModuleType("eldoria.exceptions.base")
 
-    class GuildRequired(Exception):
+    class AppError(Exception):
         pass
 
-    class ChannelRequired(Exception):
+    base_mod.AppError = AppError
+    mp.setitem(sys.modules, "eldoria.exceptions.base", base_mod)
+    exc_pkg.base = base_mod
+
+    # --- eldoria.exceptions.general
+    general_mod = ModuleType("eldoria.exceptions.general")
+
+    class GuildRequired(AppError):
         pass
 
-    class MessageRequired(Exception):
+    class ChannelRequired(AppError):
         pass
 
-    exc_mod.GuildRequired = GuildRequired
-    exc_mod.ChannelRequired = ChannelRequired
-    exc_mod.MessageRequired = MessageRequired
-    mp.setitem(sys.modules, "eldoria.exceptions.general_exceptions", exc_mod)
-    exc_pkg.general_exceptions = exc_mod  # pour `from eldoria.exceptions import general_exceptions`
+    class MessageRequired(AppError):
+        pass
+
+    class XpDisabled(AppError):
+        def __init__(self, guild_id: int = 0):
+            super().__init__("xp disabled")
+            self.guild_id = guild_id
+
+    general_mod.GuildRequired = GuildRequired
+    general_mod.ChannelRequired = ChannelRequired
+    general_mod.MessageRequired = MessageRequired
+    general_mod.XpDisabled = XpDisabled
+    mp.setitem(sys.modules, "eldoria.exceptions.general", general_mod)
+    exc_pkg.general = general_mod
+
+    # --- eldoria.exceptions.ui.messages
+    ui_exc_pkg = make_pkg("eldoria.exceptions.ui")
+    exc_pkg.ui = ui_exc_pkg
+    messages_mod = ModuleType("eldoria.exceptions.ui.messages")
+
+    def _app_error_message(e):
+        # On ne stubbe que ce qui est nécessaire aux tests de Core.
+        name = type(e).__name__
+        return {
+            "GuildRequired": "❌ Cette commande doit être utilisée sur un serveur.",
+            "ChannelRequired": "❌ Impossible de retrouver le salon associé à cette action.",
+            "MessageRequired": "❌ Le message associé à cette action est introuvable.",
+        }.get(name, "❌ Une erreur est survenue.")
+
+    messages_mod.app_error_message = MagicMock(side_effect=_app_error_message)
+    mp.setitem(sys.modules, "eldoria.exceptions.ui.messages", messages_mod)
+    ui_exc_pkg.messages = messages_mod
 
     # --- eldoria.ui.help.view
     help_view_mod = ModuleType("eldoria.ui.help.view")
@@ -172,9 +206,21 @@ def _install_eldoria_stubs(mp: MonkeyPatch) -> None:
     mp.setitem(sys.modules, "eldoria.ui.version.embeds", version_mod)
     version_pkg.embeds = version_mod  # pour `from eldoria.ui.version import embeds`
 
+    # --- eldoria.ui.xp.embeds.status
+    xp_pkg = make_pkg("eldoria.ui.xp")
+    embeds_pkg = make_pkg("eldoria.ui.xp.embeds")
+    ui_pkg.xp = xp_pkg
+    xp_pkg.embeds = embeds_pkg
+
+    xp_status_mod = ModuleType("eldoria.ui.xp.embeds.status")
+    xp_status_mod.build_xp_status_embed = AsyncMock(return_value=(object(), []))
+    mp.setitem(sys.modules, "eldoria.ui.xp.embeds.status", xp_status_mod)
+    embeds_pkg.status = xp_status_mod
+
     # --- eldoria.utils.interactions
     interactions_mod = ModuleType("eldoria.utils.interactions")
     interactions_mod.reply_ephemeral = AsyncMock()
+    interactions_mod.reply_ephemeral_embed = AsyncMock()
     mp.setitem(sys.modules, "eldoria.utils.interactions", interactions_mod)
     utils_pkg.interactions = interactions_mod  # pour `from eldoria.utils import interactions`
 

@@ -44,3 +44,33 @@ class DatabaseRestoreError(AppError):
 
 class LogFileNotFound(AppError):
     """Le fichier de log est introuvable."""
+
+
+class FeatureNotConfigured(AppError):
+    """La fonctionnalité demandée n'est pas configurée pour ce serveur."""
+
+    def __init__(self, feature: str) -> None:
+        """Initialise l'exception avec le nom de la fonctionnalité concernée."""
+        super().__init__(f"La fonctionnalité '{feature}' n'est pas configurée pour ce serveur.")
+        self.feature = feature
+
+
+class NotAllowed(AppError):
+    """Action non autorisée dans le contexte actuel."""
+
+class BotTargetNotAllowed(AppError):
+    """Le membre ciblé est un bot."""
+
+    def __init__(self, user_id: int) -> None:
+        """Initialise l'exception avec l'identifiant de l'utilisateur ciblé qui est un bot."""
+        super().__init__(f"Le membre ciblé ({user_id}) est un bot.")
+        self.user_id = user_id
+    pass
+
+class XpDisabled(AppError):
+    """Le système de XP est désactivé pour ce serveur."""
+
+    def __init__(self, guild_id: int) -> None:
+        """Initialise l'exception avec l'identifiant du serveur concerné."""
+        super().__init__(f"Le système de XP est désactivé pour le serveur {guild_id}.")
+        self.guild_id = int(guild_id)

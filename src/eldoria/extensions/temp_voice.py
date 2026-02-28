@@ -13,6 +13,7 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.temp_voice.home import TempVoiceHomeView, build_tempvoice_home_embed
 from eldoria.ui.temp_voice.list import build_list_temp_voice_parents_embed
+from eldoria.utils.guards import require_guild_ctx
 
 log = logging.getLogger(__name__)
 
@@ -102,11 +103,9 @@ class TempVoice(commands.Cog):
         """Commande slash /tempvoice config : affiche un panel de gestion des vocaux temporaires."""
         await ctx.defer(ephemeral=True)
 
-        if ctx.guild is None:
-            await ctx.followup.send("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
+        guild, _channel = require_guild_ctx(ctx)
 
-        view = TempVoiceHomeView(temp_voice_service=self.temp_voice, author_id=ctx.author.id, guild=ctx.guild)
+        view = TempVoiceHomeView(temp_voice_service=self.temp_voice, author_id=ctx.author.id, guild=guild)
         embed, files = build_tempvoice_home_embed()
         await ctx.followup.send(embed=embed, files=files, view=view, ephemeral=True)
 
@@ -119,14 +118,13 @@ class TempVoice(commands.Cog):
         Vérifie les permissions de l'utilisateur, la configuration de la fonctionnalité, récupère les salons parents configurés pour le serveur,
         et affiche le tout dans un embed paginé.
         """
-        if ctx.guild is None:
-            await ctx.respond("Commande uniquement disponible sur un serveur.", ephemeral=True)
-            return
+        await ctx.defer(ephemeral=True)
+        
+        guild, _channel = require_guild_ctx(ctx)
 
-        guild_id = ctx.guild.id
+        guild_id = guild.id
         parents = self.temp_voice.list_parents(guild_id)
 
-        await ctx.defer(ephemeral=True)
         paginator = Paginator(
             items=parents,
             embed_generator=build_list_temp_voice_parents_embed,

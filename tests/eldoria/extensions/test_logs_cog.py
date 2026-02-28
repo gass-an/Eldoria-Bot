@@ -122,16 +122,10 @@ async def test_logs_command_feature_disabled(monkeypatch):
     cog = logs_mod.Logs(DummyBot())
     ctx = DummyCtx(DummyUser(user_id=123))
 
-    await cog.logs_command(ctx)
+    from eldoria.exceptions.general import FeatureNotConfigured
 
-    assert ctx.defer_calls
-    _args, kwargs = ctx.defer_calls[0]
-    assert kwargs.get("ephemeral") is True
-
-    assert len(ctx.followup.calls) == 1
-    (_args2, kwargs2) = ctx.followup.calls[0]
-    # ⚠️ ton code envoie "Feature logs non configurée." (sans ".env).")
-    assert kwargs2.get("content") == "Feature logs non configurée."
+    with pytest.raises(FeatureNotConfigured):
+        await cog.logs_command(ctx)
 
 
 @pytest.mark.asyncio
@@ -142,12 +136,10 @@ async def test_logs_command_non_admin_denied(monkeypatch):
     cog = logs_mod.Logs(DummyBot())
     ctx = DummyCtx(DummyUser(user_id=123))
 
-    await cog.logs_command(ctx)
+    from eldoria.exceptions.general import NotAllowed
 
-    assert ctx.defer_calls
-    assert len(ctx.followup.calls) == 1
-    (_args, kwargs) = ctx.followup.calls[0]
-    assert kwargs.get("content") == "Vous ne pouvez pas faire cela"
+    with pytest.raises(NotAllowed):
+        await cog.logs_command(ctx)
 
 
 @pytest.mark.asyncio

@@ -119,9 +119,11 @@ class _FakeRole:
 
 
 class _FakeMember:
-    def __init__(self, member_id: int, roles=None):
+    def __init__(self, member_id: int, roles=None, *, top_role_position: int = 10_000):
         self.id = member_id
         self.roles = roles or []
+        # utilisé par require_role_assignable_by_bot
+        self.top_role = types.SimpleNamespace(position=top_role_position)
         self.added = []
         self.removed = []
         self._raise_add = None
@@ -428,8 +430,10 @@ async def test_add_reaction_role_rejects_other_guild(monkeypatch):
 
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
 
-    await cog.rr_add(ctx, "link", "🔥", _FakeRole(10))
-    assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
+    from eldoria.exceptions.role import InvalidGuild
+
+    with pytest.raises(InvalidGuild):
+        await cog.rr_add(ctx, "link", "🔥", _FakeRole(10))
 
 
 @pytest.mark.asyncio
@@ -438,7 +442,7 @@ async def test_add_reaction_role_rejects_role_above_bot(monkeypatch):
     bot = _FakeBot(role_svc)
     guild = _FakeGuild(111)
 
-    bot_member = _FakeMember(999, roles=[_FakeRole(1, position=5)])
+    bot_member = _FakeMember(999, roles=[_FakeRole(1, position=5)], top_role_position=5)
     guild._members[999] = bot_member
 
     ctx = _FakeCtx(guild=guild, user=_FakeMember(1))
@@ -450,11 +454,11 @@ async def test_add_reaction_role_rejects_role_above_bot(monkeypatch):
 
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (111, 777, 888), raising=True)
 
-    role = _FakeRole(10, position=5)  # equal => reject (>=)
-    await cog.rr_add(ctx, "link", "🔥", role)
+    from eldoria.exceptions.role import RoleAboveBot
 
-    assert "Je ne peux pas attribuer le rôle" in ctx.followup.sent[-1]["content"]
-    assert role_svc.calls == [("rr_list_by_message", 111, 888)] or role_svc.calls == []  # may return earlier
+    role = _FakeRole(10, position=5)  # equal => reject (>=)
+    with pytest.raises(RoleAboveBot):
+        await cog.rr_add(ctx, "link", "🔥", role)
 
 
 @pytest.mark.asyncio
@@ -476,14 +480,18 @@ async def test_add_reaction_role_detects_conflicts(monkeypatch):
     # existing same role different emoji => reject
     role_svc._by_message = {"😀": 42}
     role = _FakeRole(42, position=1)
-    await cog.rr_add(ctx, "link", "🔥", role)
-    assert "déjà associé à l'emoji" in ctx.followup.sent[-1]["content"]
+    from eldoria.exceptions.role import RoleAlreadyBound
+
+    with pytest.raises(RoleAlreadyBound):
+        await cog.rr_add(ctx, "link", "🔥", role)
 
     # existing same emoji different role => reject
     ctx2 = _FakeCtx(guild=guild, user=_FakeMember(1))
     role_svc._by_message = {"🔥": 99}
-    await cog.rr_add(ctx2, "link", "🔥", _FakeRole(42, position=1))
-    assert "déjà associé au rôle" in ctx2.followup.sent[-1]["content"]
+    from eldoria.exceptions.role import EmojiAlreadyBound
+
+    with pytest.raises(EmojiAlreadyBound):
+        await cog.rr_add(ctx2, "link", "🔥", _FakeRole(42, position=1))
 
 
 @pytest.mark.asyncio
@@ -559,9 +567,11 @@ async def test_remove_specific_reaction_other_guild(monkeypatch):
     ctx = _FakeCtx(guild=guild, user=_FakeMember(1))
     cog = ReactionRoles(bot)
 
+    from eldoria.exceptions.role import InvalidGuild
+
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
-    await cog.rr_remove(ctx, "link", "🔥")
-    assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
+    with pytest.raises(InvalidGuild):
+        await cog.rr_remove(ctx, "link", "🔥")
 
 
 @pytest.mark.asyncio
@@ -601,9 +611,11 @@ async def test_remove_all_reactions_other_guild(monkeypatch):
     ctx = _FakeCtx(guild=guild, user=_FakeMember(1))
     cog = ReactionRoles(bot)
 
+    from eldoria.exceptions.role import InvalidGuild
+
     monkeypatch.setattr(rr_mod, "extract_id_from_link", lambda _s: (222, 1, 2), raising=True)
-    await cog.rr_clear(ctx, "link")
-    assert ctx.followup.sent[-1]["content"] == "Le lien que vous m'avez fourni provient d'un autre serveur."
+    with pytest.raises(InvalidGuild):
+        await cog.rr_clear(ctx, "link")
 
 
 @pytest.mark.asyncio

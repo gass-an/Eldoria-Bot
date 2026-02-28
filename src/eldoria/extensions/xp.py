@@ -18,8 +18,8 @@ from eldoria.ui.xp.admin.menu import XpAdminMenuView
 from eldoria.ui.xp.embeds.leaderboard import build_list_xp_embed
 from eldoria.ui.xp.embeds.profile import build_xp_profile_embed
 from eldoria.ui.xp.embeds.roles import build_xp_roles_embed
-from eldoria.ui.xp.embeds.status import build_xp_disable_embed, build_xp_status_embed
-from eldoria.utils.discord_utils import require_guild_ctx
+from eldoria.ui.xp.embeds.status import build_xp_status_embed
+from eldoria.utils.guards import require_guild_ctx, require_not_bot
 from eldoria.utils.mentions import level_label
 
 log = logging.getLogger(__name__)
@@ -61,11 +61,7 @@ class Xp(commands.Cog):
         user = ctx.user
         user_id = user.id
 
-        if not self.xp.is_enabled(guild_id):
-            embed, files = await build_xp_disable_embed(guild_id, self.bot)
-            await ctx.followup.send(embed=embed, files=files, ephemeral=True)
-            return
-
+        self.xp.require_enabled(guild_id)
         self.xp.ensure_defaults(guild_id)
 
         snapshot = self.xp.build_snapshot_for_xp_profile(guild, user_id)
@@ -93,8 +89,8 @@ class Xp(commands.Cog):
         await ctx.defer(ephemeral=True)
         guild, _channel = require_guild_ctx(ctx)
         
-        cfg = self.xp.get_config(guild.id)
-        embed, files = await build_xp_status_embed(cfg=cfg, guild_id=guild.id, bot=self.bot)
+        config = self.xp.get_config(guild.id)
+        embed, files = await build_xp_status_embed(config=config, guild_id=guild.id, bot=self.bot)
         await ctx.followup.send(embed=embed, files=files, ephemeral=True)
 
     @xp_command.command(name="leaderboard", description="Affiche le classement des joueurs en fonction de leurs XP.")
@@ -109,11 +105,7 @@ class Xp(commands.Cog):
         guild, _channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
-        if not self.xp.is_enabled(guild_id):
-            embed, files = await build_xp_disable_embed(guild_id, self.bot)
-            await ctx.followup.send(embed=embed, files=files, ephemeral=True)
-            return
-
+        self.xp.require_enabled(guild_id)
         self.xp.ensure_defaults(guild_id)
 
         items = self.xp.get_leaderboard_items(guild, limit=200, offset=0)
@@ -138,11 +130,7 @@ class Xp(commands.Cog):
         guild, _channel = require_guild_ctx(ctx)
         guild_id = guild.id
 
-        if not self.xp.is_enabled(guild_id):
-            embed, files = await build_xp_disable_embed(guild_id, self.bot)
-            await ctx.followup.send(embed=embed, files=files, ephemeral=True)
-            return
-
+        self.xp.require_enabled(guild_id)
         self.xp.ensure_defaults(guild_id)
 
         levels_with_roles = self.xp.get_levels_with_roles(guild_id)
@@ -183,9 +171,7 @@ class Xp(commands.Cog):
         await ctx.defer(ephemeral=True)
         guild, _channel = require_guild_ctx(ctx)
         
-        if member.bot:
-            await ctx.followup.send(content="❌ Impossible de modifier l'XP d'un bot.")
-            return
+        require_not_bot(member)
 
         self.xp.ensure_defaults(guild.id)
         new_xp = self.xp.add_xp(guild.id, member.id, delta)

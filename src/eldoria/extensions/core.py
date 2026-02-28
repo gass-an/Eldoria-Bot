@@ -11,10 +11,12 @@ from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
 from eldoria.exceptions.base import AppError
+from eldoria.exceptions.general import XpDisabled
 from eldoria.exceptions.ui.messages import app_error_message
 from eldoria.ui.help.view import send_help_menu
 from eldoria.ui.version.embeds import build_version_embed
-from eldoria.utils.interactions import reply_ephemeral
+from eldoria.ui.xp.embeds.status import build_xp_status_embed
+from eldoria.utils.interactions import reply_ephemeral, reply_ephemeral_embed
 from eldoria.utils.mentions import level_mention
 
 log = logging.getLogger(__name__)
@@ -143,6 +145,14 @@ class Core(commands.Cog):
         et fournit des messages d'erreur clairs et adaptés à l'utilisateur.
         """
         err = getattr(error, "original", error)
+
+        # --- Cas particulier : XP désactivé -> embed ---
+        if isinstance(err, XpDisabled):
+            # réutilise ton builder unique
+            embed, files = await build_xp_status_embed({"enabled": False}, err.guild_id, self.bot)
+            await reply_ephemeral_embed(interaction, embed=embed, files=files)
+            return
+
 
         # -------------------- Erreurs Métier --------------------
         if isinstance(err, AppError):

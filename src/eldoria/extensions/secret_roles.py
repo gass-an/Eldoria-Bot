@@ -12,7 +12,12 @@ from eldoria.app.bot import EldoriaBot
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.roles.autocompletion import message_secret_role_autocomplete
 from eldoria.ui.roles.embeds import build_list_secret_roles_embed
-from eldoria.utils.discord_utils import require_guild_ctx
+from eldoria.utils.guards import (
+    require_guild_ctx,
+    require_role_assignable_by_bot,
+    require_secretrole_exists,
+    require_secretrole_not_conflicting,
+)
 
 
 class SecretRoles(commands.Cog):
@@ -51,24 +56,13 @@ class SecretRoles(commands.Cog):
         guild_id = guild.id
 
         bot_member = guild.me
-        if bot_member is None:
-            await ctx.followup.send(content="Je ne suis pas correctement initialisé sur ce serveur.")
-            return
-        
-        bot_highest_role = max(bot_member.roles, key=lambda r: r.position)
-        if role.position >= bot_highest_role.position:
-            await ctx.followup.send(content=f"Je ne peux pas attribuer le rôle <@&{role.id}> car il est au-dessus de mes permissions.")
-            return
+        require_role_assignable_by_bot(bot_member, role)
         
         channel_id = channel.id
         message_str = str(message)
 
         existing_role_id = self.role.sr_match(guild_id, channel_id, message_str)
-        if existing_role_id is not None and existing_role_id != role.id:
-            await ctx.followup.send(
-                content=f"Le message `{message_str}` est déjà associé au rôle <@&{existing_role_id}> dans le même channel."
-            )
-            return
+        require_secretrole_not_conflicting(message=message_str, existing_role_id=existing_role_id, role_id=role.id)
 
         await bot_member.add_roles(role)
         await bot_member.remove_roles(role)
@@ -95,9 +89,7 @@ class SecretRoles(commands.Cog):
         message_str = str(message)
 
         existing_role_id = self.role.sr_match(guild_id, channel_id, message_str)
-        if existing_role_id is None:
-            await ctx.followup.send(content=f"Aucune attribution trouvée pour le message `{message_str}` dans ce channel.")
-            return
+        require_secretrole_exists(message=message_str, existing_role_id=existing_role_id)
 
         self.role.sr_delete(guild_id, channel_id, message_str)
         await ctx.followup.send(content=f"Le message `{message_str}` n'attribue plus de rôle")

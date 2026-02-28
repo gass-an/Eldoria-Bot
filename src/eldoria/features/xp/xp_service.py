@@ -8,6 +8,7 @@ from typing import Any
 import discord
 
 from eldoria.db.repo import xp_repo
+from eldoria.exceptions.general import XpDisabled
 from eldoria.features.xp import levels, roles
 from eldoria.features.xp._internal import (
     message_xp,
@@ -40,8 +41,13 @@ class XpService:
         return snapshot.get_leaderboard_items(guild, limit=limit, offset=offset)
 
     def is_enabled(self, guild_id: int) -> bool:
-        """Indique si le système XP est activé pour la guilde."""
+        """Retourne True si XP activé, sinon False (sans lever)."""
         return xp_repo.xp_is_enabled(guild_id)
+
+    def require_enabled(self, guild_id: int) -> None:
+        """Lève XpDisabled si le système XP est désactivé."""
+        if not xp_repo.xp_is_enabled(guild_id):
+            raise XpDisabled(guild_id)
     
     def ensure_defaults(self, guild_id: int, default_levels: dict[int, int] | None = None) -> None:
         """Initialise la configuration XP par défaut si absente."""
