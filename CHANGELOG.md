@@ -8,6 +8,17 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Notes
+
+
+## [0.6.1] - 2026-03-01
+
+### Added
 - Ajout de la CI github-actions : setup pytest + docker build
 - Scripts pour automatiser les prochaines release
 - Ajout des fichiers de logs, récupérable via une commande admin
@@ -17,9 +28,6 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Fixed
 - Modification de la user_limit dans les channels parents (temp_voice)
-
-### Notes
-
 
 ## [0.6.0] - 2026-02-21
 
