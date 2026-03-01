@@ -4,7 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.common import pagination as M
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import FakeInteraction, FakeUser
 
 
 def _mk_items(n: int) -> list[int]:

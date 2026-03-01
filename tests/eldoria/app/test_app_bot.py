@@ -3,10 +3,6 @@ import pytest
 from eldoria.app.bot import EldoriaBot
 
 
-class FakeIntents:
-    pass
-
-
 def test_eldoria_bot_init_calls_super_with_expected_args(monkeypatch):
     calls = {}
 
@@ -24,7 +20,7 @@ def test_eldoria_bot_init_calls_super_with_expected_args(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 123.456, raising=True)
 
-    intents = FakeIntents()
+    intents = object()
     bot = EldoriaBot(intents=intents, command_prefix="!")
 
     assert calls["command_prefix"] == "!"
@@ -53,7 +49,7 @@ def test_eldoria_bot_init_passes_options(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 1.0, raising=True)
 
-    EldoriaBot(intents=FakeIntents(), command_prefix="!", help_command=None, description="Eldoria")
+    EldoriaBot(intents=object(), command_prefix="!", help_command=None, description="Eldoria")
 
     assert calls["options"] == {"help_command": None, "description": "Eldoria"}
 
@@ -66,7 +62,7 @@ def test_started_at_set_and_get(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 10.0, raising=True)
 
-    bot = EldoriaBot(intents=FakeIntents())
+    bot = EldoriaBot(intents=object())
     assert bot.get_started_at() == 10.0
 
     bot.set_started_at(99.9)
@@ -80,7 +76,7 @@ def test_booted_flag(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 0.0, raising=True)
 
-    bot = EldoriaBot(intents=FakeIntents())
+    bot = EldoriaBot(intents=object())
     assert bot.is_booted() is False
 
     bot.set_booted(True)
@@ -97,7 +93,7 @@ def test_discord_started_at_set_and_get(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 0.0, raising=True)
 
-    bot = EldoriaBot(intents=FakeIntents())
+    bot = EldoriaBot(intents=object())
 
     assert bot.get_discord_started_at() is None
     bot.set_discord_started_at(123.0)
@@ -111,7 +107,7 @@ def test_set_services_success_and_double_init_raises(monkeypatch):
     import eldoria.app.bot as bot_mod
     monkeypatch.setattr(bot_mod.time, "perf_counter", lambda: 0.0, raising=True)
 
-    bot = EldoriaBot(intents=FakeIntents())
+    bot = EldoriaBot(intents=object())
 
     services = object()
     bot.set_services(services)  # type: ignore[arg-type]

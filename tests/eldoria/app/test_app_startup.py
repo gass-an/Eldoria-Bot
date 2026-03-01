@@ -3,46 +3,14 @@ from __future__ import annotations
 import pytest
 
 from eldoria.app import startup as mod
-
-# ----------------------------
-# Fakes
-# ----------------------------
-
-class FakeLogger:
-    def __init__(self):
-        self.infos = []
-        self.exceptions = []
-
-    def info(self, *args):
-        self.infos.append(args)
-
-    def exception(self, *args):
-        self.exceptions.append(args)
-
-
-class FakeBot:
-    def __init__(self):
-        self.loaded = []
-        self._services = None
-
-    # L'implémentation prod expose `set_services(...)`.
-    def set_services(self, services):
-        self._services = services
-
-    @property
-    def services(self):
-        return self._services
-
-    def load_extension(self, name: str):
-        self.loaded.append(name)
-
+from tests._fakes import FakeBot, Logger, make_services_class
 
 # ----------------------------
 # step()
 # ----------------------------
 
 def test_step_logs_info_with_default_logger_when_success_and_result_none(monkeypatch):
-    fake_log = FakeLogger()
+    fake_log = Logger()
     monkeypatch.setattr(mod, "log", fake_log, raising=True)
 
     # perf_counter: start=1.0 end=1.1 => 100 ms
@@ -67,7 +35,7 @@ def test_step_logs_info_with_default_logger_when_success_and_result_none(monkeyp
 
 
 def test_step_logs_info_with_result_in_label(monkeypatch):
-    fake_log = FakeLogger()
+    fake_log = Logger()
     monkeypatch.setattr(mod, "log", fake_log, raising=True)
 
     t = {"n": 0}
@@ -89,7 +57,7 @@ def test_step_logs_info_with_result_in_label(monkeypatch):
 
 
 def test_step_uses_provided_logger(monkeypatch):
-    fake_log = FakeLogger()
+    fake_log = Logger()
     monkeypatch.setattr(mod.time, "perf_counter", lambda: 0.0, raising=True)
 
     mod.step("X", lambda: None, logger=fake_log)
@@ -97,7 +65,7 @@ def test_step_uses_provided_logger(monkeypatch):
 
 
 def test_step_exception_critical_true_reraises(monkeypatch):
-    fake_log = FakeLogger()
+    fake_log = Logger()
     monkeypatch.setattr(mod, "log", fake_log, raising=True)
 
     # start=1.0 end=1.2 => 200ms
@@ -123,7 +91,7 @@ def test_step_exception_critical_true_reraises(monkeypatch):
 
 
 def test_step_exception_critical_false_does_not_raise(monkeypatch):
-    fake_log = FakeLogger()
+    fake_log = Logger()
     monkeypatch.setattr(mod, "log", fake_log, raising=True)
     monkeypatch.setattr(mod.time, "perf_counter", lambda: 0.0, raising=True)
 
@@ -156,10 +124,6 @@ def test_load_extensions_loads_all_and_returns_count(monkeypatch):
 def test_init_services_assigns_services_and_returns_len(monkeypatch):
     bot = FakeBot()
 
-    # Remplace les classes de services par des sentinelles (constructeurs)
-    class Svc:
-        pass
-
     monkeypatch.setattr(mod, "DuelService", lambda: ("duel",), raising=True)
     monkeypatch.setattr(mod, "RoleService", lambda: ("role",), raising=True)
     monkeypatch.setattr(mod, "SaveService", lambda: ("save",), raising=True)
@@ -170,14 +134,7 @@ def test_init_services_assigns_services_and_returns_len(monkeypatch):
     # Services(...) -> on retourne un objet avec __len__
     created = {}
 
-    class FakeServices:
-        def __init__(self, **kwargs):
-            created.update(kwargs)
-
-        def __len__(self):
-            return len(created)
-
-    monkeypatch.setattr(mod, "Services", FakeServices, raising=True)
+    monkeypatch.setattr(mod, "Services", make_services_class(created), raising=True)
 
     n = mod.init_services(bot)
 

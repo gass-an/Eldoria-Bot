@@ -3,29 +3,25 @@ import pytest
 from eldoria.app.services import Services
 
 
-class Dummy:
-    pass
-
-
 def test_services_len_is_number_of_fields():
     s = Services(
-        duel=Dummy(),
-        role=Dummy(),
-        save=Dummy(),
-        temp_voice=Dummy(),
-        welcome=Dummy(),
-        xp=Dummy(),
+        duel=object(),
+        role=object(),
+        save=object(),
+        temp_voice=object(),
+        welcome=object(),
+        xp=object(),
     )
     assert len(s) == 6
 
 
 def test_services_stores_attributes():
-    duel = Dummy()
-    role = Dummy()
-    save = Dummy()
-    temp_voice = Dummy()
-    welcome = Dummy()
-    xp = Dummy()
+    duel = object()
+    role = object()
+    save = object()
+    temp_voice = object()
+    welcome = object()
+    xp = object()
 
     s = Services(
         duel=duel,
@@ -46,12 +42,12 @@ def test_services_stores_attributes():
 
 def test_services_is_slots_dataclass_no_dict_and_no_new_attrs():
     s = Services(
-        duel=Dummy(),
-        role=Dummy(),
-        save=Dummy(),
-        temp_voice=Dummy(),
-        welcome=Dummy(),
-        xp=Dummy(),
+        duel=object(),
+        role=object(),
+        save=object(),
+        temp_voice=object(),
+        welcome=object(),
+        xp=object(),
     )
 
     # slots => pas de __dict__

@@ -1,14 +1,11 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import discord  # type: ignore
 import pytest
 
 from eldoria.ui.help import embeds as M
-
-
-class FakeCmd:
-    def __init__(self, description: str | None):
-        self.description = description
 
 
 def test_build_home_embed_builds_fields_footer_and_calls_decorate(monkeypatch):
@@ -79,7 +76,7 @@ def test_build_category_embed_description_fallbacks(monkeypatch, desc_in_help, c
     if desc_in_help is not None:
         help_infos["ping"] = desc_in_help
 
-    cmd_map = {"ping": FakeCmd(cmd_obj_desc)}
+    cmd_map = {"ping": SimpleNamespace(description=cmd_obj_desc)}
 
     embed = M.build_category_embed(
         cat="Utils",
@@ -113,7 +110,11 @@ def test_build_category_embed_multiple_cmds_keeps_order(monkeypatch):
 
     cmds = ["a", "b", "c"]
     help_infos = {"b": "B desc"}
-    cmd_map = {"a": FakeCmd("A desc"), "b": FakeCmd("ignored"), "c": FakeCmd(None)}
+    cmd_map = {
+        "a": SimpleNamespace(description="A desc"),
+        "b": SimpleNamespace(description="ignored"),
+        "c": SimpleNamespace(description=None),
+    }
 
     embed = M.build_category_embed(
         cat="Cat",

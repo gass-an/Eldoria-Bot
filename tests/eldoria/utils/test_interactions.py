@@ -1,50 +1,26 @@
 import pytest
 
 from eldoria.utils.interactions import reply_ephemeral
-
-
-class FakeResponse:
-    def __init__(self, *, done: bool):
-        self._done = done
-        self.sent = []
-
-    def is_done(self):
-        return self._done
-
-    async def send_message(self, content: str, *, ephemeral: bool = False):
-        self.sent.append(("response.send_message", content, ephemeral))
-
-
-class FakeFollowup:
-    hookup_sent = []
-    def __init__(self):
-        self.sent = []
-
-    async def send(self, content: str, *, ephemeral: bool = False):
-        self.sent.append(("followup.send", content, ephemeral))
-
-
-class FakeInteraction:
-    def __init__(self, *, response_done: bool):
-        self.response = FakeResponse(done=response_done)
-        self.followup = FakeFollowup()
+from tests._fakes import FakeInteraction, FakeUser
 
 
 @pytest.mark.asyncio
 async def test_reply_ephemeral_uses_response_send_message_when_not_done():
-    inter = FakeInteraction(response_done=False)
+    inter = FakeInteraction(user=FakeUser(1))
 
     await reply_ephemeral(inter, "hello")  # type: ignore[arg-type]
 
-    assert inter.response.sent == [("response.send_message", "hello", True)]
+    assert inter.response.sent == [{"content": "hello", "ephemeral": True}]
     assert inter.followup.sent == []
 
 
 @pytest.mark.asyncio
 async def test_reply_ephemeral_uses_followup_send_when_done():
-    inter = FakeInteraction(response_done=True)
+    inter = FakeInteraction(user=FakeUser(1))
+    inter.response._done = True
 
     await reply_ephemeral(inter, "hello")  # type: ignore[arg-type]
 
     assert inter.response.sent == []
-    assert inter.followup.sent == [("followup.send", "hello", True)]
+    assert inter.followup.sent and inter.followup.sent[-1]["content"] == "hello"
+    assert inter.followup.sent[-1]["ephemeral"] is True

@@ -2,6 +2,7 @@ import pytest
 
 from eldoria.exceptions import duel as exc
 from eldoria.exceptions.ui import duel_ui as M
+from tests._support.exceptions import UnknownDuelError
 
 
 @pytest.mark.parametrize(
@@ -48,12 +49,6 @@ def test_duel_error_message_insufficient_xp():
 )
 def test_duel_error_message_grouped_generic(error):
     assert M.duel_error_message(error) == "❌ Une erreur est survenue. Réessaie."
-
-
-class UnknownDuelError(exc.DuelError):
-    pass
-
-
 def test_duel_error_message_fallback():
     e = UnknownDuelError("boom")
     assert M.duel_error_message(e) == "❌ Une erreur est survenue."

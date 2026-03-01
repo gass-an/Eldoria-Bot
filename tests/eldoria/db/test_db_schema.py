@@ -1,52 +1,12 @@
 from __future__ import annotations
 
 from eldoria.db import schema as mod
-
-
-class FakeCursor:
-    def __init__(self, rows):
-        self._rows = rows
-
-    def fetchall(self):
-        return self._rows
-
-
-class FakeConn:
-    def __init__(self, *, pragma_rows=None):
-        self.pragma_rows = pragma_rows if pragma_rows is not None else []
-        self.executed: list[str] = []
-        self.scripts: list[str] = []
-
-    def execute(self, sql: str):
-        self.executed.append(sql)
-        if sql.strip().upper().startswith("PRAGMA TABLE_INFO"):
-            return FakeCursor(self.pragma_rows)
-        return FakeCursor([])
-
-    def executescript(self, script: str):
-        self.scripts.append(script)
-        return None
-
-
-class FakeConnCM:
-    """Context manager qui retourne un FakeConn."""
-    def __init__(self, conn: FakeConn):
-        self.conn = conn
-        self.entered = 0
-        self.exited = 0
-
-    def __enter__(self):
-        self.entered += 1
-        return self.conn
-
-    def __exit__(self, exc_type, exc, tb):
-        self.exited += 1
-        return False
+from tests._fakes import Conn, ConnCM
 
 
 def test__table_columns_returns_set_of_column_names():
     # rows format = (cid, name, type, notnull, dflt_value, pk) typiquement
-    conn = FakeConn(pragma_rows=[(0, "guild_id", "INTEGER", 1, None, 1), (1, "enabled", "INTEGER", 1, 0, 0)])
+    conn = Conn(pragma_rows=[(0, "guild_id", "INTEGER", 1, None, 1), (1, "enabled", "INTEGER", 1, 0, 0)])
     cols = mod._table_columns(conn, "xp_config")
     assert cols == {"guild_id", "enabled"}
     assert conn.executed == ["PRAGMA table_info(xp_config);"]
@@ -56,8 +16,8 @@ def test_migrate_db_no_xp_config_table_noop(monkeypatch):
     """
     Si PRAGMA table_info renvoie [], cols == empty => aucune migration (ni ALTER ni UPDATE).
     """
-    conn = FakeConn(pragma_rows=[])
-    cm = FakeConnCM(conn)
+    conn = Conn(pragma_rows=[])
+    cm = ConnCM(conn)
 
     monkeypatch.setattr(mod, "get_conn", lambda: cm, raising=True)
 
@@ -75,14 +35,14 @@ def test_migrate_db_adds_missing_voice_columns_and_updates(monkeypatch):
     on doit faire les ALTER correspondants + les UPDATE COALESCE.
     """
     # xp_config existe mais sans colonnes vocal
-    conn = FakeConn(
+    conn = Conn(
         pragma_rows=[
             (0, "guild_id", "INTEGER", 1, None, 1),
             (1, "enabled", "INTEGER", 1, 0, 0),
             (2, "points_per_message", "INTEGER", 1, 8, 0),
         ]
     )
-    cm = FakeConnCM(conn)
+    cm = ConnCM(conn)
     monkeypatch.setattr(mod, "get_conn", lambda: cm, raising=True)
 
     mod.migrate_db()
@@ -111,7 +71,7 @@ def test_migrate_db_when_voice_columns_already_exist_no_alter_but_updates(monkey
     """
     Si toutes les colonnes vocal existent déjà, pas d'ALTER mais on fait quand même les UPDATE.
     """
-    conn = FakeConn(
+    conn = Conn(
         pragma_rows=[
             (0, "guild_id", "INTEGER", 1, None, 1),
             (1, "voice_enabled", "INTEGER", 1, 1, 0),
@@ -121,7 +81,7 @@ def test_migrate_db_when_voice_columns_already_exist_no_alter_but_updates(monkey
             (5, "voice_levelup_channel_id", "INTEGER", 1, 0, 0),
         ]
     )
-    cm = FakeConnCM(conn)
+    cm = ConnCM(conn)
     monkeypatch.setattr(mod, "get_conn", lambda: cm, raising=True)
 
     mod.migrate_db()
@@ -135,8 +95,8 @@ def test_migrate_db_when_voice_columns_already_exist_no_alter_but_updates(monkey
 
 
 def test_init_db_executes_schema_script_and_calls_migrate(monkeypatch):
-    conn = FakeConn()
-    cm = FakeConnCM(conn)
+    conn = Conn()
+    cm = ConnCM(conn)
 
     monkeypatch.setattr(mod, "get_conn", lambda: cm, raising=True)
 

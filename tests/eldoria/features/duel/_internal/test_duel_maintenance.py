@@ -3,11 +3,9 @@ from __future__ import annotations
 import eldoria.features.duel._internal.maintenance as m_mod
 from eldoria.exceptions.duel import DuelAlreadyHandled
 from eldoria.features.duel import constants
-from tests._fakes._db_fakes import FakeConnCM
+from tests._fakes import FakeConnCM
 
-
-class FakeConn:
-    pass
+ConnStub = type("ConnStub", (), {})
 
 # pytest = pytest  # silence unused import
 
@@ -40,7 +38,7 @@ def test_cancel_expired_duels_skips_when_transition_fails(monkeypatch):
     monkeypatch.setattr(m_mod.duel_repo, "list_expired_duels", lambda ts: [duel])
 
     # transaction
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(m_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(m_mod.duel_repo, "transition_status", lambda *a, **k: False)
@@ -60,7 +58,7 @@ def test_cancel_expired_duels_expires_config_without_refund(monkeypatch):
     duel = _duel_row(status=constants.DUEL_STATUS_CONFIG)
     monkeypatch.setattr(m_mod.duel_repo, "list_expired_duels", lambda ts: [duel])
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(m_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(m_mod.duel_repo, "transition_status", lambda *a, **k: True)
@@ -81,7 +79,7 @@ def test_cancel_expired_duels_expires_invited_without_refund(monkeypatch):
     duel = _duel_row(status=constants.DUEL_STATUS_INVITED)
     monkeypatch.setattr(m_mod.duel_repo, "list_expired_duels", lambda ts: [duel])
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(m_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(m_mod.duel_repo, "transition_status", lambda *a, **k: True)
@@ -102,7 +100,7 @@ def test_cancel_expired_duels_expires_active_and_refunds(monkeypatch):
     duel = _duel_row(status=constants.DUEL_STATUS_ACTIVE, stake_xp=10)
     monkeypatch.setattr(m_mod.duel_repo, "list_expired_duels", lambda ts: [duel])
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(m_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(m_mod.duel_repo, "transition_status", lambda *a, **k: True)
@@ -146,7 +144,7 @@ def test_cancel_expired_duels_active_complete_auto_finishes(monkeypatch):
     monkeypatch.setattr(m_mod.helpers, "finish_duel", fake_finish)
 
     # NE DOIT PAS passer par transition_status dans le cas auto-finish réussi
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(m_mod, "get_conn", lambda: FakeConnCM(conn))
     monkeypatch.setattr(m_mod.duel_repo, "transition_status", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not transition")))
     monkeypatch.setattr(m_mod.duel_repo, "update_duel_if_status", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not update")))

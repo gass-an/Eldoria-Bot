@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from eldoria.db.repo import reaction_roles_repo as mod
-from tests._fakes._db_fakes import FakeConn, FakeConnCM
+from tests._fakes import FakeConn, FakeConnCM
 
 
 @pytest.fixture

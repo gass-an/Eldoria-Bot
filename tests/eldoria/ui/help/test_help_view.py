@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import discord  # type: ignore
 import pytest
 
 from eldoria.ui.help import view as M
-from tests._fakes._pages_fakes import (
+from tests._fakes import (
     FakeCtx,
     FakeInteraction,
     FakeMessage,
@@ -12,78 +14,22 @@ from tests._fakes._pages_fakes import (
 )
 
 
-# ------------------------------------------------------------
-# CompatInteraction : support edit_original_response(embed/files/view)
-# + enregistre aussi response.edit_message
-# + support .data["custom_id"] pour RoutedButton
-# ------------------------------------------------------------
-class CompatInteraction(FakeInteraction):
-    def __init__(self, *, user: FakeUser, message=None, custom_id: str | None = None):
-        super().__init__(user=user, message=message)
-
-        # discord.py: Interaction.data est un dict
-        self.data = {}
-        if custom_id is not None:
-            self.data["custom_id"] = custom_id
-
-        self.response_edit_calls: list[dict] = []
-
-        orig_edit = self.response.edit_message
-
-        async def wrapped_edit_message(*, embed=None, view=None):
-            self.response_edit_calls.append({"embed": embed, "view": view})
-            await orig_edit(embed=embed, view=view)
-
-        self.response.edit_message = wrapped_edit_message  # type: ignore[assignment]
-
-    async def edit_original_response(
-        self,
-        *,
-        content=None,
-        embeds=None,
-        attachments=None,
-        view=None,
-        embed=None,
-        files=None,
-    ):
-        # Reproduit le comportement du fake original: lève AVANT de logguer
-        if getattr(self, "raise_on_edit_original", None) is not None:
-            raise self.raise_on_edit_original  # type: ignore[misc]
-
-        self.original_edits.append(
-            {
-                "content": content,
-                "embeds": embeds,
-                "attachments": attachments,
-                "view": view,
-                "embed": embed,
-                "files": files,
-            }
-        )
+def make_perms(value: int):
+    return SimpleNamespace(value=value)
 
 
-class FakePerms:
-    def __init__(self, value: int):
-        self.value = value
+def make_cmd(name: str, *, dp=None, can_run=True):
+    async def _can_run(ctx):
+        if isinstance(can_run, BaseException):
+            raise can_run
+        return bool(can_run)
+
+    return SimpleNamespace(name=name, default_member_permissions=dp, can_run=_can_run)
 
 
-class FakeCmd:
-    """Commande fake compatible avec le resolver (name + can_run + perms)."""
-
-    def __init__(self, name: str, *, dp=None, can_run=True):
-        self.name = name
-        self.default_member_permissions = dp
-        self._can_run = can_run
-
-    async def can_run(self, ctx):
-        if isinstance(self._can_run, BaseException):
-            raise self._can_run
-        return bool(self._can_run)
-
-
-class FakeBot:
-    def __init__(self, cmds):
-        self.application_commands = cmds
+def make_interaction(*, user: FakeUser, message=None, custom_id: str | None = None):
+    data = {} if custom_id is None else {"custom_id": custom_id}
+    return FakeInteraction(user=user, message=message, data=data)
 
 
 def _make_view(*, author_id=1, visible_by_cat=None):
@@ -182,7 +128,7 @@ async def test_interaction_check_blocks_other_user_and_uses_response_send(monkey
     # interaction_check est fourni par BasePanelView (message différent)
     view = _make_view(author_id=1)
 
-    inter = CompatInteraction(user=FakeUser(2))  # pas l'auteur
+    inter = make_interaction(user=FakeUser(2))  # pas l'auteur
     ok = await view.interaction_check(inter)
 
     assert ok is False
@@ -206,11 +152,11 @@ async def test_on_timeout_disables_all_buttons():
 @pytest.mark.asyncio
 async def test_safe_edit_when_response_not_done_uses_response_edit_message():
     view = _make_view()
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())  # is_done False par défaut
+    inter = make_interaction(user=FakeUser(1), message=FakeMessage())  # is_done False par défaut
 
     await view._safe_edit(inter, embed="EMBED", files=["FILES"])
 
-    assert inter.response_edit_calls == [{"embed": "EMBED", "view": view}]
+    assert inter.response.edits == [{"embed": "EMBED", "view": view}]
     assert inter.response.deferred is False
     assert inter.original_edits == []
 
@@ -220,7 +166,7 @@ async def test_safe_edit_when_response_done_and_uploaded_once_edits_original_wit
     view = _make_view()
     view._uploaded_once = True
 
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter = make_interaction(user=FakeUser(1), message=FakeMessage())
     inter.response._done = True  # type: ignore[attr-defined]
 
     await view._safe_edit(inter, embed="E", files=["F"])
@@ -234,7 +180,7 @@ async def test_safe_edit_when_response_done_first_time_sends_files_and_sets_flag
     view = _make_view()
     view._uploaded_once = False
 
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter = make_interaction(user=FakeUser(1), message=FakeMessage())
     inter.response._done = True  # type: ignore[attr-defined]
 
     await view._safe_edit(inter, embed="E", files=["F"])
@@ -247,13 +193,13 @@ async def test_safe_edit_handles_notfound_and_http_exception():
     view = _make_view()
 
     # NotFound
-    inter1 = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter1 = make_interaction(user=FakeUser(1), message=FakeMessage())
     inter1.raise_on_edit_original = discord.NotFound  # type: ignore[attr-defined]
     await view._safe_edit(inter1, embed="E", files=["F"])
     assert inter1.original_edits == []
 
     # HTTPException
-    inter2 = CompatInteraction(user=FakeUser(1), message=FakeMessage())
+    inter2 = make_interaction(user=FakeUser(1), message=FakeMessage())
     inter2.raise_on_edit_original = discord.HTTPException  # type: ignore[attr-defined]
     await view._safe_edit(inter2, embed="E", files=["F"])
     assert inter2.original_edits == []
@@ -275,7 +221,7 @@ async def test_click_category_button_routes_sets_current_refreshes_and_calls_saf
 
     # Simule un clic sur le bouton XP (RoutedButton -> view.route_button)
     btn = view._cat_buttons["XP"]
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage(), custom_id="help:cat:XP")
+    inter = make_interaction(user=FakeUser(1), message=FakeMessage(), custom_id="help:cat:XP")
 
     await btn.callback(inter)  # RoutedButton.callback
 
@@ -300,7 +246,7 @@ async def test_click_home_button_routes_go_home(monkeypatch):
 
     view._safe_edit = fake_safe  # type: ignore[assignment]
 
-    inter = CompatInteraction(user=FakeUser(1), message=FakeMessage(), custom_id="help:home")
+    inter = make_interaction(user=FakeUser(1), message=FakeMessage(), custom_id="help:home")
 
     await view.home_button.callback(inter)  # RoutedButton.callback -> route_button -> _go_home
 
@@ -321,10 +267,10 @@ async def test_send_help_menu_no_visible_commands_sends_message(monkeypatch):
     monkeypatch.setattr(M, "load_help_config", fake_load_help_config)
 
     # cmd existe mais perms insuffisantes
-    cmd = FakeCmd("admin", dp=FakePerms(0b10), can_run=True)
-    bot = FakeBot([cmd])
+    cmd = make_cmd("admin", dp=make_perms(0b10), can_run=True)
+    bot = SimpleNamespace(application_commands=[cmd])
 
-    user = FakeUser(1, guild_permissions=FakePerms(0b01))
+    user = FakeUser(1, guild_permissions=make_perms(0b01))
     ctx = FakeCtx(user=user)
 
     await M.send_help_menu(ctx, bot)
@@ -339,19 +285,10 @@ async def test_send_help_menu_handles_ctx_without_defer_and_bot_without_applicat
     monkeypatch.setattr(M, "load_help_config", lambda: ({}, {"Cat": ["a"]}, {}))
 
     # Bot without application_commands attribute triggers getattr None branch
-    class Bot:
-        pass
+    user = FakeUser(1, guild_permissions=make_perms(0xFFFF))
+    ctx = SimpleNamespace(user=user, followup=FakeCtx(user=user).followup)
 
-    user = FakeUser(1, guild_permissions=FakePerms(0xFFFF))
-
-    class CtxNoDefer:
-        def __init__(self, user):
-            self.user = user
-            self.followup = FakeCtx(user=user).followup
-
-    ctx = CtxNoDefer(user)
-
-    await M.send_help_menu(ctx, Bot())
+    await M.send_help_menu(ctx, object())
     assert ctx.followup.sent
 
 
@@ -367,29 +304,33 @@ async def test_send_help_menu_builds_visible_by_cat_excludes_internal_and_adds_a
     monkeypatch.setattr(M, "load_help_config", fake_load_help_config)
 
     # Commands: a visible, b non déclaré visible, help ignoré pour Autres, manual_save/insert_db excluded
-    cmd_a = FakeCmd("a", dp=None, can_run=True)
-    cmd_b = FakeCmd("b", dp=None, can_run=True)
-    cmd_help = FakeCmd("help", dp=None, can_run=True)
-    cmd_manual = FakeCmd("manual_save", dp=None, can_run=True)
-    cmd_insert = FakeCmd("insert_db", dp=None, can_run=True)
-    cmd_logs = FakeCmd("logs", dp=None, can_run=True)
+    cmd_a = make_cmd("a", dp=None, can_run=True)
+    cmd_b = make_cmd("b", dp=None, can_run=True)
+    cmd_help = make_cmd("help", dp=None, can_run=True)
+    cmd_manual = make_cmd("manual_save", dp=None, can_run=True)
+    cmd_insert = make_cmd("insert_db", dp=None, can_run=True)
+    cmd_logs = make_cmd("logs", dp=None, can_run=True)
 
-    bot = FakeBot([cmd_a, cmd_b, cmd_help, cmd_manual, cmd_insert, cmd_logs ])
+    bot = SimpleNamespace(application_commands=[cmd_a, cmd_b, cmd_help, cmd_manual, cmd_insert, cmd_logs])
 
-    user = FakeUser(42, guild_permissions=FakePerms(0xFFFF))
+    user = FakeUser(42, guild_permissions=make_perms(0xFFFF))
     ctx = FakeCtx(user=user)
 
     created = {"view": None, "visible_by_cat": None}
 
-    class FakeView:
-        def __init__(self, *, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
-            created["view"] = self
-            created["visible_by_cat"] = visible_by_cat
+    def view_factory(*, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
+        created["visible_by_cat"] = visible_by_cat
 
-        def build_home(self):
+        view_obj = SimpleNamespace()
+
+        def build_home():
             return ("EMBED_HOME", ["FILES_HOME"])
 
-    monkeypatch.setattr(M, "HelpMenuView", FakeView)
+        view_obj.build_home = build_home
+        created["view"] = view_obj
+        return view_obj
+
+    monkeypatch.setattr(M, "HelpMenuView", view_factory)
 
     await M.send_help_menu(ctx, bot)
 
@@ -410,25 +351,22 @@ async def test_send_help_menu_visibility_checks_can_run_false_or_exception(monke
 
     monkeypatch.setattr(M, "load_help_config", fake_load_help_config)
 
-    cmd_ok = FakeCmd("ok", can_run=True)
-    cmd_no = FakeCmd("no", can_run=False)
-    cmd_boom = FakeCmd("boom", can_run=RuntimeError("fail"))
+    cmd_ok = make_cmd("ok", can_run=True)
+    cmd_no = make_cmd("no", can_run=False)
+    cmd_boom = make_cmd("boom", can_run=RuntimeError("fail"))
 
-    bot = FakeBot([cmd_ok, cmd_no, cmd_boom])
+    bot = SimpleNamespace(application_commands=[cmd_ok, cmd_no, cmd_boom])
 
-    user = FakeUser(1, guild_permissions=FakePerms(0xFFFF))
+    user = FakeUser(1, guild_permissions=make_perms(0xFFFF))
     ctx = FakeCtx(user=user)
 
     created = {"visible_by_cat": None}
 
-    class FakeView:
-        def __init__(self, *, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
-            created["visible_by_cat"] = visible_by_cat
+    def view_factory(*, author_id, cmd_map, help_infos, visible_by_cat, cat_descriptions):
+        created["visible_by_cat"] = visible_by_cat
+        return SimpleNamespace(build_home=lambda: ("E", ["F"]))
 
-        def build_home(self):
-            return ("E", ["F"])
-
-    monkeypatch.setattr(M, "HelpMenuView", FakeView)
+    monkeypatch.setattr(M, "HelpMenuView", view_factory)
 
     await M.send_help_menu(ctx, bot)
 

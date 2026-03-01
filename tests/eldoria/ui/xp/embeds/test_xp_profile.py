@@ -4,14 +4,18 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import profile as M
-from tests._fakes._profile_entities_fakes import FakeAvatar, FakeGuild
-from tests._fakes.xp_ui import FakeBot
+from tests._fakes import FakeAvatar, FakeBot, FakeGuild
 
 
-class FakeUser:
-    def __init__(self, display_name: str, avatar_url: str | None):
-        self.display_name = display_name
-        self.display_avatar = FakeAvatar(avatar_url) if avatar_url is not None else None
+def make_user(display_name: str, avatar_url: str | None):
+    return type(
+        "UserStub",
+        (),
+        {
+            "display_name": display_name,
+            "display_avatar": FakeAvatar(avatar_url) if avatar_url is not None else None,
+        },
+    )()
 
 @pytest.mark.asyncio
 async def test_build_xp_profile_embed_next_level_branch_and_remaining(monkeypatch):
@@ -20,7 +24,7 @@ async def test_build_xp_profile_embed_next_level_branch_and_remaining(monkeypatc
     monkeypatch.setattr(M, "common_files", lambda t, b: ["FILES"])
 
     bot = FakeBot(guild=FakeGuild("Eldoria"))
-    user = FakeUser("Alice", "https://cdn/avatar.png")
+    user = make_user("Alice", "https://cdn/avatar.png")
 
     embed, files = await M.build_xp_profile_embed(
         guild_id=42,
@@ -63,7 +67,7 @@ async def test_build_xp_profile_embed_remaining_clamped_to_zero(monkeypatch):
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
     bot = FakeBot(guild=FakeGuild("Srv"))
-    user = FakeUser("Bob", "u")
+    user = make_user("Bob", "u")
 
     embed, _ = await M.build_xp_profile_embed(
         guild_id=1,
@@ -85,7 +89,7 @@ async def test_build_xp_profile_embed_max_level_branch(monkeypatch):
     monkeypatch.setattr(M, "common_files", lambda t, b: ["F"])
 
     bot = FakeBot(guild=FakeGuild("Eldoria"))
-    user = FakeUser("Alice", "u")
+    user = make_user("Alice", "u")
 
     embed, files = await M.build_xp_profile_embed(
         guild_id=42,
@@ -114,7 +118,7 @@ async def test_build_xp_profile_embed_user_without_avatar_sets_icon_url_none(mon
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
     bot = FakeBot(guild=FakeGuild("Srv"))
-    user = FakeUser("NoAvatar", None)
+    user = make_user("NoAvatar", None)
 
     embed, _ = await M.build_xp_profile_embed(
         guild_id=1,
@@ -136,7 +140,7 @@ async def test_build_xp_profile_embed_footer_fallback_when_guild_none(monkeypatc
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
     bot = FakeBot(guild=None)
-    user = FakeUser("Alice", "u")
+    user = make_user("Alice", "u")
 
     embed, _ = await M.build_xp_profile_embed(
         guild_id=999,

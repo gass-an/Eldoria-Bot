@@ -3,6 +3,7 @@ import importlib
 import pytest
 
 import eldoria.db.connection as connection
+from tests._fakes import FakeConn, is_enterable
 
 
 @pytest.fixture
@@ -10,30 +11,6 @@ def mod():
     # Recharge le module pour repartir d'un état propre à chaque test
     importlib.reload(connection)
     return connection
-
-
-class FakeConn:
-    def __init__(self):
-        self.executed = []
-        self.committed = 0
-        self.closed = 0
-        self._raise_on_execute = None
-
-    def execute(self, sql):
-        self.executed.append(sql)
-        if self._raise_on_execute and self._raise_on_execute in sql:
-            raise RuntimeError("boom execute")
-        return None
-
-    def commit(self):
-        self.committed += 1
-
-    def close(self):
-        self.closed += 1
-
-
-def _enterable(obj) -> bool:
-    return hasattr(obj, "__enter__") and hasattr(obj, "__exit__")
 
 
 def test_get_conn_creates_dir_connects_enables_fks_and_commits(monkeypatch, mod):
@@ -57,7 +34,7 @@ def test_get_conn_creates_dir_connects_enables_fks_and_commits(monkeypatch, mod)
 
     # Supporte les 2 styles: get_conn() retourne soit un conn direct, soit un contextmanager
     res = mod.get_conn()
-    if _enterable(res):
+    if is_enterable(res):
         with res as conn:
             assert conn is fake_conn
     else:
@@ -95,7 +72,7 @@ def test_get_conn_does_not_commit_on_exception(monkeypatch, mod):
     with pytest.raises(RuntimeError):
         res = mod.get_conn()
         # si jamais c'était un contextmanager
-        if _enterable(res):
+        if is_enterable(res):
             with res:
                 pass
 

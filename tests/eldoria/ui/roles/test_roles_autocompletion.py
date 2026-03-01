@@ -1,52 +1,31 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from eldoria.ui.roles import autocompletion as M
 
-# ------------------------------------------------------------
-# Fakes
-# ------------------------------------------------------------
 
-class FakeRoleService:
-    def __init__(self, messages):
-        self.messages = messages
-        self.calls: list[dict] = []
+def make_role_service(messages):
+    calls: list[dict] = []
 
-    def sr_list_messages(self, *, guild_id: int, channel_id):
-        self.calls.append({"guild_id": guild_id, "channel_id": channel_id})
-        return self.messages
+    def sr_list_messages(*, guild_id: int, channel_id):
+        calls.append({"guild_id": guild_id, "channel_id": channel_id})
+        return list(messages)
+
+    return SimpleNamespace(messages=list(messages), calls=calls, sr_list_messages=sr_list_messages)
 
 
-class FakeServices:
-    def __init__(self, role):
-        self.role = role
-
-
-class FakeBot:
-    def __init__(self, role_service):
-        self.services = FakeServices(role_service)
-
-
-class FakeGuild:
-    def __init__(self, gid: int):
-        self.id = gid
-
-
-class FakeInteractionInner:
-    def __init__(self, *, bot, guild):
-        self.client = bot
-        self.guild = guild
-
-
-class FakeAutocompleteContext:
-    def __init__(self, *, bot, guild_id=123, value=None, channel_id=999):
-        self.value = value
-        self.options = {"channel": channel_id}
-        self.interaction = FakeInteractionInner(
-            bot=bot,
-            guild=FakeGuild(guild_id),
-        )
+def make_ctx(*, bot, guild_id=123, value=None, channel_id=999):
+    return SimpleNamespace(
+        value=value,
+        options={"channel": channel_id},
+        interaction=SimpleNamespace(
+            client=bot,
+            guild=SimpleNamespace(id=guild_id),
+        ),
+    )
 
 
 # ------------------------------------------------------------
@@ -55,17 +34,10 @@ class FakeAutocompleteContext:
 
 @pytest.mark.asyncio
 async def test_autocomplete_filters_case_insensitive_and_calls_service():
-    role_service = FakeRoleService(
-        messages=["Alpha", "Beta", "Gamma", "alphabet"]
-    )
-    bot = FakeBot(role_service)
+    role_service = make_role_service(messages=["Alpha", "Beta", "Gamma", "alphabet"])
+    bot = SimpleNamespace(services=SimpleNamespace(role=role_service))
 
-    ctx = FakeAutocompleteContext(
-        bot=bot,
-        guild_id=42,
-        value="Al",
-        channel_id=555,
-    )
+    ctx = make_ctx(bot=bot, guild_id=42, value="Al", channel_id=555)
 
     result = await M.message_secret_role_autocomplete(ctx)
 
@@ -79,10 +51,10 @@ async def test_autocomplete_filters_case_insensitive_and_calls_service():
 @pytest.mark.asyncio
 async def test_autocomplete_limits_to_25_results():
     messages = [f"msg{i}" for i in range(100)]
-    role_service = FakeRoleService(messages)
-    bot = FakeBot(role_service)
+    role_service = make_role_service(messages)
+    bot = SimpleNamespace(services=SimpleNamespace(role=role_service))
 
-    ctx = FakeAutocompleteContext(bot=bot, value="msg")
+    ctx = make_ctx(bot=bot, value="msg")
 
     result = await M.message_secret_role_autocomplete(ctx)
 
@@ -91,10 +63,10 @@ async def test_autocomplete_limits_to_25_results():
 
 @pytest.mark.asyncio
 async def test_autocomplete_handles_none_value_as_empty_string():
-    role_service = FakeRoleService(["One", "Two"])
-    bot = FakeBot(role_service)
+    role_service = make_role_service(["One", "Two"])
+    bot = SimpleNamespace(services=SimpleNamespace(role=role_service))
 
-    ctx = FakeAutocompleteContext(bot=bot, value=None)
+    ctx = make_ctx(bot=bot, value=None)
 
     result = await M.message_secret_role_autocomplete(ctx)
 
@@ -104,10 +76,10 @@ async def test_autocomplete_handles_none_value_as_empty_string():
 
 @pytest.mark.asyncio
 async def test_autocomplete_no_match_returns_empty_list():
-    role_service = FakeRoleService(["Alpha", "Beta"])
-    bot = FakeBot(role_service)
+    role_service = make_role_service(["Alpha", "Beta"])
+    bot = SimpleNamespace(services=SimpleNamespace(role=role_service))
 
-    ctx = FakeAutocompleteContext(bot=bot, value="zzz")
+    ctx = make_ctx(bot=bot, value="zzz")
 
     result = await M.message_secret_role_autocomplete(ctx)
 
@@ -116,10 +88,10 @@ async def test_autocomplete_no_match_returns_empty_list():
 
 @pytest.mark.asyncio
 async def test_autocomplete_empty_messages_list():
-    role_service = FakeRoleService([])
-    bot = FakeBot(role_service)
+    role_service = make_role_service([])
+    bot = SimpleNamespace(services=SimpleNamespace(role=role_service))
 
-    ctx = FakeAutocompleteContext(bot=bot, value="anything")
+    ctx = make_ctx(bot=bot, value="anything")
 
     result = await M.message_secret_role_autocomplete(ctx)
 

@@ -7,14 +7,12 @@ import pytest
 import eldoria.features.duel._internal.helpers as helpers_mod
 from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
-from tests._fakes._db_fakes import FakeConnCM
-
+from tests._fakes import FakeConnCM
 
 # ------------------------------------------------------------
 # Utilitaires tests
 # ------------------------------------------------------------
-class FakeConn:
-    pass
+ConnStub = type("ConnStub", (), {})
 
 def _duel_row(**overrides):
     """
@@ -120,7 +118,7 @@ def test_modify_xp_for_players_calls_xp_add_xp_twice(monkeypatch):
 
     monkeypatch.setattr(helpers_mod, "xp_add_xp", fake_xp_add)
 
-    conn = FakeConn()
+    conn = ConnStub()
     out = helpers_mod.modify_xp_for_players(10, 111, 222, 5, conn=conn)
 
     assert out == {111: 123, 222: 456}
@@ -241,7 +239,7 @@ def test_finish_duel_transitions_and_pays_draw(monkeypatch):
     monkeypatch.setattr(helpers_mod, "get_duel_or_raise", lambda duel_id: duel)
     monkeypatch.setattr(helpers_mod, "assert_duel_not_expired", lambda d: None)
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(helpers_mod, "get_conn", lambda: FakeConnCM(conn))
 
     # transition ok
@@ -281,7 +279,7 @@ def test_finish_duel_transitions_and_pays_win_a(monkeypatch):
     monkeypatch.setattr(helpers_mod, "get_duel_or_raise", lambda duel_id: duel)
     monkeypatch.setattr(helpers_mod, "assert_duel_not_expired", lambda d: None)
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(helpers_mod, "get_conn", lambda: FakeConnCM(conn))
     monkeypatch.setattr(helpers_mod, "transition_status", lambda *a, **k: True)
 
@@ -300,7 +298,7 @@ def test_finish_duel_raises_duel_already_handled_when_transition_fails(monkeypat
     monkeypatch.setattr(helpers_mod, "get_duel_or_raise", lambda duel_id: duel)
     monkeypatch.setattr(helpers_mod, "assert_duel_not_expired", lambda d: None)
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(helpers_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(helpers_mod, "transition_status", lambda *a, **k: False)
@@ -313,7 +311,7 @@ def test_finish_duel_raises_duel_not_finished_when_update_fails(monkeypatch):
     monkeypatch.setattr(helpers_mod, "get_duel_or_raise", lambda duel_id: duel)
     monkeypatch.setattr(helpers_mod, "assert_duel_not_expired", lambda d: None)
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(helpers_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(helpers_mod, "transition_status", lambda *a, **k: True)

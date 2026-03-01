@@ -12,12 +12,13 @@ from eldoria.utils.timestamp import add_duration, now_ts
 def test_now_ts_returns_int(monkeypatch):
     fake_now = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
-    class FakeDateTime(datetime.datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return fake_now
+    DateTimeStub = type(
+        "DateTimeStub",
+        (datetime.datetime,),
+        {"now": classmethod(lambda cls, tz=None: fake_now)},
+    )
 
-    monkeypatch.setattr(ts_mod, "datetime", FakeDateTime)
+    monkeypatch.setattr(ts_mod, "datetime", DateTimeStub)
 
     result = now_ts()
 

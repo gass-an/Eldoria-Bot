@@ -1,102 +1,30 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.flow import invite as M
-from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import (
+    FakeBot,
+    FakeDuelError,
+    FakeDuelService,
+    FakeFetchMessageChannel,
+    FakeInteraction,
+    FakeMember,
+    FakeMessage,
+    FakeUser,
+)
 
 
-# ------------------------------------------------------------
-# CompatInteraction : support edit_original_response(content=...)
-# ------------------------------------------------------------
-class CompatInteraction(FakeInteraction):
-    async def edit_original_response(
-        self,
-        *,
-        content=None,
-        embeds=None,
-        attachments=None,
-        view=None,
-        embed=None,
-        files=None,
-    ):
-        self.original_edits.append(
-            {
-                "content": content,
-                "embeds": embeds,
-                "attachments": attachments,
-                "view": view,
-                "embed": embed,
-                "files": files,
-            }
-        )
+def _make_message(*, content: str = "", mid: int = 999):
+    edits: list[dict] = []
 
-# ------------------------------------------------------------
-# Fakes discord-like: member/message/channel/guild
-# ------------------------------------------------------------
-class FakeMember:
-    def __init__(self, mid: int, name: str):
-        self.id = mid
-        self.display_name = name
-        self.mention = f"<@{mid}>"
+    async def edit(*, content: str, embed=None, view=None, files=None):
+        edits.append({"content": content, "embed": embed, "view": view, "files": files})
 
-class FakeMessage:
-    def __init__(self, *, content: str = "", mid: int = 999):
-        self.id = mid
-        self.content = content
-        self.edits: list[dict] = []
-
-    async def edit(self, *, content: str, embed=None, view=None, files=None):
-        self.edits.append({"content": content, "embed": embed, "view": view, "files": files})
-
-class FakeFetchedMessage(FakeMessage):
-    pass
-
-class FakeChannel:
-    def __init__(self):
-        self.fetch_calls: list[int] = []
-        self.fetched = FakeFetchedMessage(content="invite", mid=1234)
-
-    async def fetch_message(self, message_id: int):
-        self.fetch_calls.append(message_id)
-        return self.fetched
-
-class FakeGuild:
-    pass
-
-# ------------------------------------------------------------
-# Fake Duel service + Bot
-# ------------------------------------------------------------
-class FakeDuelService:
-    def __init__(self):
-        self.accept_calls: list[dict] = []
-        self.refuse_calls: list[dict] = []
-
-        self.raise_on_accept: Exception | None = None
-        self.raise_on_refuse: Exception | None = None
-
-        self.snapshot_accept: dict = {"duel": {"game_type": "rps"}}
-        self.snapshot_refuse: dict = {
-            "duel": {
-                "player_b": 2,
-                "message_id": 444,
-                "channel_id": 555,
-            }
-        }
-
-    def accept_duel(self, *, duel_id: int, user_id: int):
-        self.accept_calls.append({"duel_id": duel_id, "user_id": user_id})
-        if self.raise_on_accept is not None:
-            raise self.raise_on_accept
-        return self.snapshot_accept
-
-    def refuse_duel(self, *, duel_id: int, user_id: int):
-        self.refuse_calls.append({"duel_id": duel_id, "user_id": user_id})
-        if self.raise_on_refuse is not None:
-            raise self.raise_on_refuse
-        return self.snapshot_refuse
+    return SimpleNamespace(id=mid, content=content, edits=edits, edit=edit)
 
 # ------------------------------------------------------------
 # build_invite_duels_embed
@@ -117,8 +45,8 @@ async def test_build_invite_duels_embed_builds_fields_footer_and_files(monkeypat
     monkeypatch.setattr(M, "decorate_thumb_only", fake_decorate_thumb)
     monkeypatch.setattr(M, "common_thumb", lambda thumb_url: ["FILE"])
 
-    a = FakeMember(1, "Alice")
-    b = FakeMember(2, "Bob")
+    a = FakeMember(1, display_name="Alice")
+    b = FakeMember(2, display_name="Bob")
 
     xp = {1: 10, 2: 20}
 
@@ -171,7 +99,7 @@ async def test_invite_view_accept_duel_error_sends_ephemeral(monkeypatch):
     # require_user_id
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
     # FakeInteraction a déjà response/followup
     view = M.InviteView(bot=bot, duel_id=777)
 
@@ -194,7 +122,7 @@ async def test_invite_view_accept_render_fails_fallback_message(monkeypatch):
     bot = FakeBot(duel)
 
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
-    guild = FakeGuild()
+    guild = SimpleNamespace()
     monkeypatch.setattr(M, "require_guild", lambda *, interaction: guild)
 
     async def fake_render(*, snapshot, guild, bot):
@@ -202,8 +130,8 @@ async def test_invite_view_accept_render_fails_fallback_message(monkeypatch):
 
     monkeypatch.setattr(M, "render_duel_message", fake_render)
 
-    inter = CompatInteraction(user=FakeUser(42))
-    inter.message = FakeMessage(content="invite content")
+    inter = FakeInteraction(user=FakeUser(42))
+    inter.message = _make_message(content="invite content")
 
     view = M.InviteView(bot=bot, duel_id=777)
     await view.accept(None, inter)  # type: ignore[arg-type]
@@ -225,7 +153,7 @@ async def test_invite_view_accept_success_edits_invite_message(monkeypatch):
     bot = FakeBot(duel)
 
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
-    guild = FakeGuild()
+    guild = SimpleNamespace()
     monkeypatch.setattr(M, "require_guild", lambda *, interaction: guild)
 
     async def fake_render(*, snapshot, guild, bot):
@@ -233,8 +161,8 @@ async def test_invite_view_accept_success_edits_invite_message(monkeypatch):
 
     monkeypatch.setattr(M, "render_duel_message", fake_render)
 
-    inter = CompatInteraction(user=FakeUser(42))
-    inter.message = FakeMessage(content="hello")
+    inter = FakeInteraction(user=FakeUser(42))
+    inter.message = _make_message(content="hello")
 
     view = M.InviteView(bot=bot, duel_id=777)
     await view.accept(None, inter)  # type: ignore[arg-type]
@@ -258,7 +186,7 @@ async def test_invite_view_refuse_duel_error_sends_ephemeral(monkeypatch):
 
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
     view = M.InviteView(bot=bot, duel_id=777)
 
     await view.refuse(None, inter)  # type: ignore[arg-type]
@@ -280,7 +208,7 @@ async def test_invite_view_refuse_member_lookup_value_error(monkeypatch):
     bot = FakeBot(duel)
 
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
-    guild = FakeGuild()
+    guild = SimpleNamespace()
     monkeypatch.setattr(M, "require_guild", lambda *, interaction: guild)
 
     async def fake_get_member(guild, uid):
@@ -295,7 +223,7 @@ async def test_invite_view_refuse_member_lookup_value_error(monkeypatch):
         lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not call")),
     )
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
     view = M.InviteView(bot=bot, duel_id=777)
 
     await view.refuse(None, inter)  # type: ignore[arg-type]
@@ -316,11 +244,11 @@ async def test_invite_view_refuse_success_fetches_message_and_edits(monkeypatch)
     bot = FakeBot(duel)
 
     monkeypatch.setattr(M, "require_user_id", lambda *, interaction: 42)
-    guild = FakeGuild()
+    guild = SimpleNamespace()
     monkeypatch.setattr(M, "require_guild", lambda *, interaction: guild)
 
     # member lookup ok
-    b = FakeMember(2, "Bob")
+    b = FakeMember(2, display_name="Bob")
 
     async def fake_get_member(guild, uid):
         assert uid == 2
@@ -336,7 +264,7 @@ async def test_invite_view_refuse_success_fetches_message_and_edits(monkeypatch)
     monkeypatch.setattr(M, "build_refuse_duels_embed", fake_build_refuse)
 
     # channel fetch
-    channel = FakeChannel()
+    channel = FakeFetchMessageChannel(message=FakeMessage(content="invite", message_id=1234))
 
     async def fake_get_channel(*, bot, channel_id):
         assert channel_id == 555
@@ -344,13 +272,13 @@ async def test_invite_view_refuse_success_fetches_message_and_edits(monkeypatch)
 
     monkeypatch.setattr(M, "get_text_or_thread_channel", fake_get_channel)
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
     view = M.InviteView(bot=bot, duel_id=777)
 
     await view.refuse(None, inter)  # type: ignore[arg-type]
 
     assert duel.refuse_calls == [{"duel_id": 777, "user_id": 42}]
-    assert channel.fetch_calls == [444]
+    assert channel.fetched == [444]
 
     # message édité
-    assert channel.fetched.edits == [{"content": "", "embed": "REFUSE_EMBED", "view": None, "files": None}]
+    assert channel.message.edits == [{"content": "", "embed": "REFUSE_EMBED", "view": None, "files": None}]

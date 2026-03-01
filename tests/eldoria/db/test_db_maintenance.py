@@ -4,6 +4,7 @@ import importlib
 import pytest
 
 import eldoria.db.maintenance as maintenance
+from tests._fakes import Conn, Cursor, make_db_error
 
 
 @pytest.fixture
@@ -12,42 +13,15 @@ def mod():
     return maintenance
 
 
-class _FakeCursor:
-    def __init__(self, row=(1,)):
-        self._row = row
-
-    def fetchone(self):
-        return self._row
-
-
-class FakeConn:
-    def __init__(self, name="main"):
-        self.name = name
-        self.executed = []
-        self.closed = 0
-        self.backup_calls = []
-
-    def execute(self, sql):
-        self.executed.append(sql)
-        # IMPORTANT: ton code attend un objet avec fetchone()
-        return _FakeCursor()
-
-    def close(self):
-        self.closed += 1
-
-    def backup(self, other_conn):
-        self.backup_calls.append(other_conn)
-
-
 def test_backup_to_file_raises_if_checkpoint_fails(monkeypatch, mod):
-    main = FakeConn("main")
-    bck = FakeConn("backup")
+    main = Conn("main")
+    bck = Conn("backup")
 
     def execute_maybe_fail(sql):
         main.executed.append(sql)
         if "wal_checkpoint" in sql.lower():
             raise RuntimeError("checkpoint failed")
-        return _FakeCursor()
+        return Cursor()
 
     main.execute = execute_maybe_fail  # type: ignore[method-assign]
 
@@ -71,17 +45,15 @@ def test_backup_to_file_raises_if_checkpoint_fails(monkeypatch, mod):
 
 def test_backup_to_file_ignores_sqlite_database_error_on_checkpoint(monkeypatch, mod):
     """Couvre le `except sqlite3.DatabaseError: pass` (ligne 17-18)."""
-    main = FakeConn("main")
-    bck = FakeConn("backup")
-
-    class FakeDbError(mod.sqlite3.DatabaseError):
-        pass
+    main = Conn("main")
+    bck = Conn("backup")
+    DbError = make_db_error(mod.sqlite3.DatabaseError)
 
     def execute_maybe_fail(sql):
         main.executed.append(sql)
         if "wal_checkpoint" in sql.lower():
-            raise FakeDbError("checkpoint failed")
-        return _FakeCursor()
+            raise DbError("checkpoint failed")
+        return Cursor()
 
     main.execute = execute_maybe_fail  # type: ignore[method-assign]
 
@@ -111,7 +83,7 @@ def test_replace_db_file_happy_path_just_replaces(monkeypatch, mod):
         calls["replace"].append((src, dst))
 
     monkeypatch.setattr(mod.os, "replace", fake_replace, raising=True)
-    monkeypatch.setattr(mod.sqlite3, "connect", lambda _: FakeConn("test"), raising=True)
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda _: Conn("test"), raising=True)
 
     mod.replace_db_file("new.db")
 
@@ -124,8 +96,8 @@ def test_replace_db_file_cross_device_fallback(monkeypatch, mod):
     calls = {"replace": [], "makedirs": [], "copy2": [], "remove": [], "connect": []}
 
     # mock sqlite connect (ton code fait sqlite3.connect(new_db_path) + sqlite3.connect(DB_PATH))
-    test_conn = FakeConn("test")
-    real_conn = FakeConn("real")
+    test_conn = Conn("test")
+    real_conn = Conn("real")
 
     def fake_connect(path):
         calls["connect"].append(path)
@@ -171,7 +143,7 @@ def test_replace_db_file_cross_device_remove_failure_is_ignored(monkeypatch, mod
     """Couvre le `except OSError: pass` lors du remove (ligne 53-54)."""
     monkeypatch.setattr(mod, "DB_PATH", r"C:\tmp\eldoria\data\db.sqlite", raising=False)
 
-    test_conn = FakeConn("test")
+    test_conn = Conn("test")
 
     monkeypatch.setattr(mod.sqlite3, "connect", lambda _p: test_conn, raising=True)
 
@@ -204,7 +176,7 @@ def test_replace_db_file_other_oserror_is_raised(monkeypatch, mod):
         raise OSError(errno.EPERM, "nope")
 
     monkeypatch.setattr(mod.os, "replace", fake_replace, raising=True)
-    monkeypatch.setattr(mod.sqlite3, "connect", lambda _: FakeConn("test"), raising=True)
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda _: Conn("test"), raising=True)
 
     with pytest.raises(OSError) as e:
         mod.replace_db_file("new.db")

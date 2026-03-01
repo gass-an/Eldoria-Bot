@@ -1,42 +1,14 @@
-import pytest
-
 from eldoria.app import app as mod
-
-
-class FakeIntents:
-    def __init__(self):
-        self.message_content = False
-        self.guilds = False
-        self.members = False
-
-
-class FakeBot:
-    def __init__(self, *, intents):
-        self.intents = intents
-        self.started_at = None
-        self.discord_started_at = None
-        self.ran_with = None
-
-    def set_started_at(self, started_at: float):
-        self.started_at = started_at
-
-    def run(self, token: str):
-        self.ran_with = token
-
-    def set_discord_started_at(self, ts: float):
-        self.discord_started_at = ts
+from tests._fakes import FakeBot, FakeIntents, FakeLog, make_discord_intents
 
 
 def test_create_bot_sets_required_intents(monkeypatch):
     intents_obj = FakeIntents()
 
-    class FakeDiscordIntents:
-        @staticmethod
-        def default():
-            return intents_obj
+    DiscordIntents = make_discord_intents(intents_obj)
 
     # patch discord.Intents.default()
-    monkeypatch.setattr(mod.discord, "Intents", FakeDiscordIntents, raising=True)
+    monkeypatch.setattr(mod.discord, "Intents", DiscordIntents, raising=True)
 
     created = {}
 
@@ -63,10 +35,6 @@ def test_main_runs_even_when_token_empty(monkeypatch):
     monkeypatch.setattr(mod, "create_bot", lambda: bot, raising=True)
     monkeypatch.setattr(mod, "startup", lambda _b: None, raising=True)
     monkeypatch.setattr(mod.time, "perf_counter", lambda: 0.0, raising=True)
-
-    class FakeLog:
-        def info(self, _msg):
-            pass
 
     monkeypatch.setattr(mod, "log", FakeLog(), raising=True)
 
@@ -98,11 +66,7 @@ def test_main_happy_path_calls_startup_and_runs(monkeypatch, capsys):
     # logger
     info_calls = []
 
-    class FakeLog:
-        def info(self, msg):
-            info_calls.append(msg)
-
-    monkeypatch.setattr(mod, "log", FakeLog(), raising=True)
+    monkeypatch.setattr(mod, "log", FakeLog(on_info=info_calls.append), raising=True)
 
     mod.main(999.5)
 

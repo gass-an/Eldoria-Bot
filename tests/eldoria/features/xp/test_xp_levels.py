@@ -1,4 +1,3 @@
-
 from eldoria.features.xp.levels import compute_level
 
 

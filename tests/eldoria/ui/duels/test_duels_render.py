@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from eldoria.ui.duels import render as M
-
-
-class _Guild:
-    pass
 
 
 @pytest.mark.asyncio
@@ -14,7 +12,7 @@ async def test_render_duel_message_raises_when_game_type_missing(monkeypatch):
     from eldoria.exceptions.duel import InvalidSnapshot
 
     snapshot = {"duel": {}}
-    guild = _Guild()
+    guild = SimpleNamespace()
 
     with pytest.raises(InvalidSnapshot):
         await M.render_duel_message(snapshot=snapshot, guild=guild, bot=object())
@@ -31,7 +29,7 @@ async def test_render_duel_message_calls_renderer(monkeypatch):
     monkeypatch.setattr(M, "require_renderer", lambda key: fake_renderer)
 
     snapshot = {"duel": {"game_type": "rps"}}
-    guild = _Guild()
+    guild = SimpleNamespace()
     bot = object()
 
     out = await M.render_duel_message(snapshot=snapshot, guild=guild, bot=bot)

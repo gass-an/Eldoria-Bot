@@ -1,113 +1,8 @@
-from __future__ import annotations
-
-import sys
-import types
-
-import discord  # type: ignore
 import pytest
 
 import eldoria.ui.welcome.panel as wp_mod
 from eldoria.ui.welcome.panel import WelcomePanelView, build_welcome_panel_embed
-
-# ======================================================================
-# 🔧 Stabilise ChannelSelect (signature compatible toutes suites)
-# ======================================================================
-
-@pytest.fixture(autouse=True)
-def _patch_channel_select(monkeypatch: pytest.MonkeyPatch):
-    discord_mod = sys.modules["discord"]
-
-    if not hasattr(discord_mod, "ui"):
-        discord_mod.ui = types.SimpleNamespace()
-
-    class ChannelSelect:
-        def __init__(
-            self,
-            *,
-            placeholder: str,
-            custom_id: str,
-            channel_types: list,
-            min_values: int,
-            max_values: int,
-            row: int,
-            disabled: bool = False,
-        ):
-            self.placeholder = placeholder
-            self.custom_id = custom_id
-            self.channel_types = channel_types
-            self.min_values = min_values
-            self.max_values = max_values
-            self.row = row
-            self.disabled = disabled
-            self.values: list = []
-            self.callback = None
-
-    monkeypatch.setattr(discord_mod.ui, "ChannelSelect", ChannelSelect, raising=False)
-
-    # ChannelType stub si absent
-    if not hasattr(discord_mod, "ChannelType"):
-        class _FakeChannelType:
-            text = "text"
-            news = "news"
-        monkeypatch.setattr(discord_mod, "ChannelType", _FakeChannelType, raising=False)
-
-
-# ======================================================================
-# 🧪 Fakes
-# ======================================================================
-
-class _FakeResponse:
-    def __init__(self):
-        self.deferred = False
-        self.edits: list[dict] = []
-
-    async def defer(self):
-        self.deferred = True
-
-    async def edit_message(self, **kwargs):
-        self.edits.append(kwargs)
-
-
-class _FakeInteraction:
-    def __init__(self, custom_id: str):
-        self.data = {"custom_id": custom_id}
-        self.response = _FakeResponse()
-
-
-class _FakeChannel(discord.abc.GuildChannel):  # type: ignore[misc]
-    def __init__(self, channel_id: int, name: str = "welcome"):
-        self.id = channel_id
-        self.name = name
-        self.mention = f"<#{channel_id}>"
-
-
-class _FakeGuild(discord.Guild):  # type: ignore[misc]
-    def __init__(self, guild_id: int):
-        self.id = guild_id
-        self._channels: dict[int, object] = {}
-
-    def get_channel(self, channel_id: int):
-        return self._channels.get(channel_id)
-
-
-class _FakeWelcomeService:
-    def __init__(self):
-        self.calls: list[tuple] = []
-        self._cfg = {"enabled": False, "channel_id": 0}
-
-    def ensure_defaults(self, guild_id: int):
-        self.calls.append(("ensure_defaults", guild_id))
-
-    def get_config(self, guild_id: int):
-        self.calls.append(("get_config", guild_id))
-        return dict(self._cfg)
-
-    def set_enabled(self, guild_id: int, enabled: bool):
-        self.calls.append(("set_enabled", guild_id, enabled))
-
-    def set_config(self, guild_id: int, **kwargs):
-        self.calls.append(("set_config", guild_id, kwargs))
-
+from tests._fakes import FakeChannel, FakeGuild, FakeInteraction, FakeUser, FakeWelcomeService
 
 # ======================================================================
 # 🧪 Tests: build_welcome_panel_embed
@@ -146,9 +41,9 @@ def test_panel_init_disabled_adds_only_buttons(monkeypatch):
     monkeypatch.setattr(wp_mod, "decorate", lambda *_a, **_k: None, raising=True)
     monkeypatch.setattr(wp_mod, "common_files", lambda *_a, **_k: [], raising=True)
 
-    welcome = _FakeWelcomeService()
+    welcome = FakeWelcomeService()
     welcome._cfg = {"enabled": False, "channel_id": 0}
-    guild = _FakeGuild(111)
+    guild = FakeGuild(guild_id=111)
 
     view = WelcomePanelView(welcome_service=welcome, author_id=999, guild=guild)
 
@@ -163,11 +58,10 @@ def test_panel_init_enabled_adds_channelselect(monkeypatch):
     monkeypatch.setattr(wp_mod, "decorate", lambda *_a, **_k: None, raising=True)
     monkeypatch.setattr(wp_mod, "common_files", lambda *_a, **_k: [], raising=True)
 
-    welcome = _FakeWelcomeService()
+    welcome = FakeWelcomeService()
     welcome._cfg = {"enabled": True, "channel_id": 555}
 
-    guild = _FakeGuild(111)
-    guild._channels[555] = _FakeChannel(555, name="accueil")
+    guild = FakeGuild(guild_id=111, channels=[FakeChannel(555, name="accueil")])
 
     view = WelcomePanelView(welcome_service=welcome, author_id=999, guild=guild)
 
@@ -191,25 +85,26 @@ async def test_channelselect_callback_sets_config_and_edits(monkeypatch):
     monkeypatch.setattr(wp_mod, "decorate", lambda *_a, **_k: None, raising=True)
     monkeypatch.setattr(wp_mod, "common_files", lambda *_a, **_k: [], raising=True)
 
-    welcome = _FakeWelcomeService()
+    welcome = FakeWelcomeService()
     welcome._cfg = {"enabled": True, "channel_id": 0}
-    guild = _FakeGuild(111)
+    guild = FakeGuild(guild_id=111)
 
     view = WelcomePanelView(welcome_service=welcome, author_id=123, guild=guild)
     chsel = view.children[2]
-    selected = _FakeChannel(777, name="bienvenue")
+    selected = FakeChannel(777, name="bienvenue")
     chsel.values = [selected]
 
-    class _SpyView:
-        def __init__(self, *, welcome_service, author_id, guild):
-            pass
+    def _init(self, *, welcome_service, author_id, guild):
+        pass
 
-        def current_embed(self):
-            return ("NEW_EMBED", [])
+    def _current_embed(self):
+        return ("NEW_EMBED", [])
 
-    monkeypatch.setattr(wp_mod, "WelcomePanelView", _SpyView, raising=True)
+    SpyView = type("SpyView", (), {"__init__": _init, "current_embed": _current_embed})
 
-    inter = _FakeInteraction("wm:channel")
+    monkeypatch.setattr(wp_mod, "WelcomePanelView", SpyView, raising=True)
+
+    inter = FakeInteraction(user=FakeUser(1), data={"custom_id": "wm:channel"})
     await chsel.callback(inter)  # type: ignore
 
     assert ("ensure_defaults", 111) in welcome.calls
@@ -226,34 +121,35 @@ async def test_route_button_enable_and_disable(monkeypatch):
     monkeypatch.setattr(wp_mod, "decorate", lambda *_a, **_k: None, raising=True)
     monkeypatch.setattr(wp_mod, "common_files", lambda *_a, **_k: [], raising=True)
 
-    guild = _FakeGuild(111)
+    guild = FakeGuild(guild_id=111)
 
-    class _SpyView:
-        def __init__(self, *, welcome_service, author_id, guild):
-            pass
+    def _init(self, *, welcome_service, author_id, guild):
+        pass
 
-        def current_embed(self):
-            return ("EMBED", [])
+    def _current_embed(self):
+        return ("EMBED", [])
 
-    monkeypatch.setattr(wp_mod, "WelcomePanelView", _SpyView, raising=True)
+    SpyView = type("SpyView", (), {"__init__": _init, "current_embed": _current_embed})
+
+    monkeypatch.setattr(wp_mod, "WelcomePanelView", SpyView, raising=True)
 
     # enable
-    welcome = _FakeWelcomeService()
+    welcome = FakeWelcomeService()
     welcome._cfg = {"enabled": False, "channel_id": 0}
     view = WelcomePanelView(welcome_service=welcome, author_id=123, guild=guild)
 
-    inter = _FakeInteraction("wm:enable")
+    inter = FakeInteraction(user=FakeUser(1), data={"custom_id": "wm:enable"})
     await view.route_button(inter)
 
     assert ("set_enabled", 111, True) in welcome.calls
     assert inter.response.edits[-1]["embed"] == "EMBED"
 
     # disable
-    welcome2 = _FakeWelcomeService()
+    welcome2 = FakeWelcomeService()
     welcome2._cfg = {"enabled": True, "channel_id": 0}
     view2 = WelcomePanelView(welcome_service=welcome2, author_id=123, guild=guild)
 
-    inter2 = _FakeInteraction("wm:disable")
+    inter2 = FakeInteraction(user=FakeUser(1), data={"custom_id": "wm:disable"})
     await view2.route_button(inter2)
 
     assert ("set_enabled", 111, False) in welcome2.calls

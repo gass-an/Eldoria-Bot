@@ -231,6 +231,7 @@ def install_discord_stub() -> None:
             max_values: int = 1,
             disabled: bool = False,
             row: int | None = None,
+            **kwargs,
         ):
             self.placeholder = placeholder
             self.options = list(options or [])
@@ -240,6 +241,16 @@ def install_discord_stub() -> None:
             self.disabled = disabled
             self.row = row
             self.values: list[str] = []
+            self.channel_types = kwargs.get("channel_types")
+
+        async def callback(self, *_a, **_k):
+            # no-op par défaut.
+            return None
+
+    # py-cord expose aussi ChannelSelect (mêmes attributs clés pour nos tests)
+    class ChannelSelect(Select):
+        def __init__(self, *a, channel_types=None, **k):
+            super().__init__(*a, channel_types=channel_types, **k)
 
     class InputText:
         def __init__(
@@ -268,6 +279,7 @@ def install_discord_stub() -> None:
             return None
 
     ui_mod.Select = Select
+    ui_mod.ChannelSelect = ChannelSelect
     ui_mod.InputText = InputText
     ui_mod.Modal = Modal
 
@@ -285,6 +297,26 @@ def install_discord_stub() -> None:
 
     def has_permissions(**_perms):
         return _passthrough_decorator()
+
+    # Exceptions Discord.py / py-cord courantes
+    class CheckFailure(Exception):
+        pass
+
+    class MissingRole(CheckFailure):
+        pass
+
+    class MissingAnyRole(CheckFailure):
+        pass
+
+    class MissingPermissions(CheckFailure):
+        def __init__(self, missing_permissions=None):
+            super().__init__("Missing permissions")
+            self.missing_permissions = list(missing_permissions or [])
+
+    class BotMissingPermissions(CheckFailure):
+        def __init__(self, missing_permissions=None):
+            super().__init__("Bot missing permissions")
+            self.missing_permissions = list(missing_permissions or [])
 
     class Bot(Client):
         pass
@@ -325,8 +357,19 @@ def install_discord_stub() -> None:
 
         def __eq__(self, other):
             return isinstance(other, AllowedMentions) and self.kw == other.kw
+
+
+    class ChannelType:
+        text = "text"
+        voice = "voice"
+        category = "category"
+        news = "news"
     
     def slash_command(*_a, **_k):
+        return _passthrough_decorator()
+
+    # decorator `command` (discord.py) parfois importé
+    def command(*_a, **_k):
         return _passthrough_decorator()
 
 
@@ -336,6 +379,13 @@ def install_discord_stub() -> None:
     commands_mod.when_mentioned = when_mentioned
     commands_mod.has_permissions = has_permissions
     commands_mod.slash_command = slash_command
+    commands_mod.command = command
+
+    commands_mod.CheckFailure = CheckFailure
+    commands_mod.MissingRole = MissingRole
+    commands_mod.MissingAnyRole = MissingAnyRole
+    commands_mod.MissingPermissions = MissingPermissions
+    commands_mod.BotMissingPermissions = BotMissingPermissions
 
     # ---- discord.commands (py-cord) ----
     commands_root_mod = ModuleType("discord.commands")
@@ -353,7 +403,7 @@ def install_discord_stub() -> None:
     # ---- discord.ext.tasks ----
     tasks_mod = ModuleType("discord.ext.tasks")
 
-    class _FakeLoop:
+    class FakeLoop:
         def __init__(self, coro):
             self.coro = coro
             self.started = False
@@ -398,7 +448,7 @@ def install_discord_stub() -> None:
 
     def loop(*_a, **_k):
         def deco(fn):
-            return _FakeLoop(fn)
+            return FakeLoop(fn)
 
         return deco
 
@@ -464,6 +514,7 @@ def install_discord_stub() -> None:
     discord_mod.Attachment = Attachment
     discord_mod.AutocompleteContext = AutocompleteContext
     discord_mod.AllowedMentions = AllowedMentions
+    discord_mod.ChannelType = ChannelType
 
     discord_mod.TextChannel = TextChannel
     discord_mod.Thread = Thread
@@ -494,11 +545,11 @@ def install_discord_stub() -> None:
     sys.modules["discord.ext.tasks"] = tasks_mod
     sys.modules["discord.commands"] = commands_root_mod
 
-    # Remplace Color/Embed/File par vos fakes (OK, ça ne casse pas isinstance Interaction)
-    from tests._fakes import _embed_fakes
+    # Remplace Color/Embed/File par nos fakes (OK, ça ne casse pas isinstance Interaction)
+    from tests._fakes import FakeColor, FakeEmbed, FakeFile
 
-    discord_mod.File = _embed_fakes.FakeFile
-    discord_mod.Embed = _embed_fakes.FakeEmbed
-    discord_mod.Color = _embed_fakes.FakeColor
+    discord_mod.File = FakeFile
+    discord_mod.Embed = FakeEmbed
+    discord_mod.Color = FakeColor
 
 

@@ -4,49 +4,8 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.flow import home as M
-from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import FakeBot, FakeDuelError, FakeDuelService, FakeInteraction, FakeUser
 
-
-# ------------------------------------------------------------
-# CompatInteraction (edit_original_response(content=...))
-# ------------------------------------------------------------
-class CompatInteraction(FakeInteraction):
-    async def edit_original_response(
-        self,
-        *,
-        content=None,
-        embeds=None,
-        attachments=None,
-        view=None,
-        embed=None,
-        files=None,
-    ):
-        self.original_edits.append(
-            {
-                "content": content,
-                "embeds": embeds,
-                "attachments": attachments,
-                "view": view,
-                "embed": embed,
-                "files": files,
-            }
-        )
-
-# ------------------------------------------------------------
-# Fakes Duel/Bot
-# ------------------------------------------------------------
-class FakeDuelService:
-    def __init__(self):
-        self.configure_calls: list[dict] = []
-        self.raise_on_configure: Exception | None = None
-        self.snapshot = {"duel": {"expires_at": 123}}
-
-    def configure_game_type(self, duel_id: int, gk: str):
-        self.configure_calls.append({"duel_id": duel_id, "gk": gk})
-        if self.raise_on_configure is not None:
-            raise self.raise_on_configure
-        return self.snapshot
 
 # ------------------------------------------------------------
 # build_home_duels_embed
@@ -142,7 +101,7 @@ async def test_home_view_click_success_builds_stake_embed_and_edits_original(mon
     monkeypatch.setattr(M, "get_duel_embed_data", lambda: duel_data)
 
     duel = FakeDuelService()
-    duel.snapshot = {"duel": {"expires_at": 555}}
+    duel.snapshot_game_type = {"duel": {"expires_at": 555}}
     bot = FakeBot(duel)
 
     # build_config_stake_duels_embed async
@@ -155,7 +114,7 @@ async def test_home_view_click_success_builds_stake_embed_and_edits_original(mon
     # StakeXpView instanciée dans edit_original_response
     monkeypatch.setattr(M, "StakeXpView", lambda *, duel_id, bot: ("STAKE_VIEW", duel_id, bot))
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
 
     view = M.HomeView(bot=bot, duel_id=777)
 
@@ -164,7 +123,7 @@ async def test_home_view_click_success_builds_stake_embed_and_edits_original(mon
     await btn0.callback(inter)  # type: ignore[misc]
 
     assert inter.response.deferred is True
-    assert duel.configure_calls == [{"duel_id": 777, "gk": "rps"}]
+    assert duel.configure_game_type_calls == [{"duel_id": 777, "gk": "rps"}]
 
     assert inter.original_edits
     last = inter.original_edits[-1]
@@ -184,7 +143,7 @@ async def test_home_view_click_duel_error_shows_error_message(monkeypatch):
     monkeypatch.setattr(M, "get_duel_embed_data", lambda: duel_data)
 
     duel = FakeDuelService()
-    duel.raise_on_configure = FakeDuelError("nope")
+    duel.raise_on_configure_game_type = FakeDuelError("nope")
     bot = FakeBot(duel)
 
     # ne doit pas aller plus loin
@@ -194,14 +153,14 @@ async def test_home_view_click_duel_error_shows_error_message(monkeypatch):
         lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not call")),
     )
 
-    inter = CompatInteraction(user=FakeUser(42))
+    inter = FakeInteraction(user=FakeUser(42))
     view = M.HomeView(bot=bot, duel_id=777)
     btn = view.children[0]
 
     await btn.callback(inter)  # type: ignore[misc]
 
     assert inter.response.deferred is True
-    assert duel.configure_calls == [{"duel_id": 777, "gk": "rps"}]
+    assert duel.configure_game_type_calls == [{"duel_id": 777, "gk": "rps"}]
 
     assert inter.original_edits
     last = inter.original_edits[-1]

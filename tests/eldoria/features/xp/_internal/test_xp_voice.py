@@ -3,34 +3,38 @@ from __future__ import annotations
 import pytest
 
 from eldoria.features.xp._internal import voice_xp as mod
-from tests._fakes.xp_internal_entities import FakeGuild
+from tests._fakes import FakeGuild
 
 # ----------------------------
 # Fakes Discord
 # ----------------------------
 
-class FakeVoiceState:
-    def __init__(
-        self,
-        *,
-        channel: object | None = object(),
-        mute: bool = False,
-        self_mute: bool = False,
-        deaf: bool = False,
-        self_deaf: bool = False,
-    ):
-        self.channel = channel
-        self.mute = mute
-        self.self_mute = self_mute
-        self.deaf = deaf
-        self.self_deaf = self_deaf
+def _vs_init(
+    self,
+    *,
+    channel: object | None = object(),
+    mute: bool = False,
+    self_mute: bool = False,
+    deaf: bool = False,
+    self_deaf: bool = False,
+):
+    self.channel = channel
+    self.mute = mute
+    self.self_mute = self_mute
+    self.deaf = deaf
+    self.self_deaf = self_deaf
 
 
-class FakeMember:
-    def __init__(self, member_id: int = 42, *, bot: bool = False, voice: FakeVoiceState | None = None):
-        self.id = member_id
-        self.bot = bot
-        self.voice = voice
+VoiceStateStub = type("VoiceStateStub", (), {"__init__": _vs_init})
+
+
+def _m_init(self, member_id: int = 42, *, bot: bool = False, voice: VoiceStateStub | None = None):
+    self.id = member_id
+    self.bot = bot
+    self.voice = voice
+
+
+MemberStub = type("MemberStub", (), {"__init__": _m_init})
 
 
 
@@ -38,24 +42,27 @@ class FakeMember:
 # Fake config (remplace XpConfig(**raw))
 # ----------------------------
 
-class _Cfg:
-    def __init__(
-        self,
-        *,
-        enabled: bool = True,
-        bonus_percent: int = 0,
-        voice_enabled: bool = True,
-        voice_xp_per_interval: int = 1,
-        voice_interval_seconds: int = 180,
-        voice_daily_cap_xp: int = 100,
-        **_extra,
-    ):
-        self.enabled = enabled
-        self.bonus_percent = bonus_percent
-        self.voice_enabled = voice_enabled
-        self.voice_xp_per_interval = voice_xp_per_interval
-        self.voice_interval_seconds = voice_interval_seconds
-        self.voice_daily_cap_xp = voice_daily_cap_xp
+
+def _cfg_init(
+    self,
+    *,
+    enabled: bool = True,
+    bonus_percent: int = 0,
+    voice_enabled: bool = True,
+    voice_xp_per_interval: int = 1,
+    voice_interval_seconds: int = 180,
+    voice_daily_cap_xp: int = 100,
+    **_extra,
+):
+    self.enabled = enabled
+    self.bonus_percent = bonus_percent
+    self.voice_enabled = voice_enabled
+    self.voice_xp_per_interval = voice_xp_per_interval
+    self.voice_interval_seconds = voice_interval_seconds
+    self.voice_daily_cap_xp = voice_daily_cap_xp
+
+
+_Cfg = type("_Cfg", (), {"__init__": _cfg_init})
 
 
 # ----------------------------
@@ -111,13 +118,13 @@ def _install_repo_mocks(monkeypatch, *, config_raw: dict, progress: dict, levels
 # ----------------------------
 
 def test_is_voice_member_active_false_if_bot():
-    m = FakeMember(bot=True, voice=FakeVoiceState())
+    m = MemberStub(bot=True, voice=VoiceStateStub())
     assert mod.is_voice_member_active(m) is False
 
 
 def test_is_voice_member_active_false_if_no_voice_or_no_channel():
-    assert mod.is_voice_member_active(FakeMember(bot=False, voice=None)) is False
-    assert mod.is_voice_member_active(FakeMember(bot=False, voice=FakeVoiceState(channel=None))) is False
+    assert mod.is_voice_member_active(MemberStub(bot=False, voice=None)) is False
+    assert mod.is_voice_member_active(MemberStub(bot=False, voice=VoiceStateStub(channel=None))) is False
 
 
 @pytest.mark.parametrize(
@@ -130,18 +137,18 @@ def test_is_voice_member_active_false_if_no_voice_or_no_channel():
     ],
 )
 def test_is_voice_member_active_false_if_muted_or_deaf(kwargs):
-    m = FakeMember(bot=False, voice=FakeVoiceState(**kwargs))
+    m = MemberStub(bot=False, voice=VoiceStateStub(**kwargs))
     assert mod.is_voice_member_active(m) is False
 
 
 def test_is_voice_member_active_true_when_ok():
-    m = FakeMember(bot=False, voice=FakeVoiceState())
+    m = MemberStub(bot=False, voice=VoiceStateStub())
     assert mod.is_voice_member_active(m) is True
 
 
 def test_is_voice_eligible_in_channel_requires_active_and_at_least_2():
-    m_ok = FakeMember(bot=False, voice=FakeVoiceState())
-    m_bad = FakeMember(bot=False, voice=None)
+    m_ok = MemberStub(bot=False, voice=VoiceStateStub())
+    m_bad = MemberStub(bot=False, voice=None)
 
     assert mod.is_voice_eligible_in_channel(m_ok, active_count=1) is False
     assert mod.is_voice_eligible_in_channel(m_ok, active_count=2) is True
@@ -156,7 +163,7 @@ def test_is_voice_eligible_in_channel_requires_active_and_at_least_2():
 async def test_tick_returns_none_for_bot(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(bot=True, voice=FakeVoiceState())
+    m = MemberStub(bot=True, voice=VoiceStateStub())
 
     # si bot => ne doit pas toucher repo
     monkeypatch.setattr(mod.xp_repo, "xp_get_config", lambda *_: (_ for _ in ()).throw(AssertionError("repo called")))
@@ -167,7 +174,7 @@ async def test_tick_returns_none_for_bot(monkeypatch):
 async def test_tick_returns_none_when_xp_disabled_or_voice_disabled(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(bot=False, voice=FakeVoiceState())
+    m = MemberStub(bot=False, voice=VoiceStateStub())
 
     for raw in ({"enabled": False, "voice_enabled": True}, {"enabled": True, "voice_enabled": False}):
         progress = {"day_key": "X", "last_tick_ts": 1, "buffer_seconds": 0, "bonus_cents": 0, "xp_today": 0}
@@ -184,7 +191,7 @@ async def test_tick_returns_none_when_xp_disabled_or_voice_disabled(monkeypatch)
 async def test_tick_resets_day_progress_when_day_changed_and_upserts_reset(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild(123)
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     progress = {"day_key": "OLD", "last_tick_ts": 999, "buffer_seconds": 12, "bonus_cents": 77, "xp_today": 9}
     upserts, adds = _install_repo_mocks(monkeypatch, config_raw={"enabled": True, "voice_enabled": True}, progress=progress)
@@ -210,7 +217,7 @@ async def test_tick_resets_day_progress_when_day_changed_and_upserts_reset(monke
 async def test_tick_when_last_tick_missing_sets_last_tick_and_returns_none(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     progress = {"day_key": "D", "last_tick_ts": 0, "buffer_seconds": 0, "bonus_cents": 0, "xp_today": 0}
     upserts, adds = _install_repo_mocks(monkeypatch, config_raw={"enabled": True, "voice_enabled": True}, progress=progress)
@@ -228,7 +235,7 @@ async def test_tick_inactive_member_updates_last_tick_and_returns_none(monkeypat
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
     # inactive (mute)
-    m = FakeMember(42, bot=False, voice=FakeVoiceState(mute=True))
+    m = MemberStub(42, bot=False, voice=VoiceStateStub(mute=True))
 
     progress = {"day_key": "D", "last_tick_ts": 1000, "buffer_seconds": 0, "bonus_cents": 0, "xp_today": 0}
     upserts, adds = _install_repo_mocks(monkeypatch, config_raw={"enabled": True, "voice_enabled": True}, progress=progress)
@@ -248,7 +255,7 @@ async def test_tick_delta_is_bounded_to_600(monkeypatch):
     """
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     # last_tick=0? non, ici valide
     progress = {"day_key": "D", "last_tick_ts": 0, "buffer_seconds": 0, "bonus_cents": 0, "xp_today": 0}
@@ -283,7 +290,7 @@ async def test_tick_delta_is_bounded_to_600(monkeypatch):
 async def test_tick_returns_none_when_config_numbers_invalid(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     # voice_daily_cap_xp <=0 OR interval <=0 OR xp_per_interval <=0 => upsert(last_tick_ts=now) then None
     bad_cfgs = [
@@ -307,7 +314,7 @@ async def test_tick_returns_none_when_config_numbers_invalid(monkeypatch):
 async def test_tick_daily_cap_reached_resets_buffer_and_returns_none(monkeypatch):
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     raw = {"enabled": True, "voice_enabled": True, "voice_daily_cap_xp": 5, "voice_interval_seconds": 60, "voice_xp_per_interval": 1}
     progress = {"day_key": "D", "last_tick_ts": 1000, "buffer_seconds": 999, "bonus_cents": 0, "xp_today": 5}  # cap atteint
@@ -329,7 +336,7 @@ async def test_tick_not_enough_buffer_keeps_buffer_and_returns_none(monkeypatch)
     """
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     raw = {"enabled": True, "voice_enabled": True, "voice_interval_seconds": 60, "voice_xp_per_interval": 2, "voice_daily_cap_xp": 999}
     progress = {"day_key": "D", "last_tick_ts": 1000, "buffer_seconds": 10, "bonus_cents": 0, "xp_today": 0}
@@ -351,7 +358,7 @@ async def test_tick_bonus_cents_accumulates_and_grants_extra_xp(monkeypatch):
     """
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     raw = {
         "enabled": True,
@@ -397,7 +404,7 @@ async def test_tick_caps_total_gain_to_cap_left_and_may_return_none_if_zero(monk
     """
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
     g = FakeGuild()
-    m = FakeMember(42, bot=False, voice=FakeVoiceState())
+    m = MemberStub(42, bot=False, voice=VoiceStateStub())
 
     raw = {"enabled": True, "voice_enabled": True, "voice_interval_seconds": 10, "voice_xp_per_interval": 10, "voice_daily_cap_xp": 5}
     progress = {"day_key": "D", "last_tick_ts": 1000, "buffer_seconds": 0, "bonus_cents": 0, "xp_today": 5}  # cap déjà atteint

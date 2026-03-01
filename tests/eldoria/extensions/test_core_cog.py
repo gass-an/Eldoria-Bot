@@ -1,234 +1,22 @@
+"""Tests du Core cog.
+
+Les stubs Eldoria ont été factorisés dans `tests/_bootstrap/eldoria_stubs.py`.
+"""
+
 import importlib
-import sys
-from dataclasses import dataclass
-from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-# ---------------------------------------------------------------------------
-# Stubs de dépendances Eldoria + extensions du stub discord présent dans conftest
-# ---------------------------------------------------------------------------
-
-
-def _ensure_discord_ext_commands_stub(mp: MonkeyPatch) -> None:
-    """
-    tests/conftest.py installe un stub minimal de discord + discord.ext.commands.
-    Pour ce cog, il manque quelques symboles (Cog, decorators, exceptions…).
-    On les ajoute ici de façon rétro-compatible (sans dépendre de discord.py).
-
-    IMPORTANT: utiliser mp.setitem pour pouvoir rollback proprement.
-    """
-    import discord  # type: ignore
-
-    # -----------------------
-    # discord.AllowedMentions
-    # -----------------------
-    if not hasattr(discord, "AllowedMentions"):
-
-        @dataclass
-        class AllowedMentions:  # pragma: no cover
-            users: bool = False
-            roles: bool = False
-            replied_user: bool = False
-
-        discord.AllowedMentions = AllowedMentions  # type: ignore[attr-defined]
-
-    # -----------------------
-    # discord.ext.commands
-    # -----------------------
-    commands_mod = sys.modules.get("discord.ext.commands")
-    if commands_mod is None:
-        commands_mod = ModuleType("discord.ext.commands")
-        mp.setitem(sys.modules, "discord.ext.commands", commands_mod)
-
-    # Base exceptions / checks
-    class CheckFailure(Exception):
-        pass
-
-    class MissingRole(CheckFailure):
-        pass
-
-    class MissingAnyRole(CheckFailure):
-        pass
-
-    class MissingPermissions(CheckFailure):
-        def __init__(self, missing_permissions):
-            super().__init__("Missing permissions")
-            self.missing_permissions = list(missing_permissions)
-
-    class BotMissingPermissions(CheckFailure):
-        def __init__(self, missing_permissions):
-            super().__init__("Bot missing permissions")
-            self.missing_permissions = list(missing_permissions)
-
-    # Cog + decorators
-    class Cog:
-        @staticmethod
-        def listener(name: str | None = None):
-            def deco(func):
-                return func
-
-            return deco
-
-    def slash_command(*, name: str, description: str = ""):
-        def deco(func):
-            # conserve juste des infos pour debug éventuel
-            setattr(func, "__slash_name__", name)
-            setattr(func, "__slash_description__", description)
-            return func
-
-        return deco
-
-    # Toujours écraser ces deux-là (compat avec ton code prod)
-    setattr(commands_mod, "MissingPermissions", MissingPermissions)
-    setattr(commands_mod, "BotMissingPermissions", BotMissingPermissions)
-
-    # Le reste seulement si absent (ok)
-    for k, v in {
-        "Cog": Cog,
-        "slash_command": slash_command,
-        "CheckFailure": CheckFailure,
-        "MissingRole": MissingRole,
-        "MissingAnyRole": MissingAnyRole,
-    }.items():
-        if not hasattr(commands_mod, k):
-            setattr(commands_mod, k, v)
-
-
-def _install_eldoria_stubs(mp: MonkeyPatch) -> None:
-    """
-    Installe des stubs Eldoria dans sys.modules.
-    IMPORTANT:
-    - On remplace AUSSI les packages parents, même s'ils existent déjà, sinon
-      Python continue d'utiliser les vrais modules déjà importés.
-    - On crée des ModuleType NEUFS (pas de sys.modules.get(...) ) pour ne pas muter les vrais modules.
-    - On relie les sous-modules aux packages (pkg.sub = mod) pour que
-      `from eldoria.utils import interactions` fonctionne.
-    """
-    def make_pkg(name: str) -> ModuleType:
-        pkg = ModuleType(name)
-        pkg.__path__ = []  # type: ignore[attr-defined]
-        mp.setitem(sys.modules, name, pkg)
-        return pkg
-
-    # --- packages parents (TOUJOURS neufs)
-    eldoria_pkg = make_pkg("eldoria")
-    app_pkg = make_pkg("eldoria.app")
-    exc_pkg = make_pkg("eldoria.exceptions")
-    ui_pkg = make_pkg("eldoria.ui")
-    help_pkg = make_pkg("eldoria.ui.help")
-    version_pkg = make_pkg("eldoria.ui.version")
-    utils_pkg = make_pkg("eldoria.utils")
-    cogs_pkg = make_pkg("eldoria.cogs")
-
-    # relier la hiérarchie (utile pour certains imports)
-    eldoria_pkg.app = app_pkg
-    eldoria_pkg.exceptions = exc_pkg
-    eldoria_pkg.ui = ui_pkg
-    eldoria_pkg.utils = utils_pkg
-    eldoria_pkg.cogs = cogs_pkg
-    ui_pkg.help = help_pkg
-    ui_pkg.version = version_pkg
-
-    # --- eldoria.app.bot
-    bot_mod = ModuleType("eldoria.app.bot")
-
-    class EldoriaBot:  # pragma: no cover
-        pass
-
-    bot_mod.EldoriaBot = EldoriaBot
-    mp.setitem(sys.modules, "eldoria.app.bot", bot_mod)
-    app_pkg.bot = bot_mod  # pour `from eldoria.app import bot`
-
-    # --- eldoria.exceptions.base
-    base_mod = ModuleType("eldoria.exceptions.base")
-
-    class AppError(Exception):
-        pass
-
-    base_mod.AppError = AppError
-    mp.setitem(sys.modules, "eldoria.exceptions.base", base_mod)
-    exc_pkg.base = base_mod
-
-    # --- eldoria.exceptions.general
-    general_mod = ModuleType("eldoria.exceptions.general")
-
-    class GuildRequired(AppError):
-        pass
-
-    class ChannelRequired(AppError):
-        pass
-
-    class MessageRequired(AppError):
-        pass
-
-    class XpDisabled(AppError):
-        def __init__(self, guild_id: int = 0):
-            super().__init__("xp disabled")
-            self.guild_id = guild_id
-
-    general_mod.GuildRequired = GuildRequired
-    general_mod.ChannelRequired = ChannelRequired
-    general_mod.MessageRequired = MessageRequired
-    general_mod.XpDisabled = XpDisabled
-    mp.setitem(sys.modules, "eldoria.exceptions.general", general_mod)
-    exc_pkg.general = general_mod
-
-    # --- eldoria.exceptions.ui.messages
-    ui_exc_pkg = make_pkg("eldoria.exceptions.ui")
-    exc_pkg.ui = ui_exc_pkg
-    messages_mod = ModuleType("eldoria.exceptions.ui.messages")
-
-    def _app_error_message(e):
-        # On ne stubbe que ce qui est nécessaire aux tests de Core.
-        name = type(e).__name__
-        return {
-            "GuildRequired": "❌ Cette commande doit être utilisée sur un serveur.",
-            "ChannelRequired": "❌ Impossible de retrouver le salon associé à cette action.",
-            "MessageRequired": "❌ Le message associé à cette action est introuvable.",
-        }.get(name, "❌ Une erreur est survenue.")
-
-    messages_mod.app_error_message = MagicMock(side_effect=_app_error_message)
-    mp.setitem(sys.modules, "eldoria.exceptions.ui.messages", messages_mod)
-    ui_exc_pkg.messages = messages_mod
-
-    # --- eldoria.ui.help.view
-    help_view_mod = ModuleType("eldoria.ui.help.view")
-    help_view_mod.send_help_menu = AsyncMock()
-    mp.setitem(sys.modules, "eldoria.ui.help.view", help_view_mod)
-    help_pkg.view = help_view_mod  # pour `from eldoria.ui.help import view`
-
-    # --- eldoria.ui.version.embeds
-    version_mod = ModuleType("eldoria.ui.version.embeds")
-    version_mod.build_version_embed = AsyncMock(return_value=(object(), []))
-    mp.setitem(sys.modules, "eldoria.ui.version.embeds", version_mod)
-    version_pkg.embeds = version_mod  # pour `from eldoria.ui.version import embeds`
-
-    # --- eldoria.ui.xp.embeds.status
-    xp_pkg = make_pkg("eldoria.ui.xp")
-    embeds_pkg = make_pkg("eldoria.ui.xp.embeds")
-    ui_pkg.xp = xp_pkg
-    xp_pkg.embeds = embeds_pkg
-
-    xp_status_mod = ModuleType("eldoria.ui.xp.embeds.status")
-    xp_status_mod.build_xp_status_embed = AsyncMock(return_value=(object(), []))
-    mp.setitem(sys.modules, "eldoria.ui.xp.embeds.status", xp_status_mod)
-    embeds_pkg.status = xp_status_mod
-
-    # --- eldoria.utils.interactions
-    interactions_mod = ModuleType("eldoria.utils.interactions")
-    interactions_mod.reply_ephemeral = AsyncMock()
-    interactions_mod.reply_ephemeral_embed = AsyncMock()
-    mp.setitem(sys.modules, "eldoria.utils.interactions", interactions_mod)
-    utils_pkg.interactions = interactions_mod  # pour `from eldoria.utils import interactions`
-
-    # --- eldoria.utils.mentions
-    mentions_mod = ModuleType("eldoria.utils.mentions")
-    mentions_mod.level_mention = MagicMock(return_value="<lvl>")
-    mp.setitem(sys.modules, "eldoria.utils.mentions", mentions_mod)
-    utils_pkg.mentions = mentions_mod  # pour `from eldoria.utils import mentions`
+from tests._bootstrap.eldoria_stubs import install_eldoria_stubs
+from tests._fakes import (
+    FakeAuthor,
+    FakeBot,
+    FakeChannel,
+    FakeGuild,
+    FakeMessage,
+    FakeRole,
+)
 
 
 @pytest.fixture()
@@ -239,8 +27,7 @@ def core_module():
     """
     mp = MonkeyPatch()
 
-    _ensure_discord_ext_commands_stub(mp)
-    _install_eldoria_stubs(mp)
+    install_eldoria_stubs(mp)
 
     mod = importlib.import_module("eldoria.extensions.core")
     mod = importlib.reload(mod)
@@ -250,93 +37,6 @@ def core_module():
     mp.undo()
 
 
-# ---------------------------------------------------------------------------
-# Fakes locaux
-# ---------------------------------------------------------------------------
-
-
-class FakeRole:
-    def __init__(self, role_id: int):
-        self.id = role_id
-
-
-class FakeGuild:
-    def __init__(self, guild_id: int = 123, role: FakeRole | None = None):
-        self.id = guild_id
-        self._role = role
-
-    def get_role(self, role_id: int):
-        if self._role and self._role.id == role_id:
-            return self._role
-        return None
-
-
-class FakeAuthor:
-    """Auteur de message qui doit être reconnu comme un discord.Member."""
-
-    def __init__(self, *, mention: str = "<@42>"):
-        import discord  # type: ignore
-
-        # Hériter dynamiquement du stub discord.Member pour satisfaire isinstance(..., discord.Member)
-        # sans dépendre d'un vrai discord.py.
-        self.__class__ = type(self.__class__.__name__, (discord.Member,), dict(self.__class__.__dict__))
-
-        self.mention = mention
-        self.add_roles = AsyncMock()
-
-
-class FakeChannel:
-    def __init__(self, channel_id: int = 9):
-        self.id = channel_id
-
-
-class FakeMessage:
-    def __init__(
-        self,
-        *,
-        bot_user: object,
-        author: object,
-        guild: FakeGuild | None,
-        content: str | None = "",
-        attachments=None,
-        channel: FakeChannel | None = None,
-    ):
-        self.author = author
-        self.guild = guild
-        self.content = content
-        self.attachments = attachments or []
-        self.channel = channel or FakeChannel()
-        self.reply = AsyncMock()
-        self.delete = AsyncMock()
-
-
-class FakeBot:
-    def __init__(self):
-        self.user = object()
-        self.guilds = [object(), object()]
-        self.latency = 0.123
-
-        self.services = SimpleNamespace(
-            xp=SimpleNamespace(
-                # Par défaut on ne renvoie rien (évite l'unpack dans le cog)
-                handle_message_xp=AsyncMock(return_value=None),
-                get_role_ids=MagicMock(return_value=[1, 2, 3]),
-            ),
-            role=SimpleNamespace(
-                sr_match=MagicMock(return_value=None),
-            ),
-        )
-
-        self.sync_commands = AsyncMock()
-        self.process_commands = AsyncMock()
-        self.add_cog = MagicMock()
-
-        # boot fields
-        self._booted = False
-        self._started_at = 1.0
-
-
-# ---------------------------------------------------------------------------
 # Tests on_ready
 # ---------------------------------------------------------------------------
 

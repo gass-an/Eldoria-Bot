@@ -7,20 +7,14 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.temp_voice import add as M
-from tests._fakes._discord_entities_fakes import FakeGuild, FakeVoiceChannel
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
-
-
-# ---------------------------------------------------------------------------
-# Fakes minimaux (guild/voice channel/service/interactions)
-# ---------------------------------------------------------------------------
-class FakeTempVoiceService:
-    def __init__(self):
-        self.upserts: list[tuple[int, int, int]] = []
-
-    def upsert_parent(self, guild_id: int, channel_id: int, user_limit: int) -> None:
-        self.upserts.append((guild_id, channel_id, user_limit))
-
+from tests._fakes import (
+    FakeGuild,
+    FakeInteraction,
+    FakeTempVoiceService,
+    FakeUser,
+    FakeVoiceChannel,
+)
+from tests._support.temp_voice_stubs import TempVoiceHomeViewStub, UserLimitModalStub
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -162,11 +156,7 @@ async def test_route_select_ignores_none_value(monkeypatch):
 async def test_route_button_limit_sends_modal_and_callback_updates_limit(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    class FakeUserLimitModal:
-        def __init__(self, *, on_value):
-            self.on_value = on_value
-
-    monkeypatch.setattr(M, "UserLimitModal", FakeUserLimitModal, raising=True)
+    monkeypatch.setattr(M, "UserLimitModal", UserLimitModalStub, raising=True)
 
     svc = FakeTempVoiceService()
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "V1")])
@@ -177,7 +167,7 @@ async def test_route_button_limit_sends_modal_and_callback_updates_limit(monkeyp
 
     assert inter.response.modals
     modal = inter.response.modals[0]
-    assert isinstance(modal, FakeUserLimitModal)
+    assert isinstance(modal, UserLimitModalStub)
 
     inter2 = FakeInteraction(user=FakeUser(1))
     await modal.on_value(inter2, 7)
@@ -201,7 +191,7 @@ async def test_route_button_save_calls_service_and_resets_state(monkeypatch):
     inter = FakeInteraction(user=FakeUser(1), data={"custom_id": "tv:add:save"})
     await view.route_button(inter)
 
-    assert svc.upserts == [(555, 99, 12)]
+    assert ("upsert_parent", 555, 99, 12) in svc.calls
     assert view.last_saved is not None
     ch, limit = view.last_saved
     assert ch.id == 99
@@ -219,18 +209,7 @@ async def test_route_button_back_builds_home_and_edits(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
     fake_home_mod = ModuleType("eldoria.ui.temp_voice.home")
-
-    class FakeTempVoiceHomeView:
-        def __init__(self, *, temp_voice_service, author_id: int, guild):
-            self.temp_voice_service = temp_voice_service
-            self.author_id = author_id
-            self.guild = guild
-
-        def current_embed(self):
-            # le code fait: embed, _ = home.current_embed()
-            return (discord.Embed(title="HOME", description="OK", color=1), None)
-
-    fake_home_mod.TempVoiceHomeView = FakeTempVoiceHomeView
+    fake_home_mod.TempVoiceHomeView = TempVoiceHomeViewStub
     sys.modules["eldoria.ui.temp_voice.home"] = fake_home_mod
 
     svc = FakeTempVoiceService()
@@ -244,7 +223,7 @@ async def test_route_button_back_builds_home_and_edits(monkeypatch):
     last = inter.response.edits[-1]
     assert isinstance(last["embed"], discord.Embed)
     assert last["embed"].title == "HOME"
-    assert isinstance(last["view"], FakeTempVoiceHomeView)
+    assert isinstance(last["view"], TempVoiceHomeViewStub)
 
 
 @pytest.mark.asyncio

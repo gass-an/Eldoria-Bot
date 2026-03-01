@@ -1,78 +1,10 @@
 from __future__ import annotations
 
 import sys
-import types
 
 import pytest
 
-
 # ---------- Local stubs / shims (complements tests/conftest.py stubs) ----------
-def _ensure_discord_stubs() -> None:
-    """
-    Ensure minimal discord.py surface used by this module exists at import-time.
-    The source does not use `from __future__ import annotations`, so some annotations
-    are evaluated at import time.
-    """
-    if "discord" not in sys.modules:
-        sys.modules["discord"] = types.ModuleType("discord")
-    discord = sys.modules["discord"]
-
-    # Exceptions
-    for exc_name in ("Forbidden", "HTTPException", "NotFound"):
-        if not hasattr(discord, exc_name):
-            setattr(discord, exc_name, type(exc_name, (Exception,), {}))
-
-    # AllowedMentions
-    if not hasattr(discord, "AllowedMentions"):
-        class AllowedMentions:  # pragma: no cover
-            def __init__(self, **kw):
-                self.kw = kw
-        discord.AllowedMentions = AllowedMentions
-
-    # discord.utils.get
-    if not hasattr(discord, "utils"):
-        discord.utils = types.SimpleNamespace()
-    if not hasattr(discord.utils, "get"):
-        def _get(iterable, **attrs):
-            for obj in iterable:
-                ok = True
-                for k, v in attrs.items():
-                    if getattr(obj, k, None) != v:
-                        ok = False
-                        break
-                if ok:
-                    return obj
-            return None
-        discord.utils.get = _get
-
-    # Types used in annotations
-    for name in ("Guild", "TextChannel", "Member", "VoiceState"):
-        if not hasattr(discord, name):
-            setattr(discord, name, type(name, (), {}))
-
-    # discord.ext stubs
-    if "discord.ext" not in sys.modules:
-        sys.modules["discord.ext"] = types.ModuleType("discord.ext")
-    if "discord.ext.commands" not in sys.modules:
-        sys.modules["discord.ext.commands"] = types.ModuleType("discord.ext.commands")
-    if "discord.ext.tasks" not in sys.modules:
-        sys.modules["discord.ext.tasks"] = types.ModuleType("discord.ext.tasks")
-
-    commands = sys.modules["discord.ext.commands"]
-
-    if not hasattr(commands, "Cog"):
-        class Cog:  # pragma: no cover
-            @classmethod
-            def listener(cls, *_a, **_k):
-                def deco(fn):
-                    return fn
-                return deco
-        commands.Cog = Cog
-    
-
-
-_ensure_discord_stubs()
-
 # ---------- Import module under test (adjust if needed) ----------
 import eldoria.extensions.xp_voice as xv_mod  # noqa: E402
 from eldoria.extensions.xp_voice import (  # noqa: E402
@@ -81,129 +13,190 @@ from eldoria.extensions.xp_voice import (  # noqa: E402
     setup,
 )
 
-
 # ---------- Fakes ----------
-class _FakePerms:
-    def __init__(self, send_messages: bool = True):
-        self.send_messages = send_messages
+
+def _perms_init(self, send_messages: bool = True):
+    self.send_messages = send_messages
 
 
-class _FakeTextChannel(sys.modules["discord"].TextChannel):
-    def __init__(self, name: str, channel_id: int = 1, *, can_send: bool = True):
-        self.name = name
-        self.id = channel_id
-        self.sent = []
-        self._can_send = can_send
-
-    def permissions_for(self, _member):
-        return _FakePerms(send_messages=self._can_send)
-
-    async def send(self, content: str, **kwargs):
-        self.sent.append({"content": content, **kwargs})
+PermsStub = type("PermsStub", (), {"__init__": _perms_init})
 
 
-class _FakeVoiceChannel:
-    def __init__(self, members=None):
-        self.members = list(members or [])
+def _textch_init(self, name: str, channel_id: int = 1, *, can_send: bool = True):
+    self.name = name
+    self.id = channel_id
+    self.sent = []
+    self._can_send = can_send
 
 
-class _FakeMember(sys.modules["discord"].Member):
-    def __init__(self, member_id: int, guild, *, mention: str | None = None, bot: bool = False):
-        self.id = member_id
-        self.guild = guild
-        self.mention = mention or f"<@{member_id}>"
-        self.bot = bot
+def _textch_permissions_for(self, _member):
+    return PermsStub(send_messages=self._can_send)
 
 
-class _FakeBotUser:
-    def __init__(self, user_id: int = 999):
-        self.id = user_id
+async def _textch_send(self, content: str, **kwargs):
+    self.sent.append({"content": content, **kwargs})
 
 
-class _FakeGuild(sys.modules["discord"].Guild):
-    def __init__(self, guild_id: int):
-        self.id = guild_id
-        self.system_channel = None
-        self.text_channels = []
-        self.voice_channels = []
-        self.me = None  # can be set
-        self._members = {}
-        self._channels = {}
-
-    def get_member(self, user_id: int):
-        return self._members.get(user_id)
-
-    def get_channel(self, channel_id: int):
-        return self._channels.get(channel_id)
+TextChannelStub = type(
+    "TextChannelStub",
+    (sys.modules["discord"].TextChannel,),
+    {"__init__": _textch_init, "permissions_for": _textch_permissions_for, "send": _textch_send},
+)
 
 
-class _FakeVoiceState(sys.modules["discord"].VoiceState):
-    def __init__(self, channel=None, *, mute=False, deaf=False, self_mute=False, self_deaf=False):
-        self.channel = channel
-        self.mute = mute
-        self.deaf = deaf
-        self.self_mute = self_mute
-        self.self_deaf = self_deaf
+def _voicech_init(self, members=None):
+    self.members = list(members or [])
 
 
-class _FakeXpService:
-    def __init__(self):
-        self.calls = []
-        self._cfg = {"enabled": True, "voice_enabled": True, "voice_levelup_channel_id": 0}
-        self._role_ids = []
-
-        # behavior controls
-        self._is_active = True
-        self._tick_return = None  # None or (new_xp,new_lvl,old_lvl)
-        self._voice_upsert_raises = False
-        self._ensure_raises = False
-
-    def ensure_defaults(self, guild_id: int):
-        self.calls.append(("ensure_defaults", guild_id))
-        if self._ensure_raises:
-            raise RuntimeError("ensure")
-
-    def get_config(self, guild_id: int):
-        self.calls.append(("get_config", guild_id))
-        return dict(self._cfg)
-
-    def is_voice_member_active(self, member):
-        self.calls.append(("is_voice_member_active", getattr(member, "id", None)))
-        return self._is_active and not getattr(member, "bot", False)
-
-    def voice_upsert_progress(self, guild_id: int, user_id: int, *, last_tick_ts: int):
-        self.calls.append(("voice_upsert_progress", guild_id, user_id, last_tick_ts))
-        if self._voice_upsert_raises:
-            raise RuntimeError("upsert")
-
-    async def tick_voice_xp_for_member(self, guild, member):
-        self.calls.append(("tick_voice_xp_for_member", guild.id, member.id))
-        return self._tick_return
-
-    def get_role_ids(self, guild_id: int):
-        self.calls.append(("get_role_ids", guild_id))
-        return list(self._role_ids)
+VoiceChannelStub = type("VoiceChannelStub", (), {"__init__": _voicech_init})
 
 
-class _FakeServices:
-    def __init__(self, xp: _FakeXpService):
-        self.xp = xp
+def _member_init(self, member_id: int, guild, *, mention: str | None = None, bot: bool = False):
+    self.id = member_id
+    self.guild = guild
+    self.mention = mention or f"<@{member_id}>"
+    self.bot = bot
 
 
-class _FakeBot:
-    def __init__(self, xp: _FakeXpService):
-        self.services = _FakeServices(xp)
-        self.user = _FakeBotUser(999)
-        self.guilds = []
+MemberStub = type(
+    "MemberStub",
+    (sys.modules["discord"].Member,),
+    {"__init__": _member_init},
+)
 
-    async def wait_until_ready(self):
-        return None
+
+def _botuser_init(self, user_id: int = 999):
+    self.id = user_id
+
+
+BotUserStub = type("BotUserStub", (), {"__init__": _botuser_init})
+
+
+def _guild_init(self, guild_id: int):
+    self.id = guild_id
+    self.system_channel = None
+    self.text_channels = []
+    self.voice_channels = []
+    self.me = None
+    self._members = {}
+    self._channels = {}
+
+
+def _guild_get_member(self, user_id: int):
+    return self._members.get(user_id)
+
+
+def _guild_get_channel(self, channel_id: int):
+    return self._channels.get(channel_id)
+
+
+GuildStub = type(
+    "GuildStub",
+    (sys.modules["discord"].Guild,),
+    {"__init__": _guild_init, "get_member": _guild_get_member, "get_channel": _guild_get_channel},
+)
+
+
+def _vs_init(self, channel=None, *, mute=False, deaf=False, self_mute=False, self_deaf=False):
+    self.channel = channel
+    self.mute = mute
+    self.deaf = deaf
+    self.self_mute = self_mute
+    self.self_deaf = self_deaf
+
+
+VoiceStateStub = type(
+    "VoiceStateStub",
+    (sys.modules["discord"].VoiceState,),
+    {"__init__": _vs_init},
+)
+
+
+def _xpsvc_init(self):
+    from tests._fakes import FakeXpService
+
+    impl = FakeXpService()
+    self._impl = impl
+    self.calls = impl.calls
+    self._cfg = impl._voice_cfg
+    self._role_ids = impl._role_ids
+    self._is_active = impl._voice_is_active
+    self._tick_return = impl._voice_tick_return
+    self._voice_upsert_raises = impl._voice_upsert_raises
+    self._ensure_raises = impl._ensure_raises
+
+
+def _xpsvc_ensure_defaults(self, guild_id: int):
+    self.calls.append(("ensure_defaults", guild_id))
+    if self._ensure_raises:
+        raise RuntimeError("ensure")
+
+
+def _xpsvc_get_config(self, guild_id: int):
+    self.calls.append(("get_config", guild_id))
+    return dict(self._cfg)
+
+
+def _xpsvc_is_voice_member_active(self, member):
+    self.calls.append(("is_voice_member_active", getattr(member, "id", None)))
+    return self._is_active and not getattr(member, "bot", False)
+
+
+def _xpsvc_voice_upsert_progress(self, guild_id: int, user_id: int, *, last_tick_ts: int):
+    self.calls.append(("voice_upsert_progress", guild_id, user_id, last_tick_ts))
+    if self._voice_upsert_raises:
+        raise RuntimeError("upsert")
+
+
+async def _xpsvc_tick_voice(self, guild, member):
+    self.calls.append(("tick_voice_xp_for_member", guild.id, member.id))
+    return self._tick_return
+
+
+def _xpsvc_get_role_ids(self, guild_id: int):
+    self.calls.append(("get_role_ids", guild_id))
+    return list(self._role_ids)
+
+
+XpServiceStub = type(
+    "XpServiceStub",
+    (),
+    {
+        "__init__": _xpsvc_init,
+        "ensure_defaults": _xpsvc_ensure_defaults,
+        "get_config": _xpsvc_get_config,
+        "is_voice_member_active": _xpsvc_is_voice_member_active,
+        "voice_upsert_progress": _xpsvc_voice_upsert_progress,
+        "tick_voice_xp_for_member": _xpsvc_tick_voice,
+        "get_role_ids": _xpsvc_get_role_ids,
+    },
+)
+
+
+def _services_init(self, xp: XpServiceStub):
+    self.xp = xp
+
+
+ServicesStub = type("ServicesStub", (), {"__init__": _services_init})
+
+
+def _bot_init(self, xp: XpServiceStub):
+    self.services = ServicesStub(xp)
+    self.user = BotUserStub(999)
+    self.guilds = []
+
+
+async def _bot_wait_until_ready(self):
+    return None
+
+
+BotStub = type("BotStub", (), {"__init__": _bot_init, "wait_until_ready": _bot_wait_until_ready})
 
 
 # ---------- Tests: helper _pick_voice_levelup_text_channel ----------
 def test_pick_voice_levelup_text_channel_prefers_configured_id():
-    g = _FakeGuild(1)
-    ch_cfg = _FakeTextChannel("cfg", channel_id=10)
+    g = GuildStub(1)
+    ch_cfg = TextChannelStub("cfg", channel_id=10)
     g._channels[10] = ch_cfg
     cfg = {"voice_levelup_channel_id": 10}
 
@@ -211,16 +204,16 @@ def test_pick_voice_levelup_text_channel_prefers_configured_id():
 
 
 def test_pick_voice_levelup_text_channel_falls_back_to_system_channel_and_names():
-    g = _FakeGuild(1)
-    sys_ch = _FakeTextChannel("system", channel_id=20)
+    g = GuildStub(1)
+    sys_ch = TextChannelStub("system", channel_id=20)
     g.system_channel = sys_ch
 
     assert _pick_voice_levelup_text_channel(g, {"voice_levelup_channel_id": 0}) is sys_ch
 
     # if no system channel, find by preferred name
-    g2 = _FakeGuild(2)
+    g2 = GuildStub(2)
     g2.system_channel = None
-    preferred = _FakeTextChannel("general", channel_id=30)
+    preferred = TextChannelStub("general", channel_id=30)
     g2.text_channels = [preferred]
 
     assert _pick_voice_levelup_text_channel(g2, {"voice_levelup_channel_id": 0}) is preferred
@@ -228,8 +221,8 @@ def test_pick_voice_levelup_text_channel_falls_back_to_system_channel_and_names(
 
 # ---------- Tests: XpVoice lifecycle ----------
 def test_xpvoice_init_starts_loop():
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
 
     assert cog.voice_xp_loop.started is True  # provided by loop wrapper
@@ -237,8 +230,8 @@ def test_xpvoice_init_starts_loop():
 
 
 def test_cog_unload_cancels_loop_no_throw():
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
 
     cog.cog_unload()
@@ -246,8 +239,8 @@ def test_cog_unload_cancels_loop_no_throw():
 
 
 def test_cog_unload_ignores_cancel_errors(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
 
     def cancel_raises():
@@ -260,9 +253,9 @@ def test_cog_unload_ignores_cancel_errors(monkeypatch):
 # ---------- Tests: voice_xp_loop behavior ----------
 @pytest.mark.asyncio
 async def test_voice_xp_loop_skips_when_disabled_or_voice_disabled(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
@@ -279,14 +272,14 @@ async def test_voice_xp_loop_skips_when_disabled_or_voice_disabled(monkeypatch):
 @pytest.mark.asyncio
 async def test_voice_xp_loop_updates_last_tick_when_solo(monkeypatch):
     # solo / only 1 active member -> voice_upsert_progress called
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    vc = _FakeVoiceChannel([m1])
+    m1 = MemberStub(1, g)
+    vc = VoiceChannelStub([m1])
     g.voice_channels = [vc]
 
     monkeypatch.setattr(xv_mod, "now_ts", lambda: 123, raising=True)
@@ -298,28 +291,28 @@ async def test_voice_xp_loop_updates_last_tick_when_solo(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_skips_empty_voice_channels(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
     # members empty -> continue (ligne 92-93)
-    g.voice_channels = [_FakeVoiceChannel([])]
+    g.voice_channels = [VoiceChannelStub([])]
     await cog.voice_xp_loop()
 
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_solo_upsert_errors_are_swallowed(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
     xp._voice_upsert_raises = True
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    g.voice_channels = [_FakeVoiceChannel([m1])]
+    m1 = MemberStub(1, g)
+    g.voice_channels = [VoiceChannelStub([m1])]
 
     monkeypatch.setattr(xv_mod, "now_ts", lambda: 123, raising=True)
     await cog.voice_xp_loop()  # ne doit pas lever
@@ -327,36 +320,36 @@ async def test_voice_xp_loop_solo_upsert_errors_are_swallowed(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_tick_returns_none_noop(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
     xp._tick_return = None
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    m2 = _FakeMember(2, g)
-    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+    m1 = MemberStub(1, g)
+    m2 = MemberStub(2, g)
+    g.voice_channels = [VoiceChannelStub([m1, m2])]
 
     await cog.voice_xp_loop()  # ne doit pas lever
 
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_no_level_up_no_send(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
     xp._tick_return = (10, 2, 2)  # new_lvl <= old_lvl
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    m2 = _FakeMember(2, g)
-    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+    m1 = MemberStub(1, g)
+    m2 = MemberStub(2, g)
+    g.voice_channels = [VoiceChannelStub([m1, m2])]
 
-    txt = _FakeTextChannel("general", channel_id=50, can_send=True)
+    txt = TextChannelStub("general", channel_id=50, can_send=True)
     g.text_channels = [txt]
-    g.me = _FakeMember(999, g)
+    g.me = MemberStub(999, g)
 
     await cog.voice_xp_loop()
     assert txt.sent == []
@@ -364,24 +357,25 @@ async def test_voice_xp_loop_no_level_up_no_send(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_send_errors_are_swallowed(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
     xp._tick_return = (10, 2, 1)  # would level up
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    m2 = _FakeMember(2, g)
-    g.voice_channels = [_FakeVoiceChannel([m1, m2])]
+    m1 = MemberStub(1, g)
+    m2 = MemberStub(2, g)
+    g.voice_channels = [VoiceChannelStub([m1, m2])]
 
-    class BoomChannel(_FakeTextChannel):
-        async def send(self, *_a, **_k):
-            raise RuntimeError("boom")
+    async def _boom_send(self, *_a, **_k):
+        raise RuntimeError("boom")
+
+    BoomChannel = type("BoomChannel", (TextChannelStub,), {"send": _boom_send})
 
     txt = BoomChannel("general", channel_id=50, can_send=True)
     g.text_channels = [txt]
-    g.me = _FakeMember(999, g)
+    g.me = MemberStub(999, g)
 
     monkeypatch.setattr(xv_mod, "level_mention", lambda *_a, **_k: "@lvl2", raising=True)
 
@@ -390,15 +384,16 @@ async def test_voice_xp_loop_send_errors_are_swallowed(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_wait_until_ready_calls_bot(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
 
-    class Bot(_FakeBot):
-        def __init__(self, xp):
-            super().__init__(xp)
-            self.ready_called = 0
+    def _bot2_init(self, xp):
+        BotStub.__init__(self, xp)
+        self.ready_called = 0
 
-        async def wait_until_ready(self):
-            self.ready_called += 1
+    async def _bot2_wait(self):
+        self.ready_called += 1
+
+    Bot = type("Bot", (BotStub,), {"__init__": _bot2_init, "wait_until_ready": _bot2_wait})
 
     bot = Bot(xp)
     cog = XpVoice(bot)
@@ -409,24 +404,24 @@ async def test_wait_until_ready_calls_bot(monkeypatch):
 @pytest.mark.asyncio
 async def test_voice_xp_loop_levelup_sends_message_when_permitted(monkeypatch):
     discord = sys.modules["discord"]
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
     # 2 active members -> tick called for each active
-    m1 = _FakeMember(1, g)
-    m2 = _FakeMember(2, g)
-    vc = _FakeVoiceChannel([m1, m2])
+    m1 = MemberStub(1, g)
+    m2 = MemberStub(2, g)
+    vc = VoiceChannelStub([m1, m2])
     g.voice_channels = [vc]
 
     # configure pick channel
-    txt = _FakeTextChannel("general", channel_id=50, can_send=True)
+    txt = TextChannelStub("general", channel_id=50, can_send=True)
     g.text_channels = [txt]
 
     # guild.me exists
-    me = _FakeMember(999, g)
+    me = MemberStub(999, g)
     g.me = me
 
     xp._tick_return = (10, 2, 1)  # level up
@@ -446,15 +441,15 @@ async def test_voice_xp_loop_levelup_sends_message_when_permitted(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_does_not_send_when_no_txt_channel_or_no_perms(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
-    g = _FakeGuild(1)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
+    g = GuildStub(1)
     bot.guilds = [g]
     cog = XpVoice(bot)
 
-    m1 = _FakeMember(1, g)
-    m2 = _FakeMember(2, g)
-    vc = _FakeVoiceChannel([m1, m2])
+    m1 = MemberStub(1, g)
+    m2 = MemberStub(2, g)
+    vc = VoiceChannelStub([m1, m2])
     g.voice_channels = [vc]
 
     xp._tick_return = (10, 2, 1)  # would level up
@@ -464,9 +459,9 @@ async def test_voice_xp_loop_does_not_send_when_no_txt_channel_or_no_perms(monke
     await cog.voice_xp_loop()
 
     # With channel but no perms
-    txt = _FakeTextChannel("general", channel_id=50, can_send=False)
+    txt = TextChannelStub("general", channel_id=50, can_send=False)
     g.text_channels = [txt]
-    g.me = _FakeMember(999, g)
+    g.me = MemberStub(999, g)
 
     await cog.voice_xp_loop()
     assert txt.sent == []
@@ -474,11 +469,11 @@ async def test_voice_xp_loop_does_not_send_when_no_txt_channel_or_no_perms(monke
 
 @pytest.mark.asyncio
 async def test_voice_xp_loop_handles_exceptions_and_continues(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
 
-    g1 = _FakeGuild(1)
-    g2 = _FakeGuild(2)
+    g1 = GuildStub(1)
+    g2 = GuildStub(2)
     bot.guilds = [g1, g2]
 
     cog = XpVoice(bot)
@@ -502,31 +497,31 @@ async def test_voice_xp_loop_handles_exceptions_and_continues(monkeypatch):
 # ---------- Tests: listener on_voice_state_update ----------
 @pytest.mark.asyncio
 async def test_voice_state_update_ignores_bots_and_missing_guild(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
 
-    g = _FakeGuild(1)
-    bot_member = _FakeMember(10, g, bot=True)
-    await cog.on_voice_state_update(bot_member, _FakeVoiceState(), _FakeVoiceState())
+    g = GuildStub(1)
+    bot_member = MemberStub(10, g, bot=True)
+    await cog.on_voice_state_update(bot_member, VoiceStateStub(), VoiceStateStub())
     assert xp.calls == []
 
-    no_guild_member = _FakeMember(11, None)  # type: ignore[arg-type]
+    no_guild_member = MemberStub(11, None)  # type: ignore[arg-type]
     no_guild_member.guild = None
-    await cog.on_voice_state_update(no_guild_member, _FakeVoiceState(), _FakeVoiceState())
+    await cog.on_voice_state_update(no_guild_member, VoiceStateStub(), VoiceStateStub())
     assert xp.calls == []
 
 
 @pytest.mark.asyncio
 async def test_voice_state_update_no_relevant_change_noop(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
-    g = _FakeGuild(1)
-    m = _FakeMember(1, g)
+    g = GuildStub(1)
+    m = MemberStub(1, g)
 
-    before = _FakeVoiceState(channel=None, mute=False, deaf=False, self_mute=False, self_deaf=False)
-    after = _FakeVoiceState(channel=None, mute=False, deaf=False, self_mute=False, self_deaf=False)
+    before = VoiceStateStub(channel=None, mute=False, deaf=False, self_mute=False, self_deaf=False)
+    after = VoiceStateStub(channel=None, mute=False, deaf=False, self_mute=False, self_deaf=False)
 
     await cog.on_voice_state_update(m, before, after)
     assert xp.calls == []
@@ -534,16 +529,16 @@ async def test_voice_state_update_no_relevant_change_noop(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_voice_state_update_relevant_change_upserts_last_tick(monkeypatch):
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
     cog = XpVoice(bot)
-    g = _FakeGuild(1)
-    m = _FakeMember(1, g)
+    g = GuildStub(1)
+    m = MemberStub(1, g)
 
     monkeypatch.setattr(xv_mod, "now_ts", lambda: 999, raising=True)
 
-    before = _FakeVoiceState(channel="A", mute=False)
-    after = _FakeVoiceState(channel="B", mute=False)
+    before = VoiceStateStub(channel="A", mute=False)
+    after = VoiceStateStub(channel="B", mute=False)
 
     await cog.on_voice_state_update(m, before, after)
 
@@ -553,17 +548,17 @@ async def test_voice_state_update_relevant_change_upserts_last_tick(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_voice_state_update_swallow_errors(monkeypatch):
-    xp = _FakeXpService()
+    xp = XpServiceStub()
     xp._voice_upsert_raises = True
-    bot = _FakeBot(xp)
+    bot = BotStub(xp)
     cog = XpVoice(bot)
-    g = _FakeGuild(1)
-    m = _FakeMember(1, g)
+    g = GuildStub(1)
+    m = MemberStub(1, g)
 
     monkeypatch.setattr(xv_mod, "now_ts", lambda: 999, raising=True)
 
-    before = _FakeVoiceState(channel="A", mute=False)
-    after = _FakeVoiceState(channel="B", mute=True)
+    before = VoiceStateStub(channel="A", mute=False)
+    after = VoiceStateStub(channel="B", mute=True)
 
     # Should not raise
     await cog.on_voice_state_update(m, before, after)
@@ -571,8 +566,8 @@ async def test_voice_state_update_swallow_errors(monkeypatch):
 
 # ---------- Tests: setup ----------
 def test_setup_adds_cog():
-    xp = _FakeXpService()
-    bot = _FakeBot(xp)
+    xp = XpServiceStub()
+    bot = BotStub(xp)
 
     added = {}
 

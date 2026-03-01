@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from eldoria.features.xp._internal import snapshot as mod
-from tests._fakes.xp_internal_entities import FakeGuild
-
+from tests._fakes import FakeGuild
 
 
 def test_build_snapshot_nominal_next_level_found(monkeypatch):

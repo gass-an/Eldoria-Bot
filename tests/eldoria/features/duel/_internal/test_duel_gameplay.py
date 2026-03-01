@@ -37,11 +37,12 @@ def test_play_game_action_returns_snapshot_when_not_finished(monkeypatch):
     duel = _duel_row(game_type="RPS")
     monkeypatch.setattr(gameplay_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
 
-    class FakeGame:
-        def play(self, duel_id, user_id, action):
-            return {"game": {"state": "WAITING"}}
+    def _play(self, duel_id, user_id, action):
+        return {"game": {"state": "WAITING"}}
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"play": _play})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
 
     finish_called = {"n": 0}
     monkeypatch.setattr(gameplay_mod.helpers, "finish_duel", lambda duel_id, result: finish_called.__setitem__("n", finish_called["n"] + 1))
@@ -56,11 +57,12 @@ def test_play_game_action_finished_invalid_result_raises(monkeypatch):
     duel = _duel_row(game_type="RPS")
     monkeypatch.setattr(gameplay_mod.helpers, "get_duel_or_raise", lambda duel_id: duel)
 
-    class FakeGame:
-        def play(self, duel_id, user_id, action):
-            return {"game": {"state": "FINISHED", "result": 123}}  # pas str
+    def _play(self, duel_id, user_id, action):
+        return {"game": {"state": "FINISHED", "result": 123}}  # pas str
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"play": _play})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
 
     with pytest.raises(exc.InvalidResult):
         gameplay_mod.play_game_action(1, 111, {"move": "rock"})
@@ -95,11 +97,12 @@ def test_play_game_action_finished_calls_finish_and_returns_enriched_snapshot(mo
 
     monkeypatch.setattr(gameplay_mod.helpers, "get_duel_or_raise", fake_get_duel)
 
-    class FakeGame:
-        def play(self, duel_id, user_id, action):
-            return {"game": {"state": "FINISHED", "result": "A_WIN"}}
+    def _play(self, duel_id, user_id, action):
+        return {"game": {"state": "FINISHED", "result": "A_WIN"}}
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"play": _play})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
 
     finish_called = {"args": None}
     monkeypatch.setattr(gameplay_mod.helpers, "finish_duel", lambda duel_id, result: finish_called.__setitem__("args", (duel_id, result)))
@@ -165,11 +168,12 @@ def test_play_game_action_finished_when_already_handled_does_not_add_level_chang
         lambda duel_id: duel1 if (seq.__setitem__("i", seq["i"] + 1) or seq["i"] == 1) else duel2,
     )
 
-    class FakeGame:
-        def play(self, duel_id, user_id, action):
-            return {"game": {"state": "FINISHED", "result": "DRAW"}}
+    def _play(self, duel_id, user_id, action):
+        return {"game": {"state": "FINISHED", "result": "DRAW"}}
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"play": _play})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
 
     # finish_duel -> DuelAlreadyHandled => finished_now False
     def fake_finish(duel_id, result):
@@ -215,11 +219,12 @@ def test_is_duel_complete_for_game_returns_false_when_game_unknown(monkeypatch):
 def test_is_duel_complete_for_game_delegates_to_game(monkeypatch):
     duel = _duel_row(game_type="RPS")
 
-    class FakeGame:
-        def is_complete(self, duel_row):
-            return True
+    def _is_complete(self, duel_row):
+        return True
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"is_complete": _is_complete})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
     assert gameplay_mod.is_duel_complete_for_game(duel) is True
 
 
@@ -244,9 +249,10 @@ def test_resolve_duel_for_game_raises_when_game_unknown(monkeypatch):
 def test_resolve_duel_for_game_delegates_to_game(monkeypatch):
     duel = _duel_row(game_type="RPS")
 
-    class FakeGame:
-        def resolve(self, duel_row):
-            return "A_WIN"
+    def _resolve(self, duel_row):
+        return "A_WIN"
 
-    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: FakeGame())
+    GameStub = type("GameStub", (), {"resolve": _resolve})
+
+    monkeypatch.setattr(gameplay_mod, "require_game", lambda key: GameStub())
     assert gameplay_mod.resolve_duel_for_game(duel) == "A_WIN"

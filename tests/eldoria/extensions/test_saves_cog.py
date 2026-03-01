@@ -2,135 +2,21 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, time
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
-# -----------------------------
-# Fakes Discord-like
-# -----------------------------
-
-class FakeChannel:
-    def __init__(self):
-        self.sent = []
-        self.fetch_map = {}  # message_id -> message
-        self.raise_on_fetch = None
-
-    async def send(self, content=None, *, file=None):
-        self.sent.append({"content": content, "file": file})
-
-    async def fetch_message(self, mid: int):
-        if self.raise_on_fetch:
-            raise self.raise_on_fetch
-        return self.fetch_map.get(mid)
-
-
-class FakeGuild:
-    def __init__(self, channel: FakeChannel | None):
-        self._channel = channel
-
-    def get_channel(self, cid: int):
-        return self._channel
-
-
-class FakeFollowup:
-    def __init__(self):
-        self.sent = []
-
-    async def send(self, *, content: str, ephemeral: bool = False, **kwargs):
-        self.sent.append({"content": content, "ephemeral": ephemeral, **kwargs})
-
-
-class FakeUser:
-    def __init__(self, uid: int):
-        self.id = uid
-
-
-class FakeCtx:
-    def __init__(self, uid: int):
-        self.user = FakeUser(uid)
-        self.followup = FakeFollowup()
-        self.deferred = []
-
-    async def defer(self, *, ephemeral: bool = False):
-        self.deferred.append({"ephemeral": ephemeral})
-
-
-class FakeAttachment:
-    def __init__(self, filename="db.db"):
-        self.filename = filename
-        self.saved_to = []
-
-    async def save(self, path):
-        # Le code prod peut passer un `pathlib.Path`.
-        self.saved_to.append(str(path))
-
-
-class FakeMessage:
-    def __init__(self, attachments):
-        self.attachments = attachments
-
-
-# -----------------------------
-# Fake services (save/temp_voice)
-# -----------------------------
-
-class FakeSaveService:
-    def __init__(self, db_path="./data/eldoria.db"):
-        self._db_path = db_path
-        self.backup_calls = []
-        self.replace_calls = []
-        self.init_db_calls = 0
-
-    def get_db_path(self):
-        return self._db_path
-
-    def backup_to_file(self, dst: str):
-        self.backup_calls.append(dst)
-
-    def replace_db_file(self, tmp_new: str):
-        self.replace_calls.append(tmp_new)
-
-    def init_db(self):
-        self.init_db_calls += 1
-
-
-class FakeTempVoiceService:
-    def __init__(self):
-        self.list_calls = []
-        self.remove_calls = []
-
-    def list_active_all(self, guild_id: int):
-        self.list_calls.append(guild_id)
-        # parent_id, channel_id
-        return [(1, 111), (1, 222)]
-
-    def remove_active(self, guild_id: int, parent_id: int, channel_id: int):
-        self.remove_calls.append((guild_id, parent_id, channel_id))
-
-
-class FakeBot:
-    def __init__(self, *, guild: FakeGuild | None, save: FakeSaveService, temp_voice: FakeTempVoiceService):
-        self._guild = guild
-        self.services = SimpleNamespace(save=save, temp_voice=temp_voice)
-        self.guilds = []  # used by insert_db cleanup
-
-    def get_guild(self, gid: int):
-        return self._guild
-
-    async def wait_until_ready(self):
-        return None
-
-
-class FakeBotGuild:
-    """Guild objects inside bot.guilds for cleanup loop."""
-    def __init__(self, gid: int, existing_channel_ids: set[int]):
-        self.id = gid
-        self._existing = existing_channel_ids
-
-    def get_channel(self, cid: int):
-        return object() if cid in self._existing else None
-
+from tests._fakes import (
+    FakeAttachment,
+    FakeBot,
+    FakeBotGuild,
+    FakeChannel,
+    FakeCtx,
+    FakeDatetime,
+    FakeGuild,
+    FakeMessage,
+    FakeSaveService,
+    FakeTempVoiceService,
+)
 
 # -----------------------------
 # Helpers: patch decorators + import module
@@ -154,41 +40,49 @@ def _import_module_with_patched_decorators(monkeypatch):
             return fn
         return deco
 
-    # --- tasks.loop -> FakeLoop wrapper
-    class FakeLoop:
-        def __init__(self, coro):
-            self._coro = coro
-            self.started = False
-            self.canceled = False
+    # --- tasks.loop -> loop wrapper (sans `class` dans tests/eldoria)
+    def _lw_init(self, coro):
+        self._coro = coro
+        self.started = False
+        self.canceled = False
 
-        def start(self):
-            self.started = True
+    def _lw_start(self):
+        self.started = True
 
-        def cancel(self):
-            self.canceled = True
+    def _lw_cancel(self):
+        self.canceled = True
 
-        def before_loop(self, fn):
-            return fn
+    def _lw_before_loop(self, fn):
+        return fn
 
-        # ✅ IMPORTANT: binding à l'instance (descriptor protocol)
-        def __get__(self, obj, objtype=None):
-            if obj is None:
-                return self
+    def _lw_get(self, obj, objtype=None):
+        if obj is None:
+            return self
 
-            async def bound(*a, **k):
-                # ici on injecte l'instance du cog
-                return await self._coro(obj, *a, **k)
+        async def bound(*a, **k):
+            return await self._coro(obj, *a, **k)
 
-            # on expose aussi start/cancel sur la version "bound"
-            bound.start = self.start  # type: ignore[attr-defined]
-            bound.cancel = self.cancel  # type: ignore[attr-defined]
-            bound.before_loop = self.before_loop  # type: ignore[attr-defined]
-            return bound
+        bound.start = self.start  # type: ignore[attr-defined]
+        bound.cancel = self.cancel  # type: ignore[attr-defined]
+        bound.before_loop = self.before_loop  # type: ignore[attr-defined]
+        return bound
+
+    LoopWrapper = type(
+        "LoopWrapper",
+        (),
+        {
+            "__init__": _lw_init,
+            "start": _lw_start,
+            "cancel": _lw_cancel,
+            "before_loop": _lw_before_loop,
+            "__get__": _lw_get,
+        },
+    )
 
 
     def loop(**kwargs):
         def deco(coro):
-            return FakeLoop(coro)
+            return LoopWrapper(coro)
         return deco
 
     # ------------------------------------------------------------
@@ -202,8 +96,7 @@ def _import_module_with_patched_decorators(monkeypatch):
 
     # ✅ Ajoute Cog si absent (c’est ce qui casse chez toi)
     if not hasattr(commands_mod, "Cog"):
-        class Cog:  # minimal base class
-            pass
+        Cog = type("Cog", (), {})
         monkeypatch.setattr(commands_mod, "Cog", Cog, raising=False)
 
     # Patch des decorators commands + discord.option
@@ -377,11 +270,7 @@ async def test_auto_save_channel_none_noop(monkeypatch):
     cog = M.Saves(bot)
     cog._auto_save_time = time(8, 30, tzinfo=UTC)
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 2, 13, 8, 30, 0, tzinfo=UTC)
-
+    FakeDatetime._now = datetime(2026, 2, 13, 8, 30, 0, tzinfo=UTC)
     monkeypatch.setattr(M, "datetime", FakeDatetime)
 
     from eldoria.exceptions.general import ChannelRequired
@@ -654,10 +543,7 @@ async def test_auto_save_calls_send_once_per_day(monkeypatch):
     cog._auto_save_time = time(8, 30, tzinfo=UTC)
 
     # freeze "now" to matching minute
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 2, 13, 8, 30, 5, tzinfo=UTC)
+    FakeDatetime._now = datetime(2026, 2, 13, 8, 30, 5, tzinfo=UTC)
     monkeypatch.setattr(M, "datetime", FakeDatetime)
 
     await cog.auto_save()
@@ -695,10 +581,7 @@ async def test_auto_save_returns_if_wrong_minute(monkeypatch):
     cog = M.Saves(bot)
     cog._auto_save_time = time(8, 30, tzinfo=UTC)
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 2, 13, 8, 29, 0, tzinfo=UTC)
+    FakeDatetime._now = datetime(2026, 2, 13, 8, 29, 0, tzinfo=UTC)
     monkeypatch.setattr(M, "datetime", FakeDatetime)
 
     await cog.auto_save()

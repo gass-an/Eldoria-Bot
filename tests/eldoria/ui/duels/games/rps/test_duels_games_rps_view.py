@@ -3,21 +3,8 @@ from __future__ import annotations
 import pytest
 
 from eldoria.ui.duels.games.rps import view as M
-from tests._fakes._duels_ui_fakes import FakeBot, FakeDuelError
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import FakeBot, FakeDuelError, FakeDuelService, FakeInteraction, FakeUser
 
-
-class FakeDuelService:
-    def __init__(self):
-        self.calls: list[dict] = []
-        self.raise_on_play: Exception | None = None
-        self.snapshot = {"duel": {"id": 1}}
-
-    def play_game_action(self, *, duel_id: int, user_id: int, action: dict):
-        self.calls.append({"duel_id": duel_id, "user_id": user_id, "action": action})
-        if self.raise_on_play is not None:
-            raise self.raise_on_play
-        return self.snapshot
 
 @pytest.mark.asyncio
 async def test_play_success_calls_apply_snapshot(monkeypatch):
@@ -42,8 +29,10 @@ async def test_play_success_calls_apply_snapshot(monkeypatch):
     await v._play(inter, move="ROCK")
 
     assert inter.response.deferred is True
-    assert duel.calls == [{"duel_id": 777, "user_id": 42, "action": {"move": "ROCK"}}]
-    assert applied and applied[0]["snapshot"] == duel.snapshot
+    assert duel.play_game_action_calls == [
+        {"duel_id": 777, "user_id": 42, "action": {"move": "ROCK"}}
+    ]
+    assert applied and applied[0]["snapshot"] == duel.snapshot_play_game_action
 
 @pytest.mark.asyncio
 async def test_play_duel_error_sends_ephemeral_and_does_not_apply(monkeypatch):
@@ -57,7 +46,7 @@ async def test_play_duel_error_sends_ephemeral_and_does_not_apply(monkeypatch):
     monkeypatch.setattr(M, "apply_duel_snapshot", fake_apply)
 
     duel = FakeDuelService()
-    duel.raise_on_play = FakeDuelError("nope")
+    duel.raise_on_play_game_action = FakeDuelError("nope")
     bot = FakeBot(duel)
 
     v = M.RpsView(bot=bot, duel_id=777)

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import discord  # type: ignore
 import pytest
 
 from eldoria.ui.common.components import BasePanelView, RoutedButton, RoutedSelect
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import FakeInteraction, FakeUser
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,11 +67,7 @@ async def test_base_panel_on_timeout_disables_buttons_and_selects():
     btn = discord.ui.Button(label="A", style=discord.ButtonStyle.primary, custom_id="b1")  # type: ignore[arg-type]
     sel = discord.ui.Select(placeholder="X", options=[], custom_id="s1")  # type: ignore[arg-type]
 
-    class DummyItem:
-        def __init__(self):
-            self.disabled = False
-
-    dummy = DummyItem()
+    dummy = SimpleNamespace(disabled=False)
 
     view.children.extend([btn, sel, dummy])  # type: ignore[attr-defined]
 
@@ -101,10 +99,7 @@ async def test_routed_button_callback_no_view_does_nothing():
 async def test_routed_button_callback_view_without_route_button_does_nothing():
     btn = RoutedButton(label="X", style=discord.ButtonStyle.primary, custom_id="cid")
 
-    class ViewNoRouter(discord.ui.View):
-        pass
-
-    v = ViewNoRouter()
+    v = discord.ui.View()
     btn.view = v  # type: ignore[attr-defined]
 
     inter = FakeInteraction(user=FakeUser(1))
@@ -115,11 +110,13 @@ async def test_routed_button_callback_view_without_route_button_does_nothing():
 async def test_routed_button_callback_calls_view_router():
     called: list[FakeInteraction] = []
 
-    class ViewWithRouter(discord.ui.View):
-        async def route_button(self, interaction):
-            called.append(interaction)
+    v = discord.ui.View()
 
-    v = ViewWithRouter()
+    async def route_button(interaction):
+        called.append(interaction)
+
+    # On pose dynamiquement la méthode (pas besoin de sous-classe).
+    v.route_button = route_button  # type: ignore[attr-defined]
     btn = RoutedButton(label="X", style=discord.ButtonStyle.primary, custom_id="cid")
     btn.view = v  # type: ignore[attr-defined]
 
@@ -157,10 +154,7 @@ async def test_routed_select_callback_view_without_route_select_does_nothing(mon
         custom_id="cid",
     )
 
-    class ViewNoRouter(discord.ui.View):
-        pass
-
-    v = ViewNoRouter()
+    v = discord.ui.View()
     sel.view = v  # type: ignore[attr-defined]
 
     monkeypatch.setattr(type(sel), "values", property(lambda _self: ("x",)), raising=False)
@@ -173,11 +167,12 @@ async def test_routed_select_callback_view_without_route_select_does_nothing(mon
 async def test_routed_select_callback_calls_view_router_with_values_list(monkeypatch):
     received: list[tuple[FakeInteraction, list[str]]] = []
 
-    class ViewWithRouter(discord.ui.View):
-        async def route_select(self, interaction, values):
-            received.append((interaction, values))
+    v = discord.ui.View()
 
-    v = ViewWithRouter()
+    async def route_select(interaction, values):
+        received.append((interaction, values))
+
+    v.route_select = route_select  # type: ignore[attr-defined]
     sel = RoutedSelect(
         placeholder="P",
         options=[],

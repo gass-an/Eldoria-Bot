@@ -1,45 +1,45 @@
+import discord  # type: ignore
 import pytest
 
 from eldoria.features.xp._internal import message_xp as mod
-from tests._fakes.xp_internal_entities import FakeGuild
+from tests._fakes import FakeGuild
 
 
-
-import discord  # type: ignore
-
-
-class FakeMember(discord.Member):
-    def __init__(self, member_id: int = 42, *, bot: bool = False):
-        self.id = member_id
-        self.bot = bot
+def _m_init(self, member_id: int = 42, *, bot: bool = False):
+    self.id = member_id
+    self.bot = bot
 
 
-class FakeMessage:
-    def __init__(self, *, guild, author, content: str | None):
-        self.guild = guild
-        self.author = author
-        self.content = content
+MemberStub = type("MemberStub", (discord.Member,), {"__init__": _m_init})
 
 
-class _Cfg:
-    """
-    Remplace XpConfig(**raw) simplement, pour éviter les dépendances sur defaults.
-    """
-    def __init__(
-        self,
-        *,
-        enabled: bool = True,
-        points_per_message: int = 10,
-        cooldown_seconds: int = 60,
-        bonus_percent: int = 0,
-        karuta_k_small_percent: int = 30,
-        **_extra,
-    ):
-        self.enabled = enabled
-        self.points_per_message = points_per_message
-        self.cooldown_seconds = cooldown_seconds
-        self.bonus_percent = bonus_percent
-        self.karuta_k_small_percent = karuta_k_small_percent
+def _msg_init(self, *, guild, author, content: str | None):
+    self.guild = guild
+    self.author = author
+    self.content = content
+
+
+MessageStub = type("MessageStub", (), {"__init__": _msg_init})
+
+
+def _cfg_init(
+    self,
+    *,
+    enabled: bool = True,
+    points_per_message: int = 10,
+    cooldown_seconds: int = 60,
+    bonus_percent: int = 0,
+    karuta_k_small_percent: int = 30,
+    **_extra,
+):
+    self.enabled = enabled
+    self.points_per_message = points_per_message
+    self.cooldown_seconds = cooldown_seconds
+    self.bonus_percent = bonus_percent
+    self.karuta_k_small_percent = karuta_k_small_percent
+
+
+_Cfg = type("_Cfg", (), {"__init__": _cfg_init})
 
 
 @pytest.mark.asyncio
@@ -47,7 +47,7 @@ async def test_returns_none_when_no_guild(monkeypatch):
     monkeypatch.setattr(mod, "xp_get_config", lambda _gid: {"enabled": True})
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
 
-    msg = FakeMessage(guild=None, author=FakeMember(), content="hello")
+    msg = MessageStub(guild=None, author=MemberStub(), content="hello")
     assert await mod.handle_message_xp(msg) is None
 
 
@@ -56,7 +56,7 @@ async def test_returns_none_when_author_is_bot(monkeypatch):
     monkeypatch.setattr(mod, "xp_get_config", lambda _gid: {"enabled": True})
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
 
-    msg = FakeMessage(guild=FakeGuild(), author=FakeMember(bot=True), content="hello")
+    msg = MessageStub(guild=FakeGuild(), author=MemberStub(bot=True), content="hello")
     assert await mod.handle_message_xp(msg) is None
 
 
@@ -67,14 +67,14 @@ async def test_returns_none_when_xp_disabled(monkeypatch):
 
     # Si XP disabled, ne doit pas toucher au reste
     monkeypatch.setattr(mod, "xp_get_member", lambda *_: (_ for _ in ()).throw(AssertionError("should not be called")))
-    msg = FakeMessage(guild=FakeGuild(), author=FakeMember(), content="hello")
+    msg = MessageStub(guild=FakeGuild(), author=MemberStub(), content="hello")
     assert await mod.handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
 async def test_returns_none_when_cooldown_not_passed(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(mod, "xp_get_config", lambda _gid: {"enabled": True, "cooldown_seconds": 10, "points_per_message": 5})
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
@@ -84,14 +84,14 @@ async def test_returns_none_when_cooldown_not_passed(monkeypatch):
 
     # ne doit pas ajouter d'xp
     monkeypatch.setattr(mod, "xp_add_xp", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("should not add xp")))
-    msg = FakeMessage(guild=guild, author=member, content="hello")
+    msg = MessageStub(guild=guild, author=member, content="hello")
     assert await mod.handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
 async def test_returns_none_when_points_per_message_results_in_zero(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(mod, "xp_get_config", lambda _gid: {"enabled": True, "points_per_message": -5})
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
@@ -100,14 +100,14 @@ async def test_returns_none_when_points_per_message_results_in_zero(monkeypatch)
     monkeypatch.setattr(mod, "xp_get_member", lambda _gid, _mid: (100, 0))
 
     monkeypatch.setattr(mod, "xp_add_xp", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("should not add xp")))
-    msg = FakeMessage(guild=guild, author=member, content="hello")
+    msg = MessageStub(guild=guild, author=member, content="hello")
     assert await mod.handle_message_xp(msg) is None
 
 
 @pytest.mark.asyncio
 async def test_happy_path_adds_xp_computes_levels_and_syncs_roles(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(mod, "xp_get_config", lambda _gid: {"enabled": True, "points_per_message": 8, "cooldown_seconds": 0, "bonus_percent": 0})
     monkeypatch.setattr(mod, "XpConfig", _Cfg)
@@ -144,7 +144,7 @@ async def test_happy_path_adds_xp_computes_levels_and_syncs_roles(monkeypatch):
     # bonus tag off
     monkeypatch.setattr(mod, "has_active_server_tag_for_guild", lambda *_: False)
 
-    msg = FakeMessage(guild=guild, author=member, content="hello")
+    msg = MessageStub(guild=guild, author=member, content="hello")
     res = await mod.handle_message_xp(msg)
 
     assert res == (108, 2, 2)
@@ -157,7 +157,7 @@ async def test_happy_path_adds_xp_computes_levels_and_syncs_roles(monkeypatch):
 @pytest.mark.asyncio
 async def test_bonus_applied_when_server_tag_active(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(
         mod,
@@ -185,7 +185,7 @@ async def test_bonus_applied_when_server_tag_active(monkeypatch):
     monkeypatch.setattr(mod, "sync_member_level_roles", _sync)
     monkeypatch.setattr(mod, "has_active_server_tag_for_guild", lambda *_: True)
 
-    msg = FakeMessage(guild=guild, author=member, content="hello")
+    msg = MessageStub(guild=guild, author=member, content="hello")
     res = await mod.handle_message_xp(msg)
 
     assert res == (15, 1, 1)  # 10 * 1.5 = 15
@@ -195,7 +195,7 @@ async def test_bonus_applied_when_server_tag_active(monkeypatch):
 @pytest.mark.asyncio
 async def test_karuta_small_k_message_applies_malus(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(
         mod,
@@ -223,7 +223,7 @@ async def test_karuta_small_k_message_applies_malus(monkeypatch):
     monkeypatch.setattr(mod, "sync_member_level_roles", _sync)
     monkeypatch.setattr(mod, "has_active_server_tag_for_guild", lambda *_: False)
 
-    msg = FakeMessage(guild=guild, author=member, content="k")
+    msg = MessageStub(guild=guild, author=member, content="k")
     res = await mod.handle_message_xp(msg)
 
     assert res == (3, 1, 1)  # 10 * 0.30 = 3
@@ -236,7 +236,7 @@ async def test_bonus_then_karuta_malus_order(monkeypatch):
     L'impl applique d'abord le bonus, puis le malus karuta.
     """
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(
         mod,
@@ -270,7 +270,7 @@ async def test_bonus_then_karuta_malus_order(monkeypatch):
     monkeypatch.setattr(mod, "sync_member_level_roles", _sync)
     monkeypatch.setattr(mod, "has_active_server_tag_for_guild", lambda *_: True)
 
-    msg = FakeMessage(guild=guild, author=member, content="kcd")  # len<=10 + startswith k
+    msg = MessageStub(guild=guild, author=member, content="kcd")  # len<=10 + startswith k
     res = await mod.handle_message_xp(msg)
 
     # 10 -> bonus 50% => 15 -> malus 30% => 4.5 -> round(4.5)=4 (banker's rounding)
@@ -281,7 +281,7 @@ async def test_bonus_then_karuta_malus_order(monkeypatch):
 @pytest.mark.asyncio
 async def test_content_none_or_blank_does_not_trigger_karuta(monkeypatch):
     guild = FakeGuild(123)
-    member = FakeMember(42)
+    member = MemberStub(42)
 
     monkeypatch.setattr(
         mod,
@@ -309,8 +309,8 @@ async def test_content_none_or_blank_does_not_trigger_karuta(monkeypatch):
     monkeypatch.setattr(mod, "sync_member_level_roles", _sync)
     monkeypatch.setattr(mod, "has_active_server_tag_for_guild", lambda *_: False)
 
-    msg1 = FakeMessage(guild=guild, author=member, content=None)
-    msg2 = FakeMessage(guild=guild, author=member, content="   ")
+    msg1 = MessageStub(guild=guild, author=member, content=None)
+    msg2 = MessageStub(guild=guild, author=member, content="   ")
 
     assert await mod.handle_message_xp(msg1) == (10, 1, 1)
     assert await mod.handle_message_xp(msg2) == (10, 1, 1)

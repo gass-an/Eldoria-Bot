@@ -5,14 +5,12 @@ import pytest
 import eldoria.features.duel._internal.flow as flow_mod
 from eldoria.exceptions import duel as exc
 from eldoria.features.duel import constants
-from tests._fakes._db_fakes import FakeConnCM
-
+from tests._fakes import FakeConnCM
 
 # ------------------------------------------------------------
 # Helpers de test
 # ------------------------------------------------------------
-class FakeConn:
-    pass
+ConnStub = type("ConnStub", (), {})
 
 def _minimal_duel_row(**overrides):
     base = {
@@ -267,7 +265,7 @@ def test_accept_duel_success_sets_baseline_and_debits_xp(monkeypatch):
     monkeypatch.setattr(flow_mod, "add_duration", lambda ts, minutes=0, **k: ts + minutes * 60)
 
     # Conn transaction
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCM(conn))
 
     # Transition status OK
@@ -342,7 +340,7 @@ def test_refuse_duel_success_transitions_and_sets_finished_at(monkeypatch):
     monkeypatch.setattr(flow_mod.helpers, "get_duel_or_raise", fake_get_duel)
     monkeypatch.setattr(flow_mod.helpers, "assert_duel_not_expired", lambda d: None)
 
-    conn = FakeConn()
+    conn = ConnStub()
     monkeypatch.setattr(flow_mod, "get_conn", lambda: FakeConnCM(conn))
 
     monkeypatch.setattr(flow_mod.duel_repo, "transition_status", lambda *a, **k: True)

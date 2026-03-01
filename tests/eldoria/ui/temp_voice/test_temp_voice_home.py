@@ -4,13 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.temp_voice import home as M
-from tests._fakes._discord_entities_fakes import FakeGuild
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
-
-
-class FakeTempVoiceService:
-    """Minimal: HomeView ne l'utilise que pour le passer aux sous-views."""
-    pass
+from tests._fakes import FakeGuild, FakeInteraction, FakeTempVoiceService, FakeUser
 
 
 def _find_child(view, *, custom_id: str):
@@ -86,16 +80,17 @@ async def test_route_button_go_add_instantiates_add_view_and_edits(monkeypatch):
     home = M.TempVoiceHomeView(temp_voice_service=svc, author_id=42, guild=guild)
 
     # Fake AddView
-    class FakeAddView:
-        def __init__(self, *, temp_voice_service, author_id: int, guild):
-            self.temp_voice_service = temp_voice_service
-            self.author_id = author_id
-            self.guild = guild
+    def _init(self, *, temp_voice_service, author_id: int, guild):
+        self.temp_voice_service = temp_voice_service
+        self.author_id = author_id
+        self.guild = guild
 
-        def current_embed(self):
-            return discord.Embed(title="ADD", description="ok", color=1)
+    def _current_embed(self):
+        return discord.Embed(title="ADD", description="ok", color=1)
 
-    monkeypatch.setattr(M, "TempVoiceAddView", FakeAddView, raising=True)
+    AddViewStub = type("AddViewStub", (), {"__init__": _init, "current_embed": _current_embed})
+
+    monkeypatch.setattr(M, "TempVoiceAddView", AddViewStub, raising=True)
 
     inter = FakeInteraction(user=FakeUser(42), data={"custom_id": "tv:go:add"})
     await home.route_button(inter)
@@ -104,7 +99,7 @@ async def test_route_button_go_add_instantiates_add_view_and_edits(monkeypatch):
     last = inter.response.edits[-1]
     assert isinstance(last["embed"], discord.Embed)
     assert last["embed"].title == "ADD"
-    assert isinstance(last["view"], FakeAddView)
+    assert isinstance(last["view"], AddViewStub)
 
 
 @pytest.mark.asyncio
@@ -114,16 +109,17 @@ async def test_route_button_go_remove_instantiates_remove_view_and_edits(monkeyp
     home = M.TempVoiceHomeView(temp_voice_service=svc, author_id=42, guild=guild)
 
     # Fake RemoveView
-    class FakeRemoveView:
-        def __init__(self, *, temp_voice_service, author_id: int, guild):
-            self.temp_voice_service = temp_voice_service
-            self.author_id = author_id
-            self.guild = guild
+    def _init(self, *, temp_voice_service, author_id: int, guild):
+        self.temp_voice_service = temp_voice_service
+        self.author_id = author_id
+        self.guild = guild
 
-        def current_embed(self):
-            return discord.Embed(title="REMOVE", description="ok", color=1)
+    def _current_embed(self):
+        return discord.Embed(title="REMOVE", description="ok", color=1)
 
-    monkeypatch.setattr(M, "TempVoiceRemoveView", FakeRemoveView, raising=True)
+    RemoveViewStub = type("RemoveViewStub", (), {"__init__": _init, "current_embed": _current_embed})
+
+    monkeypatch.setattr(M, "TempVoiceRemoveView", RemoveViewStub, raising=True)
 
     inter = FakeInteraction(user=FakeUser(42), data={"custom_id": "tv:go:remove"})
     await home.route_button(inter)
@@ -132,7 +128,7 @@ async def test_route_button_go_remove_instantiates_remove_view_and_edits(monkeyp
     last = inter.response.edits[-1]
     assert isinstance(last["embed"], discord.Embed)
     assert last["embed"].title == "REMOVE"
-    assert isinstance(last["view"], FakeRemoveView)
+    assert isinstance(last["view"], RemoveViewStub)
 
 
 @pytest.mark.asyncio

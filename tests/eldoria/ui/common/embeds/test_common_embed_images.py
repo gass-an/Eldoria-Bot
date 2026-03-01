@@ -4,7 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.common.embeds import images
-from tests._fakes import _embed_fakes  # noqa: F401
+from tests._fakes import FakeFile  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # common_files

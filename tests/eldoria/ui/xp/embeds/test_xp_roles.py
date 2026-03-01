@@ -4,18 +4,22 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import roles as M
-from tests._fakes._discord_entities_fakes import FakeRole
-from tests._fakes.xp_ui import FakeBot
+from tests._fakes import FakeBot, FakeGuild, FakeRole
 
 
-class FakeGuild:
-    def __init__(self, roles=None):
-        self._roles = roles or {}
-        self.get_role_calls: list[int | None] = []
+def _guildspy_init(self, roles=None):
+    FakeGuild.__init__(self, 123)
+    self.get_role_calls = []
+    for r in (roles or {}).values():
+        self.add_role(r)
 
-    def get_role(self, role_id):
-        self.get_role_calls.append(role_id)
-        return self._roles.get(role_id)
+
+def _guildspy_get_role(self, role_id):
+    self.get_role_calls.append(role_id)
+    return FakeGuild.get_role(self, role_id)
+
+
+GuildStub = type("GuildStub", (FakeGuild,), {"__init__": _guildspy_init, "get_role": _guildspy_get_role})
 
 @pytest.mark.asyncio
 async def test_build_xp_roles_embed_no_configuration(monkeypatch):
@@ -23,7 +27,7 @@ async def test_build_xp_roles_embed_no_configuration(monkeypatch):
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: ["FILES"])
 
-    bot = FakeBot(guild=FakeGuild())
+    bot = FakeBot(guild=GuildStub())
 
     embed, files = await M.build_xp_roles_embed([], guild_id=42, bot=bot)
 
@@ -48,7 +52,7 @@ async def test_build_xp_roles_embed_builds_lines_with_role_mentions_and_fallback
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    guild = FakeGuild(roles={100: FakeRole(100)})
+    guild = GuildStub(roles={100: FakeRole(100)})
     bot = FakeBot(guild=guild)
 
     levels_with_roles = [
@@ -93,7 +97,7 @@ async def test_build_xp_roles_embed_guild_id_zero_does_not_call_get_guild(monkey
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    bot = FakeBot(guild=FakeGuild(roles={100: FakeRole(100)}))
+    bot = FakeBot(guild=GuildStub(roles={100: FakeRole(100)}))
 
     embed, _ = await M.build_xp_roles_embed([(2, 50, 100)], guild_id=0, bot=bot)
 

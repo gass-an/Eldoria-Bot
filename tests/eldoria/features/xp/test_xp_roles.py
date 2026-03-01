@@ -3,65 +3,77 @@ import pytest
 from eldoria.features.xp import roles as roles_mod
 
 
-class FakeRole:
-    def __init__(self, role_id: int, name: str = ""):
-        self.id = role_id
-        self.name = name or f"role-{role_id}"
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<FakeRole id={self.id} name={self.name!r}>"
+def _role_init(self, role_id: int, name: str = ""):
+    self.id = role_id
+    self.name = name or f"role-{role_id}"
 
 
-class FakeGuild:
-    def __init__(self, guild_id: int = 123, roles: dict[int, FakeRole] | None = None):
-        self.id = guild_id
-        self._roles = roles or {}
-
-    def get_role(self, role_id: int | None):
-        if not role_id:
-            return None
-        return self._roles.get(role_id)
+def _role_repr(self) -> str:  # pragma: no cover
+    return f"<RoleStub id={self.id} name={self.name!r}>"
 
 
-class FakeMember:
-    def __init__(
-        self,
-        member_id: int = 42,
-        *,
-        bot: bool = False,
-        roles: list[FakeRole] | None = None,
-        forbid_on_remove: bool = False,
-        forbid_on_add: bool = False,
-    ):
-        self.id = member_id
-        self.bot = bot
-        self.roles = roles or []
-        self._forbid_on_remove = forbid_on_remove
-        self._forbid_on_add = forbid_on_add
+RoleStub = type("RoleStub", (), {"__init__": _role_init, "__repr__": _role_repr})
 
-        self.removed: list[FakeRole] = []
-        self.added: list[FakeRole] = []
 
-    async def remove_roles(self, *roles: FakeRole, reason: str | None = None):
-        # import à l'exécution pour utiliser le stub discord installé par conftest
-        import discord
+def _guild_init(self, guild_id: int = 123, roles: dict[int, RoleStub] | None = None):
+    self.id = guild_id
+    self._roles = roles or {}
 
-        if self._forbid_on_remove:
-            raise discord.Forbidden()
-        for r in roles:
-            if r in self.roles:
-                self.roles.remove(r)
-            self.removed.append(r)
 
-    async def add_roles(self, *roles: FakeRole, reason: str | None = None):
-        import discord
+def _guild_get_role(self, role_id: int | None):
+    if not role_id:
+        return None
+    return self._roles.get(role_id)
 
-        if self._forbid_on_add:
-            raise discord.Forbidden()
-        for r in roles:
-            if r not in self.roles:
-                self.roles.append(r)
-            self.added.append(r)
+
+GuildStub = type("GuildStub", (), {"__init__": _guild_init, "get_role": _guild_get_role})
+
+
+def _member_init(
+    self,
+    member_id: int = 42,
+    *,
+    bot: bool = False,
+    roles: list[RoleStub] | None = None,
+    forbid_on_remove: bool = False,
+    forbid_on_add: bool = False,
+):
+    self.id = member_id
+    self.bot = bot
+    self.roles = roles or []
+    self._forbid_on_remove = forbid_on_remove
+    self._forbid_on_add = forbid_on_add
+    self.removed = []
+    self.added = []
+
+
+async def _member_remove_roles(self, *roles: RoleStub, reason: str | None = None):
+    import discord
+
+    if self._forbid_on_remove:
+        raise discord.Forbidden()
+    for r in roles:
+        if r in self.roles:
+            self.roles.remove(r)
+        self.removed.append(r)
+
+
+async def _member_add_roles(self, *roles: RoleStub, reason: str | None = None):
+    import discord
+
+    if self._forbid_on_add:
+        raise discord.Forbidden()
+    for r in roles:
+        if r not in self.roles:
+            self.roles.append(r)
+        self.added.append(r)
+
+
+MemberStub = type(
+    "MemberStub",
+    (),
+    {"__init__": _member_init, "remove_roles": _member_remove_roles, "add_roles": _member_add_roles},
+)
 
 
 @pytest.mark.asyncio
@@ -74,8 +86,8 @@ async def test_sync_member_level_roles_skips_bots(monkeypatch):
 
     monkeypatch.setattr(roles_mod, "xp_get_member", _xp_get_member)
 
-    guild = FakeGuild(123)
-    member = FakeMember(42, bot=True)
+    guild = GuildStub(123)
+    member = MemberStub(42, bot=True)
 
     await roles_mod.sync_member_level_roles(guild, member)
 
@@ -94,12 +106,12 @@ async def test_sync_member_level_roles_fetches_xp_and_updates_roles(monkeypatch)
     role_ids = {1: 111, 2: 222, 3: 333}
     monkeypatch.setattr(roles_mod, "xp_get_role_ids", lambda gid: role_ids)
 
-    r111 = FakeRole(111)
-    r222 = FakeRole(222)
-    r999 = FakeRole(999)
+    r111 = RoleStub(111)
+    r222 = RoleStub(222)
+    r999 = RoleStub(999)
 
-    guild = FakeGuild(123, roles={111: r111, 222: r222, 333: FakeRole(333)})
-    member = FakeMember(42, roles=[r111, r999])
+    guild = GuildStub(123, roles={111: r111, 222: r222, 333: RoleStub(333)})
+    member = MemberStub(42, roles=[r111, r999])
 
     await roles_mod.sync_member_level_roles(guild, member)
 
@@ -120,8 +132,8 @@ async def test_sync_member_level_roles_no_role_ids_noop(monkeypatch):
 
     monkeypatch.setattr(roles_mod, "xp_get_role_ids", lambda gid: {})
 
-    guild = FakeGuild(123)
-    member = FakeMember(42, roles=[FakeRole(111)])
+    guild = GuildStub(123)
+    member = MemberStub(42, roles=[RoleStub(111)])
 
     await roles_mod.sync_member_level_roles(guild, member)
 
@@ -148,9 +160,9 @@ async def test_sync_member_level_roles_fallback_to_defaults_when_no_levels(monke
     monkeypatch.setattr(roles_mod, "xp_get_member", lambda gid, mid: (10, None))
     monkeypatch.setattr(roles_mod, "xp_get_role_ids", lambda gid: {1: 111})
 
-    r111 = FakeRole(111)
-    guild = FakeGuild(123, roles={111: r111})
-    member = FakeMember(42, roles=[])
+    r111 = RoleStub(111)
+    guild = GuildStub(123, roles={111: r111})
+    member = MemberStub(42, roles=[])
 
     await roles_mod.sync_member_level_roles(guild, member)
 
@@ -165,11 +177,11 @@ async def test_sync_member_level_roles_handles_discord_forbidden(monkeypatch):
     monkeypatch.setattr(roles_mod, "compute_level", lambda xp, levels: 2)
     monkeypatch.setattr(roles_mod, "xp_get_role_ids", lambda gid: {2: 222, 1: 111})
 
-    r111 = FakeRole(111)
-    r222 = FakeRole(222)
-    guild = FakeGuild(123, roles={111: r111, 222: r222})
+    r111 = RoleStub(111)
+    r222 = RoleStub(222)
+    guild = GuildStub(123, roles={111: r111, 222: r222})
 
-    member = FakeMember(42, roles=[r111], forbid_on_remove=True)
+    member = MemberStub(42, roles=[r111], forbid_on_remove=True)
 
     # ne doit PAS lever
     await roles_mod.sync_member_level_roles(guild, member)
@@ -191,7 +203,7 @@ async def test_sync_xp_roles_for_users_returns_when_disabled(monkeypatch):
     monkeypatch.setattr(roles_mod, "get_member_by_id_or_raise", _get_member_by_id_or_raise)
     monkeypatch.setattr(roles_mod, "sync_member_level_roles", _sync_member_level_roles)
 
-    guild = FakeGuild(123)
+    guild = GuildStub(123)
     await roles_mod.sync_xp_roles_for_users(guild, [1, 2, 3])
 
     assert calls == {"get_member": 0, "sync": 0}
@@ -202,8 +214,8 @@ async def test_sync_xp_roles_for_users_processes_each_user_and_continues_on_erro
     monkeypatch.setattr(roles_mod, "xp_is_enabled", lambda gid: True)
 
     members = {
-        1: FakeMember(1),
-        2: FakeMember(2),
+        1: MemberStub(1),
+        2: MemberStub(2),
     }
 
     async def _get_member_by_id_or_raise(*, guild, member_id: int):
@@ -220,7 +232,7 @@ async def test_sync_xp_roles_for_users_processes_each_user_and_continues_on_erro
     monkeypatch.setattr(roles_mod, "get_member_by_id_or_raise", _get_member_by_id_or_raise)
     monkeypatch.setattr(roles_mod, "sync_member_level_roles", _sync_member_level_roles)
 
-    guild = FakeGuild(123)
+    guild = GuildStub(123)
     await roles_mod.sync_xp_roles_for_users(guild, [1, 99, 2])
 
     assert seen == [1, 2]

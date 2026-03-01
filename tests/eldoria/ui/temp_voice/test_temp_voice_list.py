@@ -5,25 +5,7 @@ import pytest
 
 # Le module "embeds" a été refacto : les embeds de listing sont désormais dans `list.py`.
 from eldoria.ui.temp_voice import list as M
-from tests._fakes._embed_fakes import FakeChannel
-
-
-class FakeGuild:
-    def __init__(self, channels: dict[int, FakeChannel] | None = None):
-        self._channels = channels or {}
-
-    def get_channel(self, channel_id: int):
-        return self._channels.get(channel_id)
-
-
-class FakeBot:
-    def __init__(self, guild=None):
-        self._guild = guild
-        self.get_guild_calls: list[int] = []
-
-    def get_guild(self, gid: int):
-        self.get_guild_calls.append(gid)
-        return self._guild
+from tests._fakes import FakeBot, FakeChannel, FakeGuild
 
 
 @pytest.mark.asyncio
@@ -104,7 +86,7 @@ async def test_build_list_temp_voice_parents_embed_mixed_found_and_missing(monke
     monkeypatch.setattr(M, "decorate", lambda embed, t, b: embed)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    guild = FakeGuild(channels={111: FakeChannel(111)})
+    guild = FakeGuild(channels=[FakeChannel(111)])
     bot = FakeBot(guild=guild)
 
     items = [(111, 2), (222, 5)]

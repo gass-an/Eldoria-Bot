@@ -4,13 +4,8 @@ import pytest
 
 import eldoria.features.duel.games.registry as reg
 
-
-class FakeGame:
-    GAME_KEY = "FAKE"
-
-
-class FakeGame2:
-    GAME_KEY = "FAKE"
+GameStub = type("GameStub", (), {"GAME_KEY": "FAKE"})
+Game2Stub = type("Game2Stub", (), {"GAME_KEY": "FAKE"})
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +16,7 @@ def _clear_registry():
 
 
 def test_register_game_then_get_game_returns_instance():
-    g = FakeGame()
+    g = GameStub()
     reg.register_game(g)
 
     assert reg.get_game("FAKE") is g
@@ -35,8 +30,8 @@ def test_require_game_raises_when_not_registered():
 
 
 def test_register_game_overwrites_existing_key():
-    g1 = FakeGame()
-    g2 = FakeGame2()
+    g1 = GameStub()
+    g2 = Game2Stub()
 
     reg.register_game(g1)
     reg.register_game(g2)

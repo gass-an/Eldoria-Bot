@@ -1,4 +1,3 @@
-
 import pytest
 
 from eldoria.exceptions.general import LogFileNotFound

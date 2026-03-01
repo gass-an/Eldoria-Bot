@@ -1,50 +1,6 @@
 from __future__ import annotations
 
-import sys
-import types
-
 import pytest
-
-
-# ---------- Minimal discord shims (complément conftest) ----------
-def _ensure_discord_ui_bits() -> None:
-    if "discord" not in sys.modules:
-        sys.modules["discord"] = types.ModuleType("discord")
-    discord = sys.modules["discord"]
-
-    if not hasattr(discord, "Interaction"):
-        discord.Interaction = type("Interaction", (), {})
-
-    if not hasattr(discord, "ui"):
-        discord.ui = types.SimpleNamespace()
-
-    if not hasattr(discord.ui, "Modal"):
-        class Modal:  # pragma: no cover
-            def __init__(self, *, title: str = ""):
-                self.title = title
-                self.children = []
-
-            def add_item(self, item):
-                self.children.append(item)
-
-        discord.ui.Modal = Modal
-
-    if not hasattr(discord.ui, "InputText"):
-        class InputText:  # pragma: no cover
-            def __init__(self, *, label: str, placeholder: str = "", required: bool = False, min_length: int = 0, max_length: int = 0):
-                self.label = label
-                self.placeholder = placeholder
-                self.required = required
-                self.min_length = min_length
-                self.max_length = max_length
-                self.value: str | None = None
-
-        discord.ui.InputText = InputText
-
-
-_ensure_discord_ui_bits()
-discord = sys.modules["discord"]
-
 
 # ---------- Import module under test ----------
 import eldoria.ui.xp.admin.modals as mod  # noqa: E402
@@ -54,24 +10,7 @@ from eldoria.ui.xp.admin.modals import (  # noqa: E402
     XpVoiceModal,
     _parse_optional_int,
 )
-
-
-# ---------- Fakes ----------
-class FakeResponse:
-    def __init__(self):
-        self.messages: list[dict] = []
-        self.deferred = False
-
-    async def send_message(self, content: str, ephemeral: bool = False):
-        self.messages.append({"content": content, "ephemeral": ephemeral})
-
-    async def defer(self):
-        self.deferred = True
-
-
-class FakeInteraction(discord.Interaction):  # type: ignore[misc]
-    def __init__(self):
-        self.response = FakeResponse()
+from tests._fakes import FakeInteraction, FakeUser
 
 
 # ---------- Tests: _parse_optional_int ----------
@@ -108,13 +47,13 @@ async def test_settings_modal_invalid_integer_sends_error(monkeypatch: pytest.Mo
     )
     m.points_per_message.value = "abc"  # invalid
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert called["submit"] == 0
-    assert inter.response.messages
-    assert "Valeur invalide" in inter.response.messages[-1]["content"]
-    assert inter.response.messages[-1]["ephemeral"] is True
+    assert inter.response.sent
+    assert "Valeur invalide" in inter.response.sent[-1]["content"]
+    assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
@@ -132,13 +71,13 @@ async def test_settings_modal_range_errors_sends_list(monkeypatch: pytest.Monkey
     m.bonus_percent.value = "2"
     m.karuta_k_small_percent.value = "3"
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
-    msg = inter.response.messages[-1]["content"]
+    msg = inter.response.sent[-1]["content"]
     assert "Paramètres invalides" in msg
     assert "err1" in msg and "err2" in msg
-    assert inter.response.messages[-1]["ephemeral"] is True
+    assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
@@ -156,7 +95,7 @@ async def test_settings_modal_success_calls_submit(monkeypatch: pytest.MonkeyPat
     m.bonus_percent.value = ""  # -> None
     m.karuta_k_small_percent.value = "30"
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert received["payload"] == {
@@ -165,7 +104,7 @@ async def test_settings_modal_success_calls_submit(monkeypatch: pytest.MonkeyPat
         "bonus_percent": None,
         "karuta_k_small_percent": 30,
     }
-    assert inter.response.messages == []
+    assert inter.response.sent == []
 
 
 # ---------- Tests: XpVoiceModal.callback ----------
@@ -181,12 +120,12 @@ async def test_voice_modal_invalid_integer_sends_error(monkeypatch: pytest.Monke
     m = XpVoiceModal(on_submit=on_submit, current={})
     m.voice_interval_seconds.value = "x"  # invalid
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert called["submit"] == 0
-    assert "Valeur invalide" in inter.response.messages[-1]["content"]
-    assert inter.response.messages[-1]["ephemeral"] is True
+    assert "Valeur invalide" in inter.response.sent[-1]["content"]
+    assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
@@ -202,13 +141,13 @@ async def test_voice_modal_range_errors_sends_list(monkeypatch: pytest.MonkeyPat
     m.voice_xp_per_interval.value = "2"
     m.voice_daily_cap_xp.value = "100"
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
-    msg = inter.response.messages[-1]["content"]
+    msg = inter.response.sent[-1]["content"]
     assert "Paramètres invalides" in msg
     assert "bad" in msg
-    assert inter.response.messages[-1]["ephemeral"] is True
+    assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
@@ -225,7 +164,7 @@ async def test_voice_modal_success_calls_submit(monkeypatch: pytest.MonkeyPatch)
     m.voice_xp_per_interval.value = ""  # -> None
     m.voice_daily_cap_xp.value = "200"
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert received["payload"] == {
@@ -233,7 +172,7 @@ async def test_voice_modal_success_calls_submit(monkeypatch: pytest.MonkeyPatch)
         "voice_xp_per_interval": None,
         "voice_daily_cap_xp": 200,
     }
-    assert inter.response.messages == []
+    assert inter.response.sent == []
 
 
 # ---------- Tests: XpLevelThresholdModal.callback ----------
@@ -247,12 +186,12 @@ async def test_level_threshold_modal_invalid_non_int_sends_error():
     m = XpLevelThresholdModal(level=2, current_xp=100, on_submit=on_submit)
     m.xp_required.value = "abc"  # invalid
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert called["submit"] == 0
-    assert "XP requis invalide" in inter.response.messages[-1]["content"]
-    assert inter.response.messages[-1]["ephemeral"] is True
+    assert "XP requis invalide" in inter.response.sent[-1]["content"]
+    assert inter.response.sent[-1]["ephemeral"] is True
 
 
 @pytest.mark.asyncio
@@ -265,11 +204,11 @@ async def test_level_threshold_modal_invalid_negative_sends_error():
     m = XpLevelThresholdModal(level=2, current_xp=100, on_submit=on_submit)
     m.xp_required.value = "-1"
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert called["submit"] == 0
-    assert "XP requis invalide" in inter.response.messages[-1]["content"]
+    assert "XP requis invalide" in inter.response.sent[-1]["content"]
 
 
 @pytest.mark.asyncio
@@ -282,8 +221,8 @@ async def test_level_threshold_modal_success_calls_submit():
     m = XpLevelThresholdModal(level=3, current_xp=250, on_submit=on_submit)
     m.xp_required.value = " 300 "
 
-    inter = FakeInteraction()
+    inter = FakeInteraction(user=FakeUser(1))
     await m.callback(inter)
 
     assert received["val"] == 300
-    assert inter.response.messages == []
+    assert inter.response.sent == []

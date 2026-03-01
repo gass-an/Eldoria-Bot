@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import eldoria.features.duel.games as games_mod
 
-
-class FakeGame:
-    GAME_KEY = "RPS"
+GameStub = type("GameStub", (), {"GAME_KEY": "RPS"})
 
 
 def test_init_games_registers_rps(monkeypatch):
@@ -14,7 +12,7 @@ def test_init_games_registers_rps(monkeypatch):
     monkeypatch.setattr(games_mod, "register_game", lambda game: calls.append(game))
 
     # On remplace rps_game importé par un fake
-    monkeypatch.setattr(games_mod, "rps_game", FakeGame())
+    monkeypatch.setattr(games_mod, "rps_game", GameStub())
 
     games_mod.init_games()
 

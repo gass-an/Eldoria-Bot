@@ -4,29 +4,34 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import leaderboard as M
-from tests._fakes._discord_entities_fakes import FakeRole
-from tests._fakes.xp_ui import FakeBot
+from tests._fakes import FakeBot, FakeGuild, FakeMember, FakeRole
 
 
-class FakeMember:
-    def __init__(self, uid: int, name: str):
-        self.id = uid
-        self.display_name = name
+def _guildspy_init(self, *, members=None, roles=None):
+    FakeGuild.__init__(self, 123)
+    self.get_role_calls = []
+    self.get_member_calls = []
+    for m in (members or {}).values():
+        self.add_member(m)
+    for r in (roles or {}).values():
+        self.add_role(r)
 
-class FakeGuild:
-    def __init__(self, *, members=None, roles=None):
-        self._members = members or {}
-        self._roles = roles or {}
-        self.get_role_calls: list[int | None] = []
-        self.get_member_calls: list[int] = []
 
-    def get_member(self, user_id: int):
-        self.get_member_calls.append(user_id)
-        return self._members.get(user_id)
+def _guildspy_get_member(self, user_id: int):
+    self.get_member_calls.append(user_id)
+    return FakeGuild.get_member(self, user_id)
 
-    def get_role(self, role_id):
-        self.get_role_calls.append(role_id)
-        return self._roles.get(role_id)
+
+def _guildspy_get_role(self, role_id):
+    self.get_role_calls.append(role_id)
+    return FakeGuild.get_role(self, role_id)
+
+
+GuildStub = type(
+    "GuildStub",
+    (FakeGuild,),
+    {"__init__": _guildspy_init, "get_member": _guildspy_get_member, "get_role": _guildspy_get_role},
+)
 
 @pytest.mark.asyncio
 async def test_build_list_xp_embed_empty_items(monkeypatch):
@@ -38,7 +43,7 @@ async def test_build_list_xp_embed_empty_items(monkeypatch):
     # role ids should not matter here
     monkeypatch.setattr(M, "get_xp_role_ids", lambda guild_id: {1: 111})
 
-    bot = FakeBot(guild=FakeGuild())
+    bot = FakeBot(guild=GuildStub())
     embed, files = await M.build_list_xp_embed(
         items=[],
         current_page=0,
@@ -76,10 +81,7 @@ async def test_build_list_xp_embed_tuple3_uses_role_mention_when_available(monke
     # DB mapping level -> role_id
     monkeypatch.setattr(M, "get_xp_role_ids", lambda guild_id: {5: 500})
 
-    guild = FakeGuild(
-        members={10: FakeMember(10, "Alice")},
-        roles={500: FakeRole(500)},
-    )
+    guild = GuildStub(members={10: FakeMember(10, display_name="Alice")}, roles={500: FakeRole(500)})
     bot = FakeBot(guild=guild)
 
     items = [(10, 1234, 5)]
@@ -106,7 +108,7 @@ async def test_build_list_xp_embed_tuple3_fallback_lvl_when_role_missing(monkeyp
     # role id exists in mapping but guild.get_role returns None
     monkeypatch.setattr(M, "get_xp_role_ids", lambda guild_id: {5: 999})
 
-    guild = FakeGuild(members={10: FakeMember(10, "Alice")}, roles={})
+    guild = GuildStub(members={10: FakeMember(10, display_name="Alice")}, roles={})
     bot = FakeBot(guild=guild)
 
     items = [(10, 50, 5)]
@@ -123,7 +125,7 @@ async def test_build_list_xp_embed_tuple4_uses_precomputed_label_and_handles_mis
     # Même si DB renvoie des ids, on ne doit pas être obligé de get_role pour tuple4
     monkeypatch.setattr(M, "get_xp_role_ids", lambda guild_id: {1: 111})
 
-    guild = FakeGuild(members={}, roles={111: FakeRole(111)})
+    guild = GuildStub(members={}, roles={111: FakeRole(111)})
     bot = FakeBot(guild=guild)
 
     items = [(999, 10, 1, "CUSTOM_LABEL")]
@@ -143,7 +145,7 @@ async def test_build_list_xp_embed_rank_starts_at_page_offset(monkeypatch):
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
     monkeypatch.setattr(M, "get_xp_role_ids", lambda guild_id: {})
 
-    guild = FakeGuild(members={1: FakeMember(1, "A"), 2: FakeMember(2, "B")})
+    guild = GuildStub(members={1: FakeMember(1, display_name="A"), 2: FakeMember(2, display_name="B")})
     bot = FakeBot(guild=guild)
 
     items = [(1, 1, 1), (2, 2, 2)]

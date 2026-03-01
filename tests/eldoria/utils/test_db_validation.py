@@ -5,47 +5,44 @@ import pytest
 import eldoria.utils.db_validation as db_validation
 
 
-class FakeAttachment:
-    def __init__(self, *, filename: str, payload: bytes):
-        self.filename = filename
-        self._payload = payload
-        self.saved_paths: list[str] = []
+def make_attachment(*, filename: str, payload: bytes):
+    saved_paths: list[str] = []
 
-    async def save(self, path):
+    async def _save(self, path):
         path_str = str(path)
-        self.saved_paths.append(path_str)
+        saved_paths.append(path_str)
         with open(path_str, "wb") as f:
-            f.write(self._payload)
+            f.write(payload)
+
+    att = type("AttachmentStub", (), {"filename": filename, "save": _save})()
+    att.saved_paths = saved_paths
+    return att
 
 
-class _Tmp:
-    def __init__(self, name: str):
-        self.name = name
-
-    def __enter__(self):
+def make_tmp(name: str):
+    def _enter(self):
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def _exit(self, exc_type, exc, tb):
         return False
 
-    def close(self):
+    def _close(self):
         return None
 
-
-class _Cursor:
-    def __init__(self, row=(1,)):
-        self._row = row
-
-    def fetchone(self):
-        return self._row
+    return type(
+        "_Tmp",
+        (),
+        {"name": name, "__enter__": _enter, "__exit__": _exit, "close": _close},
+    )()
 
 
-class _ConnOK:
-    def execute(self, sql):
-        return _Cursor((1,))
+def make_conn_ok():
+    cursor = type("_Cursor", (), {"fetchone": lambda self: (1,)})()
 
-    def close(self):
-        pass
+    def _execute(self, sql):
+        return cursor
+
+    return type("_ConnOK", (), {"execute": _execute, "close": lambda self: None})()
 
 
 @pytest.fixture
@@ -57,17 +54,17 @@ def mod():
 
 @pytest.mark.asyncio
 async def test_is_valid_sqlite_db_rejects_non_db_extension(mod):
-    att = FakeAttachment(filename="not_a_db.txt", payload=b"hello")
+    att = make_attachment(filename="not_a_db.txt", payload=b"hello")
     assert await mod.is_valid_sqlite_db(att) is False
     assert att.saved_paths == []
 
 
 @pytest.mark.asyncio
 async def test_is_valid_sqlite_db_accepts_valid_db_and_cleans_temp(tmp_path, monkeypatch, mod):
-    att = FakeAttachment(filename="backup.DB", payload=b"doesnt matter")
+    att = make_attachment(filename="backup.DB", payload=b"doesnt matter")
 
     temp_file = tmp_path / "upload_tmp.db"
-    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
+    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: make_tmp(str(temp_file)))
 
     removed: list[str] = []
 
@@ -77,7 +74,7 @@ async def test_is_valid_sqlite_db_accepts_valid_db_and_cleans_temp(tmp_path, mon
     monkeypatch.setattr(mod.Path, "unlink", fake_unlink, raising=True)
 
     # IMPORTANT : patch dans le module under test (mod.sqlite3), pas sqlite3 global
-    monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda p: make_conn_ok())
 
     assert await mod.is_valid_sqlite_db(att) is True
     assert att.saved_paths == [str(temp_file)]
@@ -86,10 +83,10 @@ async def test_is_valid_sqlite_db_accepts_valid_db_and_cleans_temp(tmp_path, mon
 
 @pytest.mark.asyncio
 async def test_is_valid_sqlite_db_rejects_invalid_db_and_cleans_temp(tmp_path, monkeypatch, mod):
-    att = FakeAttachment(filename="bad.db", payload=b"this is not sqlite")
+    att = make_attachment(filename="bad.db", payload=b"this is not sqlite")
 
     temp_file = tmp_path / "bad_tmp.db"
-    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
+    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: make_tmp(str(temp_file)))
 
     removed: list[str] = []
 
@@ -114,13 +111,13 @@ async def test_is_valid_sqlite_db_cleanup_retries_on_permission_error(tmp_path, 
     Sous Windows, os.remove peut lever PermissionError si le fichier est encore lock.
     Le code retry et dort un peu. On vérifie qu'il retry sans exploser.
     """
-    att = FakeAttachment(filename="ok.db", payload=b"doesnt matter")
+    att = make_attachment(filename="ok.db", payload=b"doesnt matter")
 
     temp_file = tmp_path / "locked_tmp.db"
-    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: _Tmp(str(temp_file)))
+    monkeypatch.setattr(mod.tempfile, "NamedTemporaryFile", lambda delete=False: make_tmp(str(temp_file)))
 
     # Conn valide
-    monkeypatch.setattr(mod.sqlite3, "connect", lambda p: _ConnOK())
+    monkeypatch.setattr(mod.sqlite3, "connect", lambda p: make_conn_ok())
 
     calls = {"unlink": 0, "sleep": 0}
 

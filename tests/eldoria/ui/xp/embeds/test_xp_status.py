@@ -4,12 +4,11 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.embeds import status as M
-from tests._fakes.xp_ui import FakeBot
+from tests._fakes import FakeBot
 
 
-class FakeGuild:
-    def __init__(self, name: str):
-        self.name = name
+def make_guild(name: str):
+    return type("GuildStub", (), {"name": name})()
 
 @pytest.mark.asyncio
 async def test_build_xp_status_embed_disabled_branch(monkeypatch):
@@ -23,7 +22,7 @@ async def test_build_xp_status_embed_disabled_branch(monkeypatch):
     monkeypatch.setattr(M, "decorate", fake_decorate)
     monkeypatch.setattr(M, "common_files", lambda t, b: ["FILES"])
 
-    bot = FakeBot(guild=FakeGuild("Srv"))
+    bot = FakeBot(guild=make_guild("Srv"))
     cfg = {"enabled": False}
 
     embed, files = await M.build_xp_status_embed(cfg, guild_id=42, bot=bot)
@@ -51,7 +50,7 @@ async def test_build_xp_status_embed_enabled_voice_disabled(monkeypatch):
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    bot = FakeBot(guild=FakeGuild("Srv"))
+    bot = FakeBot(guild=make_guild("Srv"))
     cfg = {
         "enabled": True,
         "points_per_message": 9,
@@ -142,7 +141,7 @@ async def test_build_xp_status_embed_voice_enabled_cap_without_hours_when_per_in
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    bot = FakeBot(guild=FakeGuild("Srv"))
+    bot = FakeBot(guild=make_guild("Srv"))
     cfg = {
         "enabled": True,
         "voice_enabled": True,
@@ -165,7 +164,7 @@ async def test_build_xp_status_embed_minutes_min_1(monkeypatch):
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: [])
 
-    bot = FakeBot(guild=FakeGuild("Srv"))
+    bot = FakeBot(guild=make_guild("Srv"))
     cfg = {
         "enabled": True,
         "voice_enabled": True,
@@ -185,7 +184,7 @@ async def test_build_xp_status_embed_disabled_layout_matches_previous_helper(mon
     monkeypatch.setattr(M, "decorate", lambda e, t, b: e)
     monkeypatch.setattr(M, "common_files", lambda t, b: ["FILES"])
 
-    bot = FakeBot(guild=FakeGuild("Srv"))
+    bot = FakeBot(guild=make_guild("Srv"))
 
     embed, files = await M.build_xp_status_embed({"enabled": False}, guild_id=42, bot=bot)
 

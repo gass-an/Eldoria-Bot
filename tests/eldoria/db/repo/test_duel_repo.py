@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from eldoria.db.repo import duel_repo as mod
-from tests._fakes._db_fakes import FakeConn, FakeConnCM, FakeCursor
+from tests._fakes import FakeConn, FakeConnCM, FakeCursor
 
 
 @pytest.fixture

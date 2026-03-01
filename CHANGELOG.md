@@ -13,6 +13,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 - Ajout des fichiers de logs, récupérable via une commande admin
 
 ### Changed
+- Refactorisation des tests: nettoyage et centralisation des fakes
 
 ### Fixed
 - Modification de la user_limit dans les channels parents (temp_voice)

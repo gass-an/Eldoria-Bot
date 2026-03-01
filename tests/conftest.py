@@ -1,6 +1,23 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
+
+# Pytest peut choisir un rootdir différent selon le contexte. Pour garantir
+# que le package `tests.*` résout bien les modules locaux (et non un éventuel
+# package `tests` tiers), on force le dossier projet dans sys.path.
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+# Si un autre package nommé `tests` a été importé avant (rare mais possible
+# en environnement de CI / tooling), on force l'utilisation du nôtre.
+_loaded_tests = sys.modules.get("tests")
+if _loaded_tests is not None:
+    loaded_path = getattr(_loaded_tests, "__file__", "") or ""
+    if not loaded_path.startswith(str(Path(__file__).resolve().parent)):
+        sys.modules.pop("tests", None)
 
 from tests._bootstrap.discord_stub import install_discord_stub
 from tests._bootstrap.ensure_exceptions import ensure_general_exceptions
@@ -32,9 +49,9 @@ pytest_plugins = [
 ]
 
 # ------------------------------------------------------------
-# (Compat) Expose quelques fakes historiques si certains tests les utilisent
+# Expose quelques fakes partagés
 # ------------------------------------------------------------
-from tests._fakes._discord_entities_fakes import (  # noqa: E402,F401
+from tests._fakes import (  # noqa: E402,F401
     FakeGuild,
     FakeMember,
     FakeMessage,

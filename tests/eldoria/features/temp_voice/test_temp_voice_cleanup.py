@@ -4,22 +4,27 @@ import eldoria.features.temp_voice.cleanup as cleanup_mod
 from eldoria.features.temp_voice.cleanup import cleanup_temp_channels
 
 
-class FakeGuild:
-    def __init__(self, guild_id: int, existing_channel_ids: set[int]):
-        self.id = guild_id
-        self._existing = set(existing_channel_ids)
-
-    def get_channel(self, channel_id: int):
-        return object() if channel_id in self._existing else None
+def _g_init(self, guild_id: int, existing_channel_ids: set[int]):
+    self.id = guild_id
+    self._existing = set(existing_channel_ids)
 
 
-class FakeBot:
-    def __init__(self, guilds):
-        self.guilds = list(guilds)
+def _g_get_channel(self, channel_id: int):
+    return object() if channel_id in self._existing else None
+
+
+GuildStub = type("GuildStub", (), {"__init__": _g_init, "get_channel": _g_get_channel})
+
+
+def _b_init(self, guilds):
+    self.guilds = list(guilds)
+
+
+BotStub = type("BotStub", (), {"__init__": _b_init})
 
 
 def test_cleanup_temp_channels_does_nothing_when_no_guilds(monkeypatch):
-    bot = FakeBot(guilds=[])
+    bot = BotStub(guilds=[])
 
     calls = {"list": 0, "remove": 0}
 
@@ -41,8 +46,8 @@ def test_cleanup_temp_channels_does_nothing_when_no_guilds(monkeypatch):
 
 
 def test_cleanup_temp_channels_removes_only_missing_channels(monkeypatch):
-    g1 = FakeGuild(guild_id=1, existing_channel_ids={100})
-    bot = FakeBot(guilds=[g1])
+    g1 = GuildStub(guild_id=1, existing_channel_ids={100})
+    bot = BotStub(guilds=[g1])
 
     monkeypatch.setattr(cleanup_mod, "tv_list_active_all", lambda guild_id: [(10, 100), (10, 101)])
 
@@ -59,9 +64,9 @@ def test_cleanup_temp_channels_removes_only_missing_channels(monkeypatch):
 
 
 def test_cleanup_temp_channels_handles_multiple_guilds(monkeypatch):
-    g1 = FakeGuild(guild_id=1, existing_channel_ids={200})
-    g2 = FakeGuild(guild_id=2, existing_channel_ids=set())
-    bot = FakeBot(guilds=[g1, g2])
+    g1 = GuildStub(guild_id=1, existing_channel_ids={200})
+    g2 = GuildStub(guild_id=2, existing_channel_ids=set())
+    bot = BotStub(guilds=[g1, g2])
 
     def fake_list(guild_id: int):
         if guild_id == 1:
@@ -89,8 +94,8 @@ def test_cleanup_temp_channels_handles_multiple_guilds(monkeypatch):
 
 
 def test_cleanup_temp_channels_does_not_remove_when_all_exist(monkeypatch):
-    g = FakeGuild(guild_id=1, existing_channel_ids={100, 101, 102})
-    bot = FakeBot(guilds=[g])
+    g = GuildStub(guild_id=1, existing_channel_ids={100, 101, 102})
+    bot = BotStub(guilds=[g])
 
     monkeypatch.setattr(cleanup_mod, "tv_list_active_all", lambda guild_id: [(10, 100), (10, 101), (11, 102)])
 

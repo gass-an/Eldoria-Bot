@@ -7,26 +7,20 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.temp_voice import remove as M
-from tests._fakes._discord_entities_fakes import FakeGuild, FakeVoiceChannel
-from tests._fakes._pages_fakes import FakeInteraction, FakeUser
+from tests._fakes import (
+    FakeGuild,
+    FakeInteraction,
+    FakeTempVoiceService,
+    FakeUser,
+    FakeVoiceChannel,
+)
 
-# ---------------------------------------------------------------------------
-# Fakes
-# ---------------------------------------------------------------------------
 
-class FakeTempVoiceService:
-    def __init__(self, *, parents: list[tuple[int, int]] | None = None):
-        # list_parents(guild_id) -> [(channel_id, limit), ...]
-        self._parents = parents or []
-        self.deleted: list[tuple[int, int]] = []  # (guild_id, channel_id)
-
-    def list_parents(self, guild_id: int) -> list[tuple[int, int]]:
-        return list(self._parents)
-
-    def delete_parent(self, guild_id: int, channel_id: int) -> None:
-        self.deleted.append((guild_id, channel_id))
-        # optionnel : simule suppression côté storage
-        self._parents = [(cid, lim) for (cid, lim) in self._parents if cid != channel_id]
+def _make_temp_voice_service(*, guild_id: int, parents: list[tuple[int, int]]):
+    svc = FakeTempVoiceService()
+    for cid, lim in parents:
+        svc.upsert_parent(guild_id, cid, lim)
+    return svc
 
 
 def _find_child(view, *, custom_id: str):
@@ -95,7 +89,7 @@ def test_remove_view_render_no_configured_disables_select(monkeypatch):
     # Pour que isinstance(ch, discord.VoiceChannel) marche
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[])
+    svc = _make_temp_voice_service(guild_id=123, parents=[])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(1, "X")])  # même si salon existe, pas configuré
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 
@@ -115,7 +109,7 @@ def test_remove_view_get_configured_filters_non_voicechannels(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
     # guild n'a que le salon 11, mais parents contient aussi 999 (inexistant)
-    svc = FakeTempVoiceService(parents=[(11, 3), (999, 7)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3), (999, 7)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "OK")])
 
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
@@ -127,7 +121,7 @@ def test_remove_view_get_configured_filters_non_voicechannels(monkeypatch):
 def test_remove_view_render_configured_enables_select_and_delete_when_selected(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[(11, 3), (22, 9)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3), (22, 9)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A"), FakeVoiceChannel(22, "B")])
 
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
@@ -158,7 +152,7 @@ def test_remove_view_render_configured_enables_select_and_delete_when_selected(m
 async def test_route_select_none_value_defers(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[(11, 3)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A")])
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 
@@ -172,7 +166,7 @@ async def test_route_select_none_value_defers(monkeypatch):
 async def test_route_select_sets_selected_channel_and_edits(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[(11, 3), (22, 9)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3), (22, 9)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A"), FakeVoiceChannel(22, "B")])
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 
@@ -196,7 +190,7 @@ async def test_route_select_sets_selected_channel_and_edits(monkeypatch):
 async def test_route_button_delete_calls_service_resets_and_edits(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[(11, 3)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A")])
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 
@@ -207,7 +201,7 @@ async def test_route_button_delete_calls_service_resets_and_edits(monkeypatch):
     inter = FakeInteraction(user=FakeUser(1), data={"custom_id": "tv:remove:delete"})
     await view.route_button(inter)
 
-    assert svc.deleted == [(123, 11)]
+    assert ("delete_parent", 123, 11) in svc.calls
     assert view.selected_channel is None
 
     assert inter.response.edits
@@ -223,19 +217,24 @@ async def test_route_button_back_builds_home_and_edits(monkeypatch):
     # Injecte un faux module eldoria.ui.temp_voice.home avec TempVoiceHomeView
     fake_home_mod = ModuleType("eldoria.ui.temp_voice.home")
 
-    class FakeTempVoiceHomeView:
-        def __init__(self, *, temp_voice_service, author_id: int, guild):
-            self.temp_voice_service = temp_voice_service
-            self.author_id = author_id
-            self.guild = guild
+    def _init(self, *, temp_voice_service, author_id: int, guild):
+        self.temp_voice_service = temp_voice_service
+        self.author_id = author_id
+        self.guild = guild
 
-        def current_embed(self):
-            return (discord.Embed(title="HOME", description="OK", color=1), [])
+    def _current_embed(self):
+        return (discord.Embed(title="HOME", description="OK", color=1), [])
 
-    fake_home_mod.TempVoiceHomeView = FakeTempVoiceHomeView
+    TempVoiceHomeViewStub = type(
+        "TempVoiceHomeViewStub",
+        (),
+        {"__init__": _init, "current_embed": _current_embed},
+    )
+
+    fake_home_mod.TempVoiceHomeView = TempVoiceHomeViewStub
     sys.modules["eldoria.ui.temp_voice.home"] = fake_home_mod
 
-    svc = FakeTempVoiceService(parents=[(11, 3)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A")])
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 
@@ -246,14 +245,14 @@ async def test_route_button_back_builds_home_and_edits(monkeypatch):
     last = inter.response.edits[-1]
     assert isinstance(last.get("embed"), discord.Embed)
     assert last["embed"].title == "HOME"
-    assert isinstance(last.get("view"), FakeTempVoiceHomeView)
+    assert isinstance(last.get("view"), TempVoiceHomeViewStub)
 
 
 @pytest.mark.asyncio
 async def test_route_button_unknown_defers(monkeypatch):
     monkeypatch.setattr(discord, "VoiceChannel", FakeVoiceChannel, raising=False)
 
-    svc = FakeTempVoiceService(parents=[(11, 3)])
+    svc = _make_temp_voice_service(guild_id=123, parents=[(11, 3)])
     guild = FakeGuild(123, voice_channels=[FakeVoiceChannel(11, "A")])
     view = M.TempVoiceRemoveView(temp_voice_service=svc, author_id=1, guild=guild)
 

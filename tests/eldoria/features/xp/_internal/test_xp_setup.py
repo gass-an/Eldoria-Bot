@@ -3,35 +3,40 @@ import pytest
 from eldoria.features.xp._internal import setup as mod
 
 
-class FakeRole:
-    def __init__(self, role_id: int, name: str):
-        self.id = role_id
-        self.name = name
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<FakeRole id={self.id} name={self.name!r}>"
+def _role_init(self, role_id: int, name: str):
+    self.id = role_id
+    self.name = name
 
 
-class FakeGuild:
-    def __init__(self, guild_id: int = 123, roles: list[FakeRole] | None = None):
-        self.id = guild_id
-        self.roles = roles or []
-        self.created: list[str] = []
-        self._forbidden_on_create = False
-        self._next_id = 10_000
+def _role_repr(self) -> str:  # pragma: no cover
+    return f"<RoleStub id={self.id} name={self.name!r}>"
 
-    async def create_role(self, *, name: str, reason: str):
-        import discord
 
-        if self._forbidden_on_create:
-            raise discord.Forbidden()
+RoleStub = type("RoleStub", (), {"__init__": _role_init, "__repr__": _role_repr})
 
-        self.created.append(name)
-        self._next_id += 1
-        role = FakeRole(self._next_id, name)
-        # discord crée le rôle dans guild.roles, on simule pareil
-        self.roles.append(role)
-        return role
+
+def _guild_init(self, guild_id: int = 123, roles: list[RoleStub] | None = None):
+    self.id = guild_id
+    self.roles = roles or []
+    self.created = []
+    self._forbidden_on_create = False
+    self._next_id = 10_000
+
+
+async def _guild_create_role(self, *, name: str, reason: str):
+    import discord
+
+    if self._forbidden_on_create:
+        raise discord.Forbidden()
+
+    self.created.append(name)
+    self._next_id += 1
+    role = RoleStub(self._next_id, name)
+    self.roles.append(role)
+    return role
+
+
+GuildStub = type("GuildStub", (), {"__init__": _guild_init, "create_role": _guild_create_role})
 
 
 def _patch_discord_utils_get(monkeypatch):
@@ -54,7 +59,7 @@ def _patch_discord_utils_get(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ensure_calls_ensure_defaults(monkeypatch):
-    guild = FakeGuild(123, roles=[])
+    guild = GuildStub(123, roles=[])
 
     calls = {"ensure": []}
 
@@ -77,8 +82,8 @@ async def test_ensure_calls_ensure_defaults(monkeypatch):
 @pytest.mark.asyncio
 async def test_ensure_prefers_db_role_id_when_role_exists(monkeypatch):
     # DB dit: lvl5 => role id 555
-    r555 = FakeRole(555, "some-other-name")
-    guild = FakeGuild(123, roles=[r555])
+    r555 = RoleStub(555, "some-other-name")
+    guild = GuildStub(123, roles=[r555])
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
     monkeypatch.setattr(mod, "xp_get_role_ids", lambda _gid: {5: 555}, raising=True)
@@ -103,8 +108,8 @@ async def test_ensure_prefers_db_role_id_when_role_exists(monkeypatch):
 @pytest.mark.asyncio
 async def test_ensure_fallback_by_name_when_db_id_missing_or_not_found(monkeypatch):
     # DB donne un id introuvable pour lvl4, mais on a un role nommé level4
-    r_level4 = FakeRole(444, "level4")
-    guild = FakeGuild(123, roles=[r_level4])
+    r_level4 = RoleStub(444, "level4")
+    guild = GuildStub(123, roles=[r_level4])
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
     monkeypatch.setattr(mod, "xp_get_role_ids", lambda _gid: {4: 9999}, raising=True)
@@ -123,7 +128,7 @@ async def test_ensure_fallback_by_name_when_db_id_missing_or_not_found(monkeypat
 
 @pytest.mark.asyncio
 async def test_ensure_creates_missing_roles_and_upserts(monkeypatch):
-    guild = FakeGuild(123, roles=[])
+    guild = GuildStub(123, roles=[])
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
     monkeypatch.setattr(mod, "xp_get_role_ids", lambda _gid: {}, raising=True)
@@ -148,7 +153,7 @@ async def test_ensure_creates_missing_roles_and_upserts(monkeypatch):
 @pytest.mark.asyncio
 async def test_ensure_stops_cleanly_on_forbidden_create(monkeypatch):
     # Aucun role existant => il essaie de créer level5 en premier, et Forbidden => return
-    guild = FakeGuild(123, roles=[])
+    guild = GuildStub(123, roles=[])
     guild._forbidden_on_create = True
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
@@ -169,8 +174,8 @@ async def test_ensure_stops_cleanly_on_forbidden_create(monkeypatch):
 @pytest.mark.asyncio
 async def test_ensure_no_duplicate_create_if_role_exists_by_name(monkeypatch):
     # Les roles level1..level5 existent déjà => aucune création
-    roles = [FakeRole(100 + i, f"level{i}") for i in range(1, 6)]
-    guild = FakeGuild(123, roles=roles)
+    roles = [RoleStub(100 + i, f"level{i}") for i in range(1, 6)]
+    guild = GuildStub(123, roles=roles)
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
     monkeypatch.setattr(mod, "xp_get_role_ids", lambda _gid: {}, raising=True)
@@ -193,9 +198,9 @@ async def test_ensure_no_duplicate_create_if_role_exists_by_name(monkeypatch):
 async def test_ensure_db_role_id_takes_precedence_over_name(monkeypatch):
     # Cas important : DB dit lvl2 => role id 222, mais il existe aussi un role nommé level2 avec autre id.
     # L'impl doit prendre d'abord l'ID DB.
-    r_db = FakeRole(222, "not-level2")
-    r_name = FakeRole(999, "level2")
-    guild = FakeGuild(123, roles=[r_db, r_name])
+    r_db = RoleStub(222, "not-level2")
+    r_name = RoleStub(999, "level2")
+    guild = GuildStub(123, roles=[r_db, r_name])
 
     monkeypatch.setattr(mod, "xp_ensure_defaults", lambda *_: None, raising=True)
     monkeypatch.setattr(mod, "xp_get_role_ids", lambda _gid: {2: 222}, raising=True)

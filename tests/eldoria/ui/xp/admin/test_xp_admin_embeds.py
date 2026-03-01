@@ -4,6 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.xp.admin import embeds as M
+from tests._fakes import FakeChannel, FakeRole
 
 
 # --------- helpers (compat stub) ----------
@@ -18,16 +19,12 @@ def _colour(embed: discord.Embed):
     return getattr(embed, "colour", None) or getattr(embed, "color", None) or embed.kwargs.get("color")  # type: ignore[attr-defined]
 
 
-class FakeChannel(discord.abc.GuildChannel):  # type: ignore[misc]
-    def __init__(self, channel_id: int, *, mention: str | None = None):
-        self.id = channel_id
-        self.mention = mention or f"<#{channel_id}>"
+def _channel(channel_id: int, *, mention: str | None = None):
+    return FakeChannel(channel_id, mention=mention or f"<#{channel_id}>")
 
 
-class FakeRole(discord.Role):  # type: ignore[misc]
-    def __init__(self, role_id: int, *, mention: str | None = None):
-        self.id = role_id
-        self.mention = mention or f"<@&{role_id}>"
+def _role(role_id: int, *, mention: str | None = None):
+    return FakeRole(role_id, mention=mention or f"<@&{role_id}>")
 
 
 def test_bool_badge():
@@ -138,7 +135,7 @@ def test_build_xp_admin_voice_embed_channel_placeholder_and_warning(monkeypatch:
     assert embed.fields[0]["inline"] is False
 
     # channel present => no warning + mention shown
-    ch = FakeChannel(55, mention="#annonces")
+    ch = _channel(55, mention="#annonces")
     embed2, _ = M.build_xp_admin_voice_embed(cfg, channel=ch)
     d2 = _desc(embed2)
     assert "#annonces" in d2
@@ -157,7 +154,7 @@ def test_build_xp_admin_levels_embed_builds_lines_and_selection(monkeypatch: pyt
         (3, 250, 333),
     ]
     selected_level = 2
-    selected_role = FakeRole(999, mention="@Chosen")
+    selected_role = _role(999, mention="@Chosen")
 
     embed, files = M.build_xp_admin_levels_embed(
         levels_with_roles=levels,

@@ -1,26 +1,9 @@
-import logging
 from types import SimpleNamespace
 
 import pytest
 
 from eldoria.app.run_tests import _parse_pytest_counts, run_tests
-
-
-class FakeLogger(logging.Logger):
-    def __init__(self):
-        super().__init__("fake")
-        self.infos = []
-        self.warnings = []
-        self.exceptions = []
-
-    def info(self, msg, *args, **kwargs):
-        self.infos.append(msg % args if args else msg)
-
-    def warning(self, msg, *args, **kwargs):
-        self.warnings.append(msg % args if args else msg)
-
-    def exception(self, msg, *args, **kwargs):
-        self.exceptions.append(msg % args if args else msg)
+from tests._fakes import Logger, make_tests_path
 
 
 def test_parse_pytest_counts_full_summary_line():
@@ -82,11 +65,11 @@ def test_run_tests_returns_none_when_running_inside_pytest(monkeypatch):
     import sys
 
     assert "pytest" in sys.modules  # sanity
-    assert run_tests(logger=FakeLogger()) is None
+    assert run_tests(logger=Logger()) is None
 
     # also test the env var short-circuit (even if pytest not in sys.modules)
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "x")
-    assert run_tests(logger=FakeLogger()) is None
+    assert run_tests(logger=Logger()) is None
 
 
 def test_run_tests_returns_none_when_no_tests_exist(monkeypatch):
@@ -99,16 +82,9 @@ def test_run_tests_returns_none_when_no_tests_exist(monkeypatch):
     # Patch TESTS_PATH to a fake object with exists False
     import eldoria.app.run_tests as mod
 
-    class FakePath:
-        def exists(self):
-            return False
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=False), raising=True)
 
-        def rglob(self, _pattern):
-            return []
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
-
-    assert mod.run_tests(logger=FakeLogger()) is None
+    assert mod.run_tests(logger=Logger()) is None
 
 
 def test_run_tests_success_returns_ratio_label(monkeypatch):
@@ -121,14 +97,7 @@ def test_run_tests_success_returns_ratio_label(monkeypatch):
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
     # tests exist
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     # subprocess.run for first call returns passing output
     def fake_run(args, capture_output=True, text=True):
@@ -141,7 +110,7 @@ def test_run_tests_success_returns_ratio_label(monkeypatch):
 
     monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
 
-    label = mod.run_tests(logger=FakeLogger())
+    label = mod.run_tests(logger=Logger())
     assert label == "10/12 Tests validés"
 
 
@@ -153,21 +122,14 @@ def test_run_tests_success_parsing_ko_but_returncode_ok(monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     def fake_run(_args, capture_output=True, text=True):
         return SimpleNamespace(returncode=0, stdout="NO SUMMARY HERE\n", stderr="")
 
     monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
 
-    assert mod.run_tests(logger=FakeLogger()) == "Tests validés"
+    assert mod.run_tests(logger=Logger()) == "Tests validés"
 
 
 def test_run_tests_failure_strict_raises_and_logs_details(monkeypatch):
@@ -178,14 +140,7 @@ def test_run_tests_failure_strict_raises_and_logs_details(monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     # first run => failing summary
     calls = {"n": 0}
@@ -208,7 +163,7 @@ ERROR tests/test_b.py::test_y - RuntimeError: nope
     monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
 
     monkeypatch.setenv("TESTS_STRICT", "1")
-    logger = FakeLogger()
+    logger = Logger()
 
     from eldoria.exceptions.internal import TestsFailed
 
@@ -226,14 +181,7 @@ def test_run_tests_failure_non_strict_returns_label(monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     calls = {"n": 0}
 
@@ -246,7 +194,7 @@ def test_run_tests_failure_non_strict_returns_label(monkeypatch):
     monkeypatch.setattr(mod.subprocess, "run", fake_run, raising=True)
 
     monkeypatch.setenv("TESTS_STRICT", "0")
-    assert mod.run_tests(logger=FakeLogger()) == "2 tests fails / 5"
+    assert mod.run_tests(logger=Logger()) == "2 tests fails / 5"
 
 
 def test_run_tests_failure_parsing_ko_raises(monkeypatch):
@@ -257,14 +205,7 @@ def test_run_tests_failure_parsing_ko_raises(monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     def fake_run(_args, capture_output=True, text=True):
         return SimpleNamespace(returncode=1, stdout="garbage\n", stderr="also garbage\n")
@@ -275,7 +216,7 @@ def test_run_tests_failure_parsing_ko_raises(monkeypatch):
     from eldoria.exceptions.internal import TestsFailed
 
     with pytest.raises(TestsFailed):
-        mod.run_tests(logger=FakeLogger())
+        mod.run_tests(logger=Logger())
 
 
 def test_run_tests_logger_defaults_to_module_log(monkeypatch):
@@ -288,17 +229,10 @@ def test_run_tests_logger_defaults_to_module_log(monkeypatch):
     monkeypatch.delitem(sys.modules, "pytest", raising=False)
 
     # tests exist
-    class FakePath:
-        def exists(self):
-            return True
-
-        def rglob(self, _pattern):
-            return [SimpleNamespace(name="test_x.py")]
-
-    monkeypatch.setattr(mod, "TESTS_PATH", FakePath(), raising=True)
+    monkeypatch.setattr(mod, "TESTS_PATH", make_tests_path(exists=True, names=["test_x.py"]), raising=True)
 
     # make module log observable
-    fake_logger = FakeLogger()
+    fake_logger = Logger()
     monkeypatch.setattr(mod, "log", fake_logger, raising=True)
 
     def fake_run(_args, capture_output=True, text=True):

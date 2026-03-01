@@ -1,26 +1,18 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels.games.rps import renderer as M
-
-
-class FakeMember:
-    def __init__(self, mid: int, name: str):
-        self.id = mid
-        self.display_name = name
-        self.mention = f"<@{mid}>"
-
-
-class FakeGuild:
-    pass
+from tests._fakes import FakeMember
 
 
 @pytest.fixture
 def members():
-    a = FakeMember(1, "Alice")
-    b = FakeMember(2, "Bob")
+    a = FakeMember(1, display_name="Alice")
+    b = FakeMember(2, display_name="Bob")
     return a, b
 
 
@@ -72,7 +64,7 @@ def test_result_label_unknown(monkeypatch, members):
 @pytest.mark.asyncio
 async def test_render_rps_waiting_state_builds_base_embed_and_view(monkeypatch, members):
     a, b = members
-    guild = FakeGuild()
+    guild = SimpleNamespace()
 
     # constants + rps constants
     monkeypatch.setattr(M.rps, "RPS_DICT_STATE", "state")
@@ -119,7 +111,7 @@ async def test_render_rps_waiting_state_builds_base_embed_and_view(monkeypatch, 
 @pytest.mark.asyncio
 async def test_render_rps_none_state_treated_like_waiting(monkeypatch, members):
     a, b = members
-    guild = FakeGuild()
+    guild = SimpleNamespace()
 
     monkeypatch.setattr(M.rps, "RPS_DICT_STATE", "state")
     monkeypatch.setattr(M.rps, "RPS_STATE_WAITING", "WAITING")
@@ -149,7 +141,7 @@ async def test_render_rps_none_state_treated_like_waiting(monkeypatch, members):
 @pytest.mark.asyncio
 async def test_render_rps_finished_state_builds_result_embed_and_no_view(monkeypatch, members):
     a, b = members
-    guild = FakeGuild()
+    guild = SimpleNamespace()
 
     monkeypatch.setattr(M.rps, "RPS_DICT_STATE", "state")
     monkeypatch.setattr(M.rps, "RPS_STATE_WAITING", "WAITING")
@@ -211,7 +203,7 @@ async def test_render_rps_finished_state_builds_result_embed_and_no_view(monkeyp
 @pytest.mark.asyncio
 async def test_render_rps_finished_state_without_xp_dict_skips_xp_field(monkeypatch, members):
     a, b = members
-    guild = FakeGuild()
+    guild = SimpleNamespace()
 
     monkeypatch.setattr(M.rps, "RPS_DICT_STATE", "state")
     monkeypatch.setattr(M.rps, "RPS_STATE_WAITING", "WAITING")
@@ -248,7 +240,7 @@ async def test_render_rps_finished_state_without_xp_dict_skips_xp_field(monkeypa
 @pytest.mark.asyncio
 async def test_render_rps_unknown_state_fallback_adds_field_and_returns_view(monkeypatch, members):
     a, b = members
-    guild = FakeGuild()
+    guild = SimpleNamespace()
 
     monkeypatch.setattr(M.rps, "RPS_DICT_STATE", "state")
     monkeypatch.setattr(M.rps, "RPS_STATE_WAITING", "WAITING")

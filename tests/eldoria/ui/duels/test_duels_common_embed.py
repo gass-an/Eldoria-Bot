@@ -4,7 +4,7 @@ import discord  # type: ignore
 import pytest
 
 from eldoria.ui.duels import common as M
-from tests._fakes._discord_entities_fakes import FakeDisplayMember as FakeMember
+from tests._fakes import FakeDisplayMember as FakeMember
 
 
 @pytest.mark.asyncio

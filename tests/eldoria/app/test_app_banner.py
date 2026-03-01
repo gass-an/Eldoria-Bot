@@ -3,10 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from eldoria.app import banner as mod
-
-
-class FakeDiscord:
-    __version__ = "X.Y.Z"
+from tests._fakes import FakeDiscord, make_datetime_now
 
 
 def test_startup_banner_with_explicit_started_at_includes_expected_fields(monkeypatch):
@@ -35,12 +32,7 @@ def test_startup_banner_when_started_at_none_uses_datetime_now(monkeypatch):
     fixed_now = datetime(2030, 12, 31, 23, 59, 58)
 
     # banner.py a fait `from datetime import datetime` -> on remplace mod.datetime
-    class FakeDateTime:
-        @staticmethod
-        def now():
-            return fixed_now
-
-    monkeypatch.setattr(mod, "datetime", FakeDateTime, raising=True)
+    monkeypatch.setattr(mod, "datetime", make_datetime_now(fixed_now), raising=True)
 
     s = mod.startup_banner(None)
     assert "Started  : 23:59:58 31/12/2030" in s

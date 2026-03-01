@@ -6,10 +6,6 @@ import pytest
 from eldoria.ui.roles import embeds as M
 
 
-class FakeBot:
-    pass
-
-
 @pytest.mark.asyncio
 async def test_build_list_roles_embed_empty_roles(monkeypatch):
     monkeypatch.setattr(M, "EMBED_COLOUR_PRIMARY", 123)
@@ -34,7 +30,7 @@ async def test_build_list_roles_embed_empty_roles(monkeypatch):
         current_page=0,
         total_pages=1,
         guild_id=999,
-        bot=FakeBot(),
+        bot=object(),
     )
 
     assert isinstance(embed, discord.Embed)
@@ -73,7 +69,7 @@ async def test_build_list_roles_embed_builds_fields_and_counts_roles(monkeypatch
         current_page=1,
         total_pages=3,
         guild_id=42,
-        bot=FakeBot(),
+        bot=object(),
     )
 
     assert files == ["FILES"]
@@ -123,7 +119,7 @@ async def test_build_list_roles_embed_skips_field_when_mapping_empty(monkeypatch
         current_page=0,
         total_pages=1,
         guild_id=42,
-        bot=FakeBot(),
+        bot=object(),
     )
 
     assert embed.fields == []
@@ -152,7 +148,7 @@ async def test_build_list_secret_roles_embed_builds_fields_and_counts(monkeypatc
         current_page=0,
         total_pages=2,
         guild_id=42,
-        bot=FakeBot(),
+        bot=object(),
     )
 
     assert isinstance(embed, discord.Embed)
@@ -190,7 +186,7 @@ async def test_build_list_secret_roles_embed_skips_when_mapping_empty(monkeypatc
         current_page=0,
         total_pages=1,
         guild_id=42,
-        bot=FakeBot(),
+        bot=object(),
     )
 
     assert embed.fields == []
