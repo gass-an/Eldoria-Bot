@@ -68,7 +68,7 @@ class SecretRoles(commands.Cog):
         await bot_member.remove_roles(role)
 
         self.role.sr_upsert(guild_id, channel_id, message_str, role.id)
-        await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}`")
+        await ctx.followup.send(content=f"Le rôle <@&{role.id}> est bien associée au message suivant : `{message}` dans le channel {channel.mention}")
 
     @secretrole.command(name="remove", description="Supprime l'attibution d'un secret_role déjà paramétré.")
     @discord.option("channel", discord.TextChannel, description="Le channel cible pour le message.")

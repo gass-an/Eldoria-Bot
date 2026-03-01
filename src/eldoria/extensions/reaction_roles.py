@@ -144,8 +144,7 @@ class ReactionRoles(commands.Cog):
         self.role.rr_upsert(guild_id, message_id, emoji, role.id)
 
         await ctx.followup.send(
-            content=f"## La réaction {emoji} est bien associée au rôle <@&{role.id}> sur le message sélectionné ! \n"
-                    f"**Message :** {message_link}\n {message.content}"
+            content=f"La réaction {emoji} est bien associée au rôle <@&{role.id}> sur le message sélectionné !\n**Message :** {message_link}"
         )
 
 
@@ -172,7 +171,7 @@ class ReactionRoles(commands.Cog):
         await message.clear_reaction(emoji)
 
         await ctx.followup.send(
-            content=f"## L'emoji {emoji} a bien été retiré du message.\n**Message** : {message_link}\n{message.content}"
+            content=f"L'emoji {emoji} a bien été retiré du message.\n**Message** : {message_link}"
         )
 
     @reactionrole.command(name="clear", description="Retire toutes les réactions d'un message.")
@@ -198,7 +197,7 @@ class ReactionRoles(commands.Cog):
         await message.clear_reactions()
 
         await ctx.followup.send(
-            content=f"## Toutes les réactions ont été supprimées du message sélectionné.\n**Message** : {message_link}\n{message.content}"
+            content=f"Toutes les réactions ont été supprimées du message sélectionné.\n**Message** : {message_link}"
         )
 
 

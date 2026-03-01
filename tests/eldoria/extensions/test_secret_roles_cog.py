@@ -102,6 +102,9 @@ class _FakeTextChannel:
     def __init__(self, channel_id: int):
         self.id = channel_id
 
+    def mention(self):
+        return f"<#{self.id}>"
+
 
 class _FakeFollowup:
     def __init__(self):
