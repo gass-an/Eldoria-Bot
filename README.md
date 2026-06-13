@@ -124,6 +124,12 @@ cd Eldoria-Bot
 pip install -r requirements.txt
 ```
 
+Si tu veux lancer les tests localement, installe aussi les dépendances de dev :
+
+```bash
+pip install -r requirements-dev.txt
+```
+
 ### 3. Configurer l’environnement
 Crée un fichier **`.env`** à la racine du projet.  
 Suivre le `.env.exemple` comme exemple.

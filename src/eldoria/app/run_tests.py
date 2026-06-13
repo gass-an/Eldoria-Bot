@@ -1,5 +1,6 @@
 """Module de gestion des tests unitaires avec pytest."""
 
+import importlib.util
 import logging
 import os
 import re
@@ -67,6 +68,10 @@ def run_tests(*, logger: logging.Logger | None = None) -> str | None:
 
     if logger is None:
         logger = log
+
+    if importlib.util.find_spec("pytest") is None:
+        logger.warning("⚠️ pytest n'est pas installé, saut des tests au démarrage")
+        return None
 
     tests_path = TESTS_PATH
     if not tests_path.exists() or not any(tests_path.rglob("test_*.py")):
