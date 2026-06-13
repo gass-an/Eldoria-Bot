@@ -85,7 +85,7 @@ async def test_voice_state_update_creates_temp_channel_for_configured_parent_and
     perm_overwrite_mock = "PERM_OVERWRITE_OBJ"
     category.overwrites[role_mock] = perm_overwrite_mock
 
-    parent = FakeVoiceChannel(30, category=category, bitrate=96)
+    parent = FakeVoiceChannel(30, name="➕ - Duo", category=category, bitrate=96)
     svc._parents[(111, 30)] = 7  # user_limit
 
     before = FakeVoiceState(None)
@@ -96,7 +96,7 @@ async def test_voice_state_update_creates_temp_channel_for_configured_parent_and
     # created a voice channel with correct parameters
     assert len(guild.created) == 1
     created_kwargs = guild.created[0]["kwargs"]
-    assert created_kwargs["name"] == "Salon de Faucon"
+    assert created_kwargs["name"] == "Duo de Faucon"
     assert created_kwargs["category"] == category
     assert created_kwargs["bitrate"] == 96
     assert created_kwargs["user_limit"] == 7
@@ -125,7 +125,7 @@ async def test_voice_state_update_creates_temp_channel_without_category():
     member = FakeMember(1, guild, display_name="Faucon")
 
     # Parent without category
-    parent = FakeVoiceChannel(30, category=None, bitrate=96)
+    parent = FakeVoiceChannel(30, name="➕ - Chill", category=None, bitrate=96)
     svc._parents[(111, 30)] = 7  # user_limit
 
     before = FakeVoiceState(None)
@@ -136,6 +136,7 @@ async def test_voice_state_update_creates_temp_channel_without_category():
     # Channel should still be created
     assert len(guild.created) == 1
     created_kwargs = guild.created[0]["kwargs"]
+    assert created_kwargs["name"] == "Chill de Faucon"
 
     # overwrites should only contain member permissions (no category overwrites)
     overwrites = created_kwargs["overwrites"]
