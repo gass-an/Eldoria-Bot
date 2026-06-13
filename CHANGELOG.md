@@ -12,6 +12,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Changed
 
 ### Fixed
+- Changement du nom des salons temporaires : "Salon de {user}" -> "<creation_channel_name> de <member.display_name>"
 
 ### Notes
 

@@ -10,6 +10,7 @@ from discord.commands import SlashCommandGroup
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
+from eldoria.features.temp_voice.naming import build_temp_voice_channel_name
 from eldoria.ui.common.pagination import Paginator
 from eldoria.ui.temp_voice.home import TempVoiceHomeView, build_tempvoice_home_embed
 from eldoria.ui.temp_voice.list import build_list_temp_voice_parents_embed
@@ -78,7 +79,10 @@ class TempVoice(commands.Cog):
             user_limit = self.temp_voice.get_parent(guild.id, after.channel.id)
             if user_limit is not None:
                 category = after.channel.category
-                new_channel_name = f"Salon de {member.display_name}"
+                new_channel_name = build_temp_voice_channel_name(after.channel.name, member.display_name)
+
+                # Ne passer que les permissions du créateur
+                # Les permissions de la catégorie seront héritées automatiquement par Discord
                 overwrites: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
                     member: discord.PermissionOverwrite(view_channel=True, manage_channels=True),
                 }
@@ -90,6 +94,7 @@ class TempVoice(commands.Cog):
                     bitrate=after.channel.bitrate,
                     user_limit=user_limit,
                 )
+
 
                 # Important : enregistrer AVANT le move pour que le 2e event (move) soit filtré
                 self.temp_voice.add_active(guild.id, after.channel.id, new_channel.id)

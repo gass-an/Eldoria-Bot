@@ -10,6 +10,7 @@ import eldoria.extensions.temp_voice as tv_mod  # noqa: E402
 from eldoria.extensions.temp_voice import TempVoice, setup  # noqa: E402
 from tests._fakes import (
     FakeBot,
+    FakeCategory,
     FakeCtx,
     FakeGuild,
     FakeMember,
@@ -78,7 +79,13 @@ async def test_voice_state_update_creates_temp_channel_for_configured_parent_and
     guild = FakeGuild(111)
     member = FakeMember(1, guild, display_name="Faucon")
 
-    parent = FakeVoiceChannel(30, category="MYCAT", bitrate=96)
+    # Create a category with some overwrites
+    category = FakeCategory()
+    role_mock = "ROLE_OBJ"
+    perm_overwrite_mock = "PERM_OVERWRITE_OBJ"
+    category.overwrites[role_mock] = perm_overwrite_mock
+
+    parent = FakeVoiceChannel(30, name="➕ - Duo", category=category, bitrate=96)
     svc._parents[(111, 30)] = 7  # user_limit
 
     before = FakeVoiceState(None)
@@ -89,13 +96,53 @@ async def test_voice_state_update_creates_temp_channel_for_configured_parent_and
     # created a voice channel with correct parameters
     assert len(guild.created) == 1
     created_kwargs = guild.created[0]["kwargs"]
-    assert created_kwargs["name"] == "Salon de Faucon"
-    assert created_kwargs["category"] == "MYCAT"
+    assert created_kwargs["name"] == "Duo de Faucon"
+    assert created_kwargs["category"] == category
     assert created_kwargs["bitrate"] == 96
     assert created_kwargs["user_limit"] == 7
-    # overwrites contains member -> PermissionOverwrite
+    
+    # overwrites should only contain member permissions
+    # The channel will automatically inherit category permissions from Discord
     overwrites = created_kwargs["overwrites"]
     assert member in overwrites
+    # Only the member should be explicitly in overwrites (category inheritance is automatic)
+    assert len(overwrites) == 1
+
+    # add_active recorded BEFORE move_to
+    created_channel = guild.created[0]["channel"]
+    assert ("add_active", 111, 30, created_channel.id) in svc.calls
+    assert member.moved_to == [created_channel]
+
+
+@pytest.mark.asyncio
+async def test_voice_state_update_creates_temp_channel_without_category():
+    """Test créé pour vérifier que la création fonctionne sans catégorie."""
+    svc = FakeTempVoiceService()
+    bot = FakeBot(svc)
+    cog = TempVoice(bot)
+
+    guild = FakeGuild(111)
+    member = FakeMember(1, guild, display_name="Faucon")
+
+    # Parent without category
+    parent = FakeVoiceChannel(30, name="➕ - Chill", category=None, bitrate=96)
+    svc._parents[(111, 30)] = 7  # user_limit
+
+    before = FakeVoiceState(None)
+    after = FakeVoiceState(parent)
+
+    await cog.on_voice_state_update(member, before, after)
+
+    # Channel should still be created
+    assert len(guild.created) == 1
+    created_kwargs = guild.created[0]["kwargs"]
+    assert created_kwargs["name"] == "Chill de Faucon"
+
+    # overwrites should only contain member permissions (no category overwrites)
+    overwrites = created_kwargs["overwrites"]
+    assert member in overwrites
+    # Only the member should be in overwrites (no category source)
+    assert len(overwrites) == 1
 
     # add_active recorded BEFORE move_to
     created_channel = guild.created[0]["channel"]

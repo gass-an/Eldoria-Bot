@@ -126,6 +126,14 @@ class FakeTextChannel(FakeChannel, discord.TextChannel):  # type: ignore[misc]
     """
 
 
+class FakeCategory:
+    """Fake Category avec support des overwrites."""
+    def __init__(self, category_id: int = 1, name: str = "Category"):
+        self.id = category_id
+        self.name = name
+        self.overwrites: dict = {}
+
+
 class FakeVoiceChannel:
     def __init__(
         self,
@@ -148,8 +156,9 @@ class FakeVoiceChannel:
         self.deleted = False
         self._delete_raises: BaseException | None = None
 
-    async def edit(self, *, user_limit: int, **_kwargs):
-        self.user_limit = user_limit
+    async def edit(self, *, user_limit: int = None, **_kwargs):
+        if user_limit is not None:
+            self.user_limit = user_limit
 
     async def delete(self):
         self.deleted = True
