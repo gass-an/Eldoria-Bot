@@ -79,6 +79,9 @@ class TempVoice(commands.Cog):
             if user_limit is not None:
                 category = after.channel.category
                 new_channel_name = f"Salon de {member.display_name}"
+
+                # Ne passer que les permissions du créateur
+                # Les permissions de la catégorie seront héritées automatiquement par Discord
                 overwrites: dict[discord.Role | discord.Member, discord.PermissionOverwrite] = {
                     member: discord.PermissionOverwrite(view_channel=True, manage_channels=True),
                 }
@@ -90,6 +93,7 @@ class TempVoice(commands.Cog):
                     bitrate=after.channel.bitrate,
                     user_limit=user_limit,
                 )
+
 
                 # Important : enregistrer AVANT le move pour que le 2e event (move) soit filtré
                 self.temp_voice.add_active(guild.id, after.channel.id, new_channel.id)

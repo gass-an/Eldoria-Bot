@@ -16,7 +16,9 @@ from tests._fakes.discord_bot import (
     make_discord_intents,
 )
 from tests._fakes.discord_channels import (
-    FakeChannel,    FakeFetchMessageChannel,
+    FakeCategory,
+    FakeChannel,
+    FakeFetchMessageChannel,
     FakeReactionChannel,
     FakeTextChannel,
     FakeVoiceChannel,
@@ -93,9 +95,11 @@ __all__ = [
     "FakeFile",
     "FakeEmbed",
     # channels
+    "FakeCategory",
     "FakeChannel",
     "FakeTextChannel",
-    "FakeVoiceChannel",    "FakeFetchMessageChannel",
+    "FakeVoiceChannel",
+    "FakeFetchMessageChannel",
     "FakeReactionChannel",
     # interactions
     "FakeInteraction",
