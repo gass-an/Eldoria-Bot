@@ -12,7 +12,8 @@ _base_extensions: list[str] = [
     "eldoria.extensions.reaction_roles",
     "eldoria.extensions.secret_roles",
     "eldoria.extensions.temp_voice",
-    "eldoria.extensions.welcome_message",
+        "eldoria.extensions.welcome_message",
+        "eldoria.extensions.ticketing",
     "eldoria.extensions.logs",
 ]
 

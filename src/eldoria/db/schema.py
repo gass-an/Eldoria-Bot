@@ -40,6 +40,20 @@ def migrate_db() -> None:
             conn.execute("UPDATE xp_config SET voice_daily_cap_xp=COALESCE(voice_daily_cap_xp, 100);")
             conn.execute("UPDATE xp_config SET voice_levelup_channel_id=COALESCE(voice_levelup_channel_id, 0);")
 
+        # --- tickets : conserve le numéro public pour les bases existantes ---
+        ticket_cols = _table_columns(conn, "tickets")
+        if ticket_cols and "ticket_number" not in ticket_cols:
+            # Nullable uniquement pour permettre la migration d'éventuelles anciennes lignes.
+            conn.execute("ALTER TABLE tickets ADD COLUMN ticket_number INTEGER;")
+
+        if ticket_cols:
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_guild_number
+                ON tickets(guild_id, ticket_number);
+                """
+            )
+
 def init_db() -> None:
     """Initialise la base de données en créant les tables nécessaires si elles n'existent pas, et effectue les migrations douces pour les anciennes versions."""
     with get_conn() as conn:
@@ -165,6 +179,33 @@ def init_db() -> None:
         -- Accélère les lookups via message (UI)
         CREATE INDEX IF NOT EXISTS idx_duels_message
             ON duels(guild_id, channel_id, message_id);
+
+        -- -------------------- Ticketing system --------------------
+        CREATE TABLE IF NOT EXISTS ticketing_config (
+            guild_id        INTEGER NOT NULL PRIMARY KEY,
+            enabled         INTEGER NOT NULL DEFAULT 0,
+            category_id     INTEGER NOT NULL,
+            open_channel_id INTEGER NOT NULL
+        );
+
+        -- Séquence indépendante par serveur. Elle survit à une reconfiguration
+        -- du ticketing afin qu'un numéro ne soit jamais réutilisé.
+        CREATE TABLE IF NOT EXISTS ticket_sequences (
+            guild_id        INTEGER NOT NULL PRIMARY KEY,
+            next_number     INTEGER NOT NULL DEFAULT 1 CHECK(next_number > 0)
+        );
+
+        CREATE TABLE IF NOT EXISTS tickets (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id        INTEGER NOT NULL,
+            ticket_number   INTEGER NOT NULL CHECK(ticket_number > 0),
+            channel_id      INTEGER NOT NULL,
+            owner_id        INTEGER NOT NULL,
+            status          TEXT    NOT NULL CHECK(status IN ('OPEN','CLOSED')) DEFAULT 'OPEN',
+            created_at      INTEGER NOT NULL,
+            closed_at       INTEGER,
+            UNIQUE (guild_id, ticket_number)
+        );
         """)
 
     # Migration douce pour DB déjà en prod (ajout de colonnes/tables manquantes)

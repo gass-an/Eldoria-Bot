@@ -18,7 +18,9 @@ from eldoria.features.temp_voice.cleanup import cleanup_temp_channels
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
 from eldoria.features.welcome.welcome_service import WelcomeService
 from eldoria.features.xp.xp_service import XpService
+from eldoria.features.ticketing.ticketing_service import TicketingService
 from eldoria.ui.duels import init_duel_ui
+from eldoria.ui.ticketing import init_ticket_ui
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +58,7 @@ def init_services(bot: EldoriaBot) -> int:
         temp_voice=TempVoiceService(),
         welcome=WelcomeService(),
         xp=XpService(),
+        ticketing=TicketingService(),
     ))
     return len(bot.services)
 
@@ -69,3 +72,4 @@ def startup(bot: EldoriaBot) -> None:
     step("Nettoyage des channels temporaires", lambda: cleanup_temp_channels(bot), critical=False)
     step("Initialisation des jeux de duel", init_games, critical=False)
     step("Initialisation UI duel", init_duel_ui, critical=False)
+    step("Initialisation UI ticketing", lambda: init_ticket_ui(bot), critical=False)
