@@ -8,6 +8,7 @@ from eldoria.features.save.save_service import SaveService
 from eldoria.features.temp_voice.temp_voice_service import TempVoiceService
 from eldoria.features.welcome.welcome_service import WelcomeService
 from eldoria.features.xp.xp_service import XpService
+from eldoria.features.ticketing.ticketing_service import TicketingService
 
 
 @dataclass(slots=True) 
@@ -20,6 +21,7 @@ class Services:
     temp_voice: TempVoiceService
     welcome: WelcomeService
     xp: XpService
+    ticketing: TicketingService
 
     def __len__(self) -> int:
         """Retourne le nombre de services définis dans cette classe."""

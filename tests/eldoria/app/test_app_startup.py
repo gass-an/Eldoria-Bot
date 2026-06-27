@@ -130,6 +130,7 @@ def test_init_services_assigns_services_and_returns_len(monkeypatch):
     monkeypatch.setattr(mod, "TempVoiceService", lambda: ("temp_voice",), raising=True)
     monkeypatch.setattr(mod, "WelcomeService", lambda: ("welcome",), raising=True)
     monkeypatch.setattr(mod, "XpService", lambda: ("xp",), raising=True)
+    monkeypatch.setattr(mod, "TicketingService", lambda: ("ticketing",), raising=True)
 
     # Services(...) -> on retourne un objet avec __len__
     created = {}
@@ -138,9 +139,17 @@ def test_init_services_assigns_services_and_returns_len(monkeypatch):
 
     n = mod.init_services(bot)
 
-    assert n == 6
+    assert n == 7
     assert bot._services is not None
-    assert set(created.keys()) == {"duel", "role", "save", "temp_voice", "welcome", "xp"}
+    assert set(created.keys()) == {
+        "duel",
+        "role",
+        "save",
+        "temp_voice",
+        "welcome",
+        "xp",
+        "ticketing",
+    }
 
 
 # ----------------------------
@@ -163,6 +172,12 @@ def test_startup_calls_steps_in_order_and_runs_actions(monkeypatch):
     monkeypatch.setattr(mod, "cleanup_temp_channels", lambda b: calls.append(("cleanup", b)), raising=True)
     monkeypatch.setattr(mod, "init_games", lambda: calls.append(("init_games", None)), raising=True)
     monkeypatch.setattr(mod, "init_duel_ui", lambda: calls.append(("init_duel_ui", None)), raising=True)
+    monkeypatch.setattr(
+        mod,
+        "init_ticket_ui",
+        lambda b: calls.append(("init_ticket_ui", b)),
+        raising=True,
+    )
     monkeypatch.setattr(mod, "run_tests", fake_run_tests, raising=True)
 
     # Fake step : on capture les paramètres, et on exécute action() pour simuler le vrai comportement
@@ -184,6 +199,7 @@ def test_startup_calls_steps_in_order_and_runs_actions(monkeypatch):
         ("Nettoyage des channels temporaires", False),
         ("Initialisation des jeux de duel", False),
         ("Initialisation UI duel", False),
+        ("Initialisation UI ticketing", False),
     ]
 
     
@@ -195,4 +211,5 @@ def test_startup_calls_steps_in_order_and_runs_actions(monkeypatch):
         ("cleanup", bot),
         ("init_games", None),
         ("init_duel_ui", None),
+        ("init_ticket_ui", bot),
     ]

@@ -11,8 +11,9 @@ def test_services_len_is_number_of_fields():
         temp_voice=object(),
         welcome=object(),
         xp=object(),
+        ticketing=object(),
     )
-    assert len(s) == 6
+    assert len(s) == 7
 
 
 def test_services_stores_attributes():
@@ -22,6 +23,7 @@ def test_services_stores_attributes():
     temp_voice = object()
     welcome = object()
     xp = object()
+    ticketing = object()
 
     s = Services(
         duel=duel,
@@ -30,6 +32,7 @@ def test_services_stores_attributes():
         temp_voice=temp_voice,
         welcome=welcome,
         xp=xp,
+        ticketing=ticketing,
     )
 
     assert s.duel is duel
@@ -38,6 +41,7 @@ def test_services_stores_attributes():
     assert s.temp_voice is temp_voice
     assert s.welcome is welcome
     assert s.xp is xp
+    assert s.ticketing is ticketing
 
 
 def test_services_is_slots_dataclass_no_dict_and_no_new_attrs():
@@ -48,6 +52,7 @@ def test_services_is_slots_dataclass_no_dict_and_no_new_attrs():
         temp_voice=object(),
         welcome=object(),
         xp=object(),
+        ticketing=object(),
     )
 
     # slots => pas de __dict__

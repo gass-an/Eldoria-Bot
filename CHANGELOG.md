@@ -8,11 +8,12 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Système de ticketing
 
 ### Changed
+- Changement du nom des salons temporaires : "Salon de {user}" -> "<creation_channel_name> de <member.display_name>"
 
 ### Fixed
-- Changement du nom des salons temporaires : "Salon de {user}" -> "<creation_channel_name> de <member.display_name>"
 
 ### Notes
 
