@@ -29,6 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Copier le code source de l'application
 COPY src ./src
+COPY resources ./resources
 
 # Donner les droits de lecture/écriture sur l'application à l'utilisateur non privilégié
 RUN chown -R appuser:appuser /app
