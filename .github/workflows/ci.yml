@@ -2,12 +2,21 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/eldoria-bot
+
+concurrency:
+  group: eldoria-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
@@ -39,7 +48,7 @@ jobs:
           files: ./coverage.xml
 
   docker_build:
-    name: Docker build (prod image)
+    name: Docker build check
     runs-on: ubuntu-latest
     needs: tests
 
@@ -47,5 +56,71 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t eldoria-bot:ci .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image without push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: eldoria-bot:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    needs: tests
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd Bot_discord/Eldoria-Bot/
+            sed -i "s/^APP_VERSION=.*/APP_VERSION=${{ github.ref_name }}/" .env
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
