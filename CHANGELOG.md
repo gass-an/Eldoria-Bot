@@ -10,8 +10,10 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Added
 
 ### Changed
+- Mise en place de la CI/CD Github Actions (gestion image docker et déploiement sur VPS)
 
 ### Fixed
+- Sécurité et Performance du Dockerfile
 
 ### Notes
 
@@ -22,7 +24,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 - Système de ticketing
 
 ### Changed
-- Changement du nom des salons temporaires : "Salon de {user}" -> "<creation_channel_name> de <member.display_name>"
+- Changement du nom des salons temporaires : `Salon de {user}` -> `<creation_channel_name> de <member.display_name>`
 
 ## [0.6.1] - 2026-03-01
 
