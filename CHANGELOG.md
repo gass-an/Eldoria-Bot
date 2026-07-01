@@ -10,13 +10,19 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Notes
+
+
+## [0.6.3] - 2026-07-01
+
+### Changed
 - Mise en place de la CI/CD Github Actions (gestion image docker et déploiement sur VPS)
 
 ### Fixed
 - Sécurité et Performance du Dockerfile
-
-### Notes
-
 
 ## [0.6.2] - 2026-06-27
 
