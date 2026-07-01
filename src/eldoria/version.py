@@ -5,4 +5,4 @@ CE FICHIER NE DOIT ETRE MIS A JOUR QUE PAR LE SCRIPT DE RELEASE, NE PAS LE MODIF
 """
 from typing import Final
 
-VERSION: Final[str] = "0.6.3"
+VERSION: Final[str] = "0.6.4"
