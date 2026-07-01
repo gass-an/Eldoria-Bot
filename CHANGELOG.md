@@ -12,7 +12,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Changed
 
 ### Fixed
-
+- Assets dans l'image Docker 
 ### Notes
 
 
