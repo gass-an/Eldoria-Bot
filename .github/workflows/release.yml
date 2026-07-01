@@ -121,7 +121,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-            cd Bot_discord/Eldoria-Bot/
+            cd /opt/eldoria-bot
             sed -i "s/^APP_VERSION=.*/APP_VERSION=${{ github.ref_name }}/" .env
             docker compose pull
             docker compose up -d
