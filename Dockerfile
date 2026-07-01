@@ -28,8 +28,9 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copier le code source de l'application
-COPY src ./src
 COPY resources ./resources
+COPY assets ./assets
+COPY src ./src
 
 # Donner les droits de lecture/écriture sur l'application à l'utilisateur non privilégié
 RUN chown -R appuser:appuser /app
