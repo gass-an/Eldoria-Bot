@@ -10,8 +10,10 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ### Added
 
 ### Changed
+- séparation des docker-compose dev et prod
 
 ### Fixed
+- amélioration des scripts de release (vérification / rollback / idempotence)
 
 ### Notes
 
