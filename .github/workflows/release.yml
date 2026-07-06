@@ -123,6 +123,6 @@ jobs:
             set -e
             cd /opt/eldoria-bot
             sed -i "s/^APP_VERSION=.*/APP_VERSION=${{ github.ref_name }}/" .env
-            docker compose pull
-            docker compose up -d
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
             docker image prune -f

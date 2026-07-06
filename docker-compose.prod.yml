@@ -1,9 +1,6 @@
 services:
   eldoria:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: eldoria-bot:local
+    image: ghcr.io/gass-an/eldoria-bot:${APP_VERSION}
     container_name: eldoria-bot
     restart: unless-stopped
     env_file:
