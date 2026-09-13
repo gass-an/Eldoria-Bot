@@ -76,6 +76,7 @@ class FakeCtx:
         self.deferred = False
         self.defer_ephemeral = False
         self.responded: list[dict[str, Any]] = []
+        self.modals: list[object] = []
 
     async def defer(self, ephemeral: bool = False, **_kwargs):
         self.deferred = True
@@ -83,6 +84,9 @@ class FakeCtx:
 
     async def respond(self, content: str | None = None, ephemeral: bool = False, **kwargs):
         self.responded.append({"content": content, "ephemeral": ephemeral, **kwargs})
+
+    async def send_modal(self, modal: object) -> None:
+        self.modals.append(modal)
 
 
 @dataclass

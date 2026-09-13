@@ -5,7 +5,9 @@
         "commands": {
             "ping": "Teste si le bot répond correctement.",
             "help": "Affiche le menu d'aide interactif avec les commandes que tu peux utiliser.",
-            "version": "Affiche la version actuelle du bot."
+            "version": "Affiche la version actuelle du bot.",
+            "ticketing" : "(Admin) Configure le système de ticketing",
+            "embed": "(Admin) Crée et publie un embed dans le salon choisi."
             }
         },
 

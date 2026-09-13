@@ -110,6 +110,7 @@ class FakeChannel(discord.abc.Messageable, discord.abc.GuildChannel):  # type: i
         class _Perms:
             def __init__(self, send_messages: bool):
                 self.send_messages = send_messages
+                self.mention_everyone = True
 
         return _Perms(send_messages=self._can_send)
 
