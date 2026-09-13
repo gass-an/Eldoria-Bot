@@ -6,6 +6,7 @@ from eldoria.config import SAVE_ENABLED
 
 _base_extensions: list[str] = [
     "eldoria.extensions.core",
+    "eldoria.extensions.embed",
     "eldoria.extensions.xp",
     "eldoria.extensions.xp_voice",
     "eldoria.extensions.duels",

@@ -185,6 +185,10 @@ def install_discord_stub() -> None:
         success = "success"
         danger = "danger"
 
+    class InputTextStyle:
+        short = "short"
+        long = "long"
+
     ui_mod = ModuleType("discord.ui")
 
     class View:
@@ -261,12 +265,14 @@ def install_discord_stub() -> None:
             required: bool = True,
             min_length: int = 0,
             max_length: int = 0,
+            style=None,
         ):
             self.label = label
             self.placeholder = placeholder
             self.required = required
             self.min_length = min_length
             self.max_length = max_length
+            self.style = style
             self.value: str | None = None
 
     class Modal:
@@ -522,6 +528,7 @@ def install_discord_stub() -> None:
     discord_mod.abc.GuildChannel = GuildChannel
 
     discord_mod.ButtonStyle = ButtonStyle
+    discord_mod.InputTextStyle = InputTextStyle
     discord_mod.ui = ui_mod
     discord_mod.ext = ext_mod
     discord_mod.Intents = Intents
@@ -551,5 +558,4 @@ def install_discord_stub() -> None:
     discord_mod.File = FakeFile
     discord_mod.Embed = FakeEmbed
     discord_mod.Color = FakeColor
-
 

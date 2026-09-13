@@ -8,6 +8,7 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Ajout des embeds personnalisés par les administrateurs
 
 ### Changed
 - séparation des docker-compose dev et prod
