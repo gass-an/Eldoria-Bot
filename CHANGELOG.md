@@ -8,6 +8,17 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Notes
+
+
+## [0.6.5] - 2026-09-14
+
+### Added
 - Ajout des embeds personnalisés par les administrateurs
 
 ### Changed
@@ -15,9 +26,6 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Fixed
 - amélioration des scripts de release (vérification / rollback / idempotence)
-
-### Notes
-
 
 ## [0.6.4] - 2026-07-01
 
