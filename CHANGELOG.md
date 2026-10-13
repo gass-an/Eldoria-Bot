@@ -8,8 +8,10 @@ et le versioning suit [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Ajout de la commande administrateur `/close` pour archiver les tickets en lecture seule.
 
 ### Changed
+- Fiabilisation de la cohérence Discord/SQLite et des permissions lors de l'archivage des tickets.
 
 ### Fixed
 

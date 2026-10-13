@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
+
+from eldoria.db import connection
 from eldoria.db import schema as mod
 from tests._fakes import Conn, ConnCM
 
@@ -28,6 +31,7 @@ def test_migrate_db_no_xp_config_table_noop(monkeypatch):
     # seulement les inspections de schéma
     assert conn.executed == [
         "PRAGMA table_info(xp_config);",
+        "PRAGMA table_info(ticketing_config);",
         "PRAGMA table_info(tickets);",
     ]
 
@@ -140,6 +144,10 @@ def test_migrate_db_adds_ticket_number_to_existing_table(monkeypatch):
                 from tests._fakes import Cursor
 
                 return Cursor(rows=[(0, "id", "INTEGER", 0, None, 1)])
+            if "table_info(ticketing_config)" in sql:
+                from tests._fakes import Cursor
+
+                return Cursor(rows=[])
             from tests._fakes import Cursor
 
             return Cursor(row=(1,))
@@ -152,3 +160,82 @@ def test_migrate_db_adds_ticket_number_to_existing_table(monkeypatch):
     sql = "\n".join(conn.executed)
     assert "ALTER TABLE tickets ADD COLUMN ticket_number INTEGER;" in sql
     assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_guild_number" in sql
+
+
+def test_migrate_db_adds_archive_category_without_losing_config(monkeypatch):
+    class TableAwareConn(Conn):
+        def execute(self, sql: str):
+            self.executed.append(sql)
+            from tests._fakes import Cursor
+
+            if "table_info(ticketing_config)" in sql:
+                return Cursor(rows=[(0, "guild_id", "INTEGER", 1, None, 1)])
+            return Cursor(rows=[])
+
+    conn = TableAwareConn()
+    monkeypatch.setattr(mod, "get_conn", lambda: ConnCM(conn), raising=True)
+
+    mod.migrate_db()
+
+    assert any(
+        "ALTER TABLE ticketing_config ADD COLUMN archive_category_id INTEGER NOT NULL DEFAULT 0;"
+        in sql
+        for sql in conn.executed
+    )
+
+
+def test_real_sqlite_archive_category_migration_is_lossless_and_idempotent(
+    tmp_path, monkeypatch
+):
+    db_path = tmp_path / "old-ticketing.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE ticketing_config (
+                guild_id INTEGER NOT NULL PRIMARY KEY,
+                enabled INTEGER NOT NULL DEFAULT 0,
+                category_id INTEGER NOT NULL,
+                open_channel_id INTEGER NOT NULL
+            );
+            INSERT INTO ticketing_config VALUES (42, 1, 100, 101);
+
+            CREATE TABLE ticket_sequences (
+                guild_id INTEGER NOT NULL PRIMARY KEY,
+                next_number INTEGER NOT NULL
+            );
+            INSERT INTO ticket_sequences VALUES (42, 18);
+
+            CREATE TABLE tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                ticket_number INTEGER,
+                channel_id INTEGER NOT NULL,
+                owner_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                closed_at INTEGER
+            );
+            INSERT INTO tickets VALUES (1, 42, 17, 500, 600, 'OPEN', 1234, NULL);
+            """
+        )
+
+    monkeypatch.setattr(connection, "DB_PATH", str(db_path))
+    mod.migrate_db()
+    mod.migrate_db()
+
+    with sqlite3.connect(db_path) as conn:
+        config = conn.execute(
+            "SELECT enabled, category_id, open_channel_id, archive_category_id "
+            "FROM ticketing_config WHERE guild_id=42"
+        ).fetchone()
+        sequence = conn.execute(
+            "SELECT next_number FROM ticket_sequences WHERE guild_id=42"
+        ).fetchone()
+        ticket = conn.execute(
+            "SELECT ticket_number, channel_id, owner_id, status, created_at, closed_at "
+            "FROM tickets WHERE id=1"
+        ).fetchone()
+
+    assert config == (1, 100, 101, 0)
+    assert sequence == (18,)
+    assert ticket == (17, 500, 600, "OPEN", 1234, None)
