@@ -14,8 +14,11 @@ import discord
 from discord.ext import commands
 
 from eldoria.app.bot import EldoriaBot
-from eldoria.ui.common.embeds.colors import EMBED_COLOUR_VALIDATION
 from eldoria.ui.ticketing.create_view import TicketCreateView
+from eldoria.ui.ticketing.embeds import (
+    build_ticket_closed_embed,
+    build_ticket_request_embed,
+)
 from eldoria.ui.ticketing.panel import TicketingAdminView
 from eldoria.utils.guards import require_guild_ctx
 from eldoria.utils.timestamp import now_ts
@@ -325,16 +328,10 @@ class Ticketing(commands.Cog):
                 )
                 return
 
-            embed = discord.Embed(
-                title="Ticket fermé",
-                description=(
-                    "Ce ticket a été archivé.\n\n"
-                    f"- Fermé par : {ctx.author.mention}\n"
-                    f"- Date de fermeture : <t:{closed_at}:F>\n"
-                    f"- Numéro : #{number:03d}\n\n"
-                    "Ce ticket est désormais conservé en lecture seule dans les archives."
-                ),
-                color=EMBED_COLOUR_VALIDATION,
+            embed = build_ticket_closed_embed(
+                closed_by_mention=ctx.author.mention,
+                closed_at=closed_at,
+                ticket_number=number,
             )
             try:
                 await channel.send(
@@ -488,7 +485,7 @@ class Ticketing(commands.Cog):
                 )
 
             # send (ou éditer) le message présentant le bouton
-            embed = discord.Embed(title="📜 Envoyer une requête", description="Adresse ton message aux gardiens du serveur en ouvrant un ticket privé. Nous te répondrons dans les meilleurs délais.", color=discord.Color.blurple())
+            embed = build_ticket_request_embed()
             # send as normal message (no ephemeral)
             await open_channel.send(embed=embed, view=TicketCreateView())
         except discord.Forbidden:
