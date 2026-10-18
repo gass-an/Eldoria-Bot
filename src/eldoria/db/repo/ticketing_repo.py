@@ -26,15 +26,21 @@ def tk_ensure_defaults(
 def tk_get_config(guild_id: int) -> dict[str, Any]:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT enabled, category_id, open_channel_id FROM ticketing_config WHERE guild_id=?",
+            "SELECT enabled, category_id, open_channel_id, archive_category_id "
+            "FROM ticketing_config WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
 
     if not row:
         tk_ensure_defaults(guild_id, enabled=False, category_id=0, open_channel_id=0)
-        return {"enabled": False, "category_id": 0, "open_channel_id": 0}
+        return {"enabled": False, "category_id": 0, "open_channel_id": 0, "archive_category_id": 0}
 
-    return {"enabled": bool(row[0]), "category_id": int(row[1]), "open_channel_id": int(row[2])}
+    return {
+        "enabled": bool(row[0]),
+        "category_id": int(row[1]),
+        "open_channel_id": int(row[2]),
+        "archive_category_id": int(row[3]),
+    }
 
 
 def tk_set_config(
@@ -43,6 +49,7 @@ def tk_set_config(
     enabled: bool | None = None,
     category_id: int | None = None,
     open_channel_id: int | None = None,
+    archive_category_id: int | None = None,
 ) -> None:
     sets: list[str] = []
     params: list[int] = []
@@ -58,6 +65,10 @@ def tk_set_config(
     if open_channel_id is not None:
         sets.append("open_channel_id=?")
         params.append(int(open_channel_id))
+
+    if archive_category_id is not None:
+        sets.append("archive_category_id=?")
+        params.append(int(archive_category_id))
 
     if not sets:
         return
@@ -85,6 +96,11 @@ def tk_set_category_id(guild_id: int, category_id: int) -> None:
 
 def tk_set_open_channel_id(guild_id: int, open_channel_id: int) -> None:
     tk_set_config(guild_id, open_channel_id=open_channel_id)
+
+
+def tk_set_archive_category_id(guild_id: int, category_id: int) -> None:
+    """Mémorise la catégorie d'archives, indépendamment de son nom."""
+    tk_set_config(guild_id, archive_category_id=category_id)
 
 
 def tk_is_enabled(guild_id: int) -> bool:
@@ -153,3 +169,39 @@ def tk_record_ticket(
             """,
             (guild_id, ticket_number, channel_id, owner_id, created_at),
         )
+
+
+def tk_get_ticket_by_channel(guild_id: int, channel_id: int) -> dict[str, Any] | None:
+    """Retourne le ticket identifié par son salon Discord persistant."""
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, guild_id, ticket_number, channel_id, owner_id, status,
+                   created_at, closed_at
+            FROM tickets WHERE guild_id=? AND channel_id=?
+            """,
+            (guild_id, channel_id),
+        ).fetchone()
+    if row is None:
+        return None
+    keys = (
+        "id",
+        "guild_id",
+        "ticket_number",
+        "channel_id",
+        "owner_id",
+        "status",
+        "created_at",
+        "closed_at",
+    )
+    return dict(zip(keys, row, strict=True))
+
+
+def tk_close_ticket(ticket_id: int, closed_at: int) -> bool:
+    """Clôt atomiquement un ticket encore ouvert."""
+    with get_conn() as conn:
+        cursor = conn.execute(
+            "UPDATE tickets SET status='CLOSED', closed_at=? WHERE id=? AND status='OPEN'",
+            (closed_at, ticket_id),
+        )
+    return cursor.rowcount == 1

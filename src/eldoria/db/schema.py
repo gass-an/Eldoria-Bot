@@ -41,6 +41,13 @@ def migrate_db() -> None:
             conn.execute("UPDATE xp_config SET voice_levelup_channel_id=COALESCE(voice_levelup_channel_id, 0);")
 
         # --- tickets : conserve le numéro public pour les bases existantes ---
+        config_cols = _table_columns(conn, "ticketing_config")
+        if config_cols and "archive_category_id" not in config_cols:
+            conn.execute(
+                "ALTER TABLE ticketing_config ADD COLUMN archive_category_id "
+                "INTEGER NOT NULL DEFAULT 0;"
+            )
+
         ticket_cols = _table_columns(conn, "tickets")
         if ticket_cols and "ticket_number" not in ticket_cols:
             # Nullable uniquement pour permettre la migration d'éventuelles anciennes lignes.
@@ -185,7 +192,8 @@ def init_db() -> None:
             guild_id        INTEGER NOT NULL PRIMARY KEY,
             enabled         INTEGER NOT NULL DEFAULT 0,
             category_id     INTEGER NOT NULL,
-            open_channel_id INTEGER NOT NULL
+            open_channel_id INTEGER NOT NULL,
+            archive_category_id INTEGER NOT NULL DEFAULT 0
         );
 
         -- Séquence indépendante par serveur. Elle survit à une reconfiguration

@@ -55,3 +55,24 @@ def test_record_ticket_persists_number_and_enforces_uniqueness_per_guild(ticket_
 
     with pytest.raises(sqlite3.IntegrityError):
         ticketing_repo.tk_record_ticket(10, 1, 101, 1001, 123458)
+
+
+def test_ticket_lookup_and_close_are_atomic(ticket_db):
+    ticketing_repo.tk_record_ticket(10, 7, 700, 1000, 123456)
+
+    ticket = ticketing_repo.tk_get_ticket_by_channel(10, 700)
+    assert ticket is not None
+    assert ticket["ticket_number"] == 7
+    assert ticket["status"] == "OPEN"
+    assert ticketing_repo.tk_close_ticket(ticket["id"], 123999) is True
+    assert ticketing_repo.tk_close_ticket(ticket["id"], 124000) is False
+
+    closed = ticketing_repo.tk_get_ticket_by_channel(10, 700)
+    assert closed is not None
+    assert closed["status"] == "CLOSED"
+    assert closed["closed_at"] == 123999
+
+
+def test_archive_category_id_is_persisted(ticket_db):
+    ticketing_repo.tk_set_archive_category_id(10, 987)
+    assert ticketing_repo.tk_get_config(10)["archive_category_id"] == 987
